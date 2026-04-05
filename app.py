@@ -215,25 +215,16 @@ def render_model_tree():
             unsafe_allow_html=True
         )
         for item in section["children"]:
-            is_active  = item["id"] == active
-            active_cls = "active" if is_active else ""
-            is_new     = item["module"] in ("M5", "M8")
-            badge      = (
-                ' <span style="font-size:0.65em;background:#F3E5F5;'
-                'color:#4A148C;padding:1px 5px;border-radius:8px;'
-                'font-weight:700;">NEW</span>'
-            ) if is_new else ""
+            is_new    = item["module"] in ("M5", "M8")
+            new_tag   = " [NEW]" if is_new else ""
+            btn_label = f'{item["icon"]}  {item["label"]}{new_tag}'
 
-            # Un seul bouton Streamlit stylisé directement
-            btn_label = f'{item["icon"]}  {item["label"]}{badge}'
-
-            clicked = st.button(
+            if st.button(
                 btn_label,
                 key=f"tree_{item['id']}",
                 use_container_width=True,
                 help=f"Ouvrir : {item['label']}"
-            )
-            if clicked:
+            ):
                 navigate_to(item["id"], item["module"])
                 st.rerun()
 
