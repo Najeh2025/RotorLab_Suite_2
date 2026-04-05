@@ -141,7 +141,7 @@ def navigate_to(node_id: str, module: str):
     st.session_state["active_node"]   = node_id
     st.session_state["active_module"] = module
 
-def get_rotor_status() -> tuple[str, str]:
+def get_rotor_status():
     """Retourne (label, couleur) du statut du rotor actif."""
     r = st.session_state.get("rotor")
     if r is None:
