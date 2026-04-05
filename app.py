@@ -2,7 +2,6 @@
 # RotorLab Suite 2.0 — Application principale
 # Pr. Najeh Ben Guedria — ISTLS, Université de Sousse
 # Architecture : 3 panneaux (Model Tree | Settings | Graphics)
-# Inspirée de l'interface COMSOL Multiphysics Rotordynamics
 # =============================================================================
 
 import streamlit as st
