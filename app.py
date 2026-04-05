@@ -184,54 +184,113 @@ def render_header():
 # COMPOSANT : MODEL TREE (panneau gauche)
 # =============================================================================
 def render_model_tree():
-    """Arbre de navigation style COMSOL dans le panneau gauche."""
-    st.markdown('<div class="rl-tree-panel">', unsafe_allow_html=True)
+    """Arbre de navigation style COMSOL — panneau gauche."""
 
     active = st.session_state["active_node"]
+
+    # CSS pour masquer le label Streamlit des boutons et les styliser comme l'arbre
+    st.markdown("""
+    <style>
+    /* Masquer le fond et la bordure par défaut des boutons de l'arbre */
+    div[data-testid="stVerticalBlock"] div.rl-tree-panel
+        div[data-testid="stButton"] > button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        visibility: hidden !important;
+        position: absolute !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     for section in MODEL_TREE:
         # En-tête de section
         st.markdown(
-            f'<div class="rl-tree-section">{section["icon"]} {section["label"]}</div>',
+            f'<div class="rl-tree-section">'
+            f'{section["icon"]} {section["label"]}'
+            f'</div>',
             unsafe_allow_html=True
         )
-        # Items de la section
         for item in section["children"]:
-            is_active   = item["id"] == active
-            active_cls  = "active" if is_active else ""
-            # Badge "Nouveau" pour les modules v2.0 uniquement
-            is_new = item["module"] in ("M5", "M8")
-            badge  = ' <span style="font-size:0.65em;background:#F3E5F5;color:#4A148C;padding:1px 5px;border-radius:8px;font-weight:700;">NEW</span>' if is_new else ""
+            is_active  = item["id"] == active
+            active_cls = "active" if is_active else ""
+            is_new     = item["module"] in ("M5", "M8")
+            badge      = (
+                ' <span style="font-size:0.65em;background:#F3E5F5;'
+                'color:#4A148C;padding:1px 5px;border-radius:8px;'
+                'font-weight:700;">NEW</span>'
+            ) if is_new else ""
 
-            st.markdown(
-                f'<div class="rl-tree-item {active_cls}">'
-                f'<span class="icon">{item["icon"]}</span>'
-                f'{item["label"]}{badge}'
-                f'</div>',
-                unsafe_allow_html=True
+            # Un seul bouton Streamlit stylisé directement
+            btn_label = f'{item["icon"]}  {item["label"]}{badge}'
+
+            clicked = st.button(
+                btn_label,
+                key=f"tree_{item['id']}",
+                use_container_width=True,
+                help=f"Ouvrir : {item['label']}"
             )
-            # Bouton invisible par-dessus (astuce Streamlit)
-            if st.button(
-                label    = "  ",
-                key      = f"tree_{item['id']}",
-                help     = f"Ouvrir : {item['label']}",
-                use_container_width = True,
-            ):
+            if clicked:
                 navigate_to(item["id"], item["module"])
                 st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Style des boutons de l'arbre : les rendre propres
+    st.markdown(f"""
+    <style>
+    /* Tous les boutons de l'arbre */
+    [data-testid="stSidebar"] div[data-testid="stButton"] > button,
+    div[data-testid="stVerticalBlock"] div[data-testid="stButton"] > button {{
+        text-align: left !important;
+        justify-content: flex-start !important;
+        font-size: 0.82em !important;
+        font-weight: 400 !important;
+        color: var(--rl-text, #1A1A2E) !important;
+        background: transparent !important;
+        border: none !important;
+        border-left: 3px solid transparent !important;
+        border-radius: 0 !important;
+        padding: 5px 10px 5px 20px !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        transition: all 0.15s !important;
+    }}
+    div[data-testid="stVerticalBlock"] div[data-testid="stButton"] > button:hover {{
+        background: rgba(31,92,139,0.08) !important;
+        border-left-color: rgba(31,92,139,0.3) !important;
+        color: #1F5C8B !important;
+    }}
+    /* Bouton actif (nœud sélectionné) — on cible via la clé active */
+    button[data-testid="baseButton-secondary"][aria-label="tree_{active}"],
+    button[kind="secondary"][aria-label="tree_{active}"] {{
+        background: rgba(31,92,139,0.12) !important;
+        border-left-color: #1F5C8B !important;
+        color: #1F5C8B !important;
+        font-weight: 600 !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
-    # ── Actions rapides en bas de l'arbre ───────────────────────────────
+    # ── Actions rapides ───────────────────────────────────────────────────
     st.markdown("---")
     st.caption("Actions rapides")
 
     if ROSS_AVAILABLE:
-        if st.button("📂 Charger compresseur", use_container_width=True, key="tree_load_comp"):
+        if st.button(
+            "📂 Charger compresseur",
+            use_container_width=True,
+            key="tree_load_comp"
+        ):
             _load_compressor_example()
 
-    if st.session_state["rotor"] is not None:
-        if st.button("🗑️ Réinitialiser le modèle", use_container_width=True, key="tree_reset"):
+    if st.session_state.get("rotor") is not None:
+        if st.button(
+            "🗑️ Réinitialiser le modèle",
+            use_container_width=True,
+            key="tree_reset"
+        ):
             for key in ["rotor", "res_static", "res_modal", "res_campbell",
                         "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
                 st.session_state[key] = None
