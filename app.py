@@ -57,7 +57,7 @@ def init_session_state():
         # Navigation
         "active_node"   : "shaft",          # Nœud actif dans le Model Tree
         "active_module" : "M1",             # Module actif
-        "nav_mode"      : "simulation",     # "simulation" | "tutorial" | "dashboard"
+        "nav_mode"      : "dashboard",     # "simulation" | "tutorial" | "dashboard"
 
         # Rotor & Modèle
         "rotor"         : None,             # Objet rs.Rotor actif
