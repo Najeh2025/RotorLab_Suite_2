@@ -1,0 +1,255 @@
+/* RotorLab Suite 2.0 — Thème professionnel COMSOL-inspired */
+
+/* ── Variables globales ──────────────────────────────────────────────── */
+:root {
+    --rl-primary:    #1F5C8B;
+    --rl-secondary:  #C55A11;
+    --rl-success:    #22863A;
+    --rl-danger:     #C00000;
+    --rl-bg-panel:   #FAFBFD;
+    --rl-bg-tree:    #F2F5F9;
+    --rl-border:     #D0D8E4;
+    --rl-text:       #1A1A2E;
+    --rl-text-muted: #6B7280;
+}
+
+/* ── Suppression padding Streamlit par défaut ───────────────────────── */
+.block-container {
+    padding-top: 0.5rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    max-width: 100% !important;
+}
+
+/* ── Header de l'application ────────────────────────────────────────── */
+.rl-header {
+    background: linear-gradient(135deg, #1F5C8B 0%, #154F7A 100%);
+    padding: 8px 16px;
+    border-radius: 0 0 8px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.rl-header-title {
+    color: white;
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.rl-header-sub {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.75em;
+}
+.rl-header-badge {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+
+/* ── Panneau gauche : Model Tree ────────────────────────────────────── */
+.rl-tree-panel {
+    background: var(--rl-bg-tree);
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-height: 80vh;
+}
+.rl-tree-section {
+    padding: 4px 10px 2px 10px;
+    font-size: 0.68em;
+    font-weight: 700;
+    color: var(--rl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+}
+.rl-tree-item {
+    padding: 5px 10px 5px 20px;
+    font-size: 0.82em;
+    color: var(--rl-text);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.rl-tree-item:hover {
+    background: rgba(31,92,139,0.08);
+    border-left-color: rgba(31,92,139,0.3);
+}
+.rl-tree-item.active {
+    background: rgba(31,92,139,0.12);
+    border-left-color: var(--rl-primary);
+    color: var(--rl-primary);
+    font-weight: 600;
+}
+.rl-tree-item .icon {
+    font-size: 0.85em;
+    width: 16px;
+    text-align: center;
+}
+
+/* ── Panneau central : Settings ─────────────────────────────────────── */
+.rl-settings-panel {
+    background: white;
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 80vh;
+}
+.rl-settings-title {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: var(--rl-primary);
+    border-bottom: 2px solid var(--rl-primary);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+.rl-section-header {
+    background: #EBF4FB;
+    border-left: 4px solid var(--rl-primary);
+    padding: 5px 10px;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--rl-primary);
+    border-radius: 0 4px 4px 0;
+    margin: 10px 0 6px 0;
+    cursor: pointer;
+}
+.rl-field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid #F0F4FF;
+    font-size: 0.8em;
+}
+.rl-field-label { color: var(--rl-text-muted); }
+.rl-field-value {
+    font-weight: 600;
+    color: var(--rl-text);
+    background: #F0F4FF;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* ── Panneau droit : Graphics ────────────────────────────────────────── */
+.rl-graphics-panel {
+    background: white;
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 80vh;
+}
+.rl-graphics-title {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--rl-text-muted);
+    border-bottom: 1px solid var(--rl-border);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Barre de log / messages ─────────────────────────────────────────── */
+.rl-log-bar {
+    background: #1E1E2E;
+    color: #A8B5C8;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: monospace;
+    font-size: 0.75em;
+    margin-top: 8px;
+    border-top: 2px solid var(--rl-primary);
+}
+.rl-log-ok   { color: #4CAF50; }
+.rl-log-warn { color: #FF9800; }
+.rl-log-err  { color: #F44336; }
+
+/* ── Bouton Run principal ────────────────────────────────────────────── */
+.stButton > button[kind="primary"] {
+    background-color: var(--rl-primary) !important;
+    border-color: var(--rl-primary) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #154F7A !important;
+}
+
+/* ── Métriques résultat ──────────────────────────────────────────────── */
+.rl-metric-card {
+    background: var(--rl-bg-panel);
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: center;
+}
+.rl-metric-label {
+    font-size: 0.72em;
+    color: var(--rl-text-muted);
+    margin-bottom: 2px;
+}
+.rl-metric-value {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--rl-primary);
+}
+.rl-metric-unit {
+    font-size: 0.7em;
+    color: var(--rl-text-muted);
+}
+
+/* ── Cards info/warning/danger ──────────────────────────────────────── */
+.rl-card-ok      { background:#F0FFF4; border-left:4px solid #22863A; border-radius:6px; padding:10px 14px; margin:6px 0; }
+.rl-card-warn    { background:#FFF8E1; border-left:4px solid #F9A825; border-radius:6px; padding:10px 14px; margin:6px 0; }
+.rl-card-danger  { background:#FFE6E6; border-left:4px solid #C00000; border-radius:6px; padding:10px 14px; margin:6px 0; }
+.rl-card-info    { background:#EBF4FB; border-left:4px solid #1F5C8B; border-radius:6px; padding:10px 14px; margin:6px 0; }
+
+/* ── Badges normes ───────────────────────────────────────────────────── */
+.rl-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72em;
+    font-weight: 700;
+    margin: 2px;
+}
+.rl-badge-ok      { background:#E8F5E9; color:#1B5E20; border:1px solid #A5D6A7; }
+.rl-badge-warn    { background:#FFF8E1; color:#E65100; border:1px solid #FFCC80; }
+.rl-badge-danger  { background:#FFEBEE; color:#B71C1C; border:1px solid #EF9A9A; }
+.rl-badge-blue    { background:#E3F2FD; color:#0D47A1; border:1px solid #90CAF9; }
+.rl-badge-new     { background:#F3E5F5; color:#4A148C; border:1px solid #CE93D8; }
+
+/* ── Onglets (tabs) ─────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px;
+    border-bottom: 2px solid var(--rl-border);
+}
+.stTabs [data-baseweb="tab"] {
+    height: 38px;
+    font-weight: 600;
+    font-size: 0.8em;
+    border-radius: 6px 6px 0 0;
+    padding: 0 16px;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: var(--rl-bg-tree);
+    border-right: 1px solid var(--rl-border);
+}
+
+/* ── Progress bar ────────────────────────────────────────────────────── */
+div[data-testid="stProgress"] > div > div {
+    background: var(--rl-primary) !important;
+}
