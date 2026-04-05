@@ -296,9 +296,9 @@ def render_log_bar():
 def render_top_nav():
     """Barre de navigation entre les 3 modes principaux."""
     modes = {
+        "dashboard" : "🏠 Tableau de Bord",
         "simulation": "🔬 Mode Simulation",
         "tutorial"  : "🎓 Mode Pédagogique",
-        "dashboard" : "🏠 Tableau de Bord",
         "copilot"   : "✨ SmartRotor Copilot",
     }
     current = st.session_state["nav_mode"]
