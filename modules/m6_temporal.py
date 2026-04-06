@@ -1,12 +1,11 @@
-**`modules/m6_temporal.py`**
-```python
 import streamlit as st
+
 
 def render_m6(col_settings, col_graphics):
     with col_settings:
-        st.markdown('<div class="rl-settings-title">⏱️ Time Response</div>',
-                    unsafe_allow_html=True)
+        st.markdown(
+            '<div class="rl-settings-title">Time Response</div>',
+            unsafe_allow_html=True
+        )
     with col_graphics:
-        st.info("🔧 Module M6 — Réponse temporelle + Waterfall 3D\n\n"
-                "Livraison Sprint 5 (Semaine 7).")
-```
+        st.info("Module M6 - Reponse temporelle + Waterfall 3D. Livraison Sprint 5.")
