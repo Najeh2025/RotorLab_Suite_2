@@ -151,44 +151,51 @@ def _cb_tree(node_id, module):
 
 def _cb_load_compressor():
     if not ROSS_AVAILABLE:
+        add_log("ROSS non disponible", "err")
         return
     try:
         comp = rs.compressor_example()
         st.session_state["rotor"]        = comp
         st.session_state["rotor_name"]   = "Compresseur centrifuge (ROSS)"
         st.session_state["rotor_source"] = "compressor"
-        shaft_data = [
+        st.session_state["active_node"]   = "shaft"
+        st.session_state["active_module"] = "M1"
+        st.session_state["nav_mode"]      = "simulation"
+
+        # Synchronisation tableaux M1
+        st.session_state["df_shaft"] = pd.DataFrame([
             {"L (m)": el.L, "id_L (m)": el.idl, "od_L (m)": el.odl,
              "id_R (m)": el.idr, "od_R (m)": el.odr}
             for el in comp.shaft_elements
-        ]
-        st.session_state["df_shaft"] = pd.DataFrame(shaft_data)
-        disk_data = [
+        ])
+        st.session_state["df_disk"] = pd.DataFrame([
             {"nœud": d.n, "Masse (kg)": d.m,
              "Id (kg.m²)": d.Id, "Ip (kg.m²)": d.Ip}
             for d in comp.disk_elements
-        ]
-        st.session_state["df_disk"] = pd.DataFrame(disk_data)
+        ])
         bear_data = []
         for b in comp.bearing_elements:
-            kxx = b.kxx[0] if hasattr(b.kxx,'__iter__') else getattr(b,'kxx',0)
-            kyy = b.kyy[0] if hasattr(b.kyy,'__iter__') else getattr(b,'kyy',0)
-            kxy = b.kxy[0] if hasattr(b.kxy,'__iter__') else getattr(b,'kxy',0)
-            cxx = b.cxx[0] if hasattr(b.cxx,'__iter__') else getattr(b,'cxx',0)
-            cyy = b.cyy[0] if hasattr(b.cyy,'__iter__') else getattr(b,'cyy',0)
+            def _get(attr):
+                v = getattr(b, attr, 0)
+                return float(v[0]) if hasattr(v, '__iter__') else float(v)
             bear_data.append({
                 "nœud": b.n, "Type": "Palier",
-                "kxx": kxx, "kyy": kyy, "kxy": kxy,
-                "cxx": cxx, "cyy": cyy
+                "kxx": _get("kxx"), "kyy": _get("kyy"),
+                "kxy": _get("kxy"), "cxx": _get("cxx"), "cyy": _get("cyy")
             })
         st.session_state["df_bear"] = pd.DataFrame(bear_data)
+
+        # Réinitialiser les résultats
         for key in ["res_static","res_modal","res_campbell","res_ucs",
                     "res_unbalance","res_freq","res_temporal"]:
             st.session_state[key] = None
+
         add_log("Compresseur chargé : {} nœuds, {:.1f} kg".format(
             len(comp.nodes), comp.m), "ok")
+
     except Exception as e:
         add_log("Erreur compresseur : {}".format(e), "err")
+        st.error("Impossible de charger le compresseur : {}".format(e))
 
 def _cb_reset_model():
     for key in ["rotor","res_static","res_modal","res_campbell","res_ucs",
