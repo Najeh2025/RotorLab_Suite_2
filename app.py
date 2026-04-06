@@ -186,107 +186,92 @@ def render_header():
 def render_model_tree():
     """Arbre de navigation style COMSOL — panneau gauche."""
 
-    active = st.session_state["active_node"]
+    active = st.session_state.get("active_node", "shaft")
 
-    # CSS pour masquer le label Streamlit des boutons et les styliser comme l'arbre
     st.markdown("""
     <style>
-    /* Masquer le fond et la bordure par défaut des boutons de l'arbre */
-    div[data-testid="stVerticalBlock"] div.rl-tree-panel
+    section[data-testid="stMain"] div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"] > button {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        height: 0 !important;
-        min-height: 0 !important;
-        visibility: hidden !important;
-        position: absolute !important;
+        text-align       : left !important;
+        justify-content  : flex-start !important;
+        font-size        : 0.82em !important;
+        font-weight      : 400 !important;
+        background       : transparent !important;
+        border           : none !important;
+        border-left      : 3px solid transparent !important;
+        border-radius    : 0 !important;
+        padding          : 5px 8px 5px 18px !important;
+        margin           : 1px 0 !important;
+        box-shadow       : none !important;
+        color            : #1A1A2E !important;
+        transition       : all 0.15s !important;
+    }
+    section[data-testid="stMain"] div[data-testid="stVerticalBlock"]
+        div[data-testid="stButton"] > button:hover {
+        background       : rgba(31,92,139,0.09) !important;
+        border-left-color: rgba(31,92,139,0.4) !important;
+        color            : #1F5C8B !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
     for section in MODEL_TREE:
-        # En-tête de section
         st.markdown(
-            f'<div class="rl-tree-section">'
-            f'{section["icon"]} {section["label"]}'
-            f'</div>',
+            '<div class="rl-tree-section">'
+            '{} {}'
+            '</div>'.format(section["icon"], section["label"]),
             unsafe_allow_html=True
         )
+
         for item in section["children"]:
+            is_active = (item["id"] == active)
             is_new    = item["module"] in ("M5", "M8")
             new_tag   = " [NEW]" if is_new else ""
-            btn_label = f'{item["icon"]}  {item["label"]}{new_tag}'
 
-            if st.button(
-                btn_label,
-                key=f"tree_{item['id']}",
-                use_container_width=True,
-                help=f"Ouvrir : {item['label']}"
-            ):
-                navigate_to(item["id"], item["module"])
-                st.rerun()
+            if is_active:
+                st.markdown(
+                    '<div style="'
+                    'background:rgba(31,92,139,0.10);'
+                    'border-left:3px solid #1F5C8B;'
+                    'padding:5px 8px 5px 18px;'
+                    'font-size:0.82em;'
+                    'font-weight:600;'
+                    'color:#1F5C8B;'
+                    'margin:1px 0;'
+                    '">{} &nbsp;{}{}</div>'.format(
+                        item["icon"], item["label"], new_tag
+                    ),
+                    unsafe_allow_html=True
+                )
+            else:
+                st.button(
+                    "{}  {}{}".format(
+                        item["icon"], item["label"], new_tag
+                    ),
+                    key="tree_{}".format(item["id"]),
+                    use_container_width=True,
+                    on_click=navigate_to,
+                    args=(item["id"], item["module"]),
+                )
 
-    # Style des boutons de l'arbre : les rendre propres
-    st.markdown(f"""
-    <style>
-    /* Tous les boutons de l'arbre */
-    [data-testid="stSidebar"] div[data-testid="stButton"] > button,
-    div[data-testid="stVerticalBlock"] div[data-testid="stButton"] > button {{
-        text-align: left !important;
-        justify-content: flex-start !important;
-        font-size: 0.82em !important;
-        font-weight: 400 !important;
-        color: var(--rl-text, #1A1A2E) !important;
-        background: transparent !important;
-        border: none !important;
-        border-left: 3px solid transparent !important;
-        border-radius: 0 !important;
-        padding: 5px 10px 5px 20px !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-        transition: all 0.15s !important;
-    }}
-    div[data-testid="stVerticalBlock"] div[data-testid="stButton"] > button:hover {{
-        background: rgba(31,92,139,0.08) !important;
-        border-left-color: rgba(31,92,139,0.3) !important;
-        color: #1F5C8B !important;
-    }}
-    /* Bouton actif (nœud sélectionné) — on cible via la clé active */
-    button[data-testid="baseButton-secondary"][aria-label="tree_{active}"],
-    button[kind="secondary"][aria-label="tree_{active}"] {{
-        background: rgba(31,92,139,0.12) !important;
-        border-left-color: #1F5C8B !important;
-        color: #1F5C8B !important;
-        font-weight: 600 !important;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # ── Actions rapides ───────────────────────────────────────────────────
     st.markdown("---")
     st.caption("Actions rapides")
 
     if ROSS_AVAILABLE:
-        if st.button(
+        st.button(
             "📂 Charger compresseur",
             use_container_width=True,
-            key="tree_load_comp"
-        ):
-            _load_compressor_example()
+            key="tree_load_comp",
+            on_click=_load_compressor_example
+        )
 
     if st.session_state.get("rotor") is not None:
-        if st.button(
-            "🗑️ Réinitialiser le modèle",
+        st.button(
+            "🗑️ Réinitialiser",
             use_container_width=True,
-            key="tree_reset"
-        ):
-            for key in ["rotor", "res_static", "res_modal", "res_campbell",
-                        "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
-                st.session_state[key] = None
-            add_log("Modèle réinitialisé", "warn")
-            st.rerun()
+            key="tree_reset",
+            on_click=_reset_model
+        )
 
 def _load_compressor_example():
     """Charge le compresseur de référence ROSS."""
@@ -321,6 +306,13 @@ def _load_compressor_example():
         add_log(f"Erreur chargement compresseur : {e}", "err")
         st.error(str(e))
 
+def _reset_model():
+    """Réinitialise le modèle et tous les résultats."""
+    for key in ["rotor", "res_static", "res_modal", "res_campbell",
+                "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
+        st.session_state[key] = None
+    st.session_state["rotor_name"] = "Nouveau rotor"
+    add_log("Modèle réinitialisé", "warn")
 # =============================================================================
 # COMPOSANT : BARRE DE LOG (bas du panneau droit)
 # =============================================================================
