@@ -350,10 +350,12 @@ def render_top_nav():
         with cols[i]:
             is_active = key == current
             btn_style = "primary" if is_active else "secondary"
-            if st.button(label, key=f"nav_{key}",
-                         use_container_width=True, type=btn_style):
-                st.session_state["nav_mode"] = key
-                st.rerun()
+            # APRÈS
+            def _set_mode(m=key):
+                st.session_state["nav_mode"] = m
+            st.button(label, key="nav_{}".format(key),
+                      use_container_width=True, type=btn_style,
+                      on_click=_set_mode)
 
 # =============================================================================
 # ROUTAGE VERS LES MODULES
@@ -506,12 +508,14 @@ def render_dashboard():
               <strong>{icon} {mid} — {title}</strong> {new_badge}<br>
               <small style="color:#6B7280;">{desc}</small>
             </div>""", unsafe_allow_html=True)
-            if st.button(f"Ouvrir {mid}", key=f"dash_{mid}",
-                         use_container_width=True, type="primary"):
-                st.session_state["active_node"]   = node
-                st.session_state["active_module"] = mid
+            # APRÈS
+            def _open_module(n=node, m=mid):
+                st.session_state["active_node"]   = n
+                st.session_state["active_module"] = m
                 st.session_state["nav_mode"]      = "simulation"
-                st.rerun()
+            st.button("Ouvrir {}".format(mid), key="dash_{}".format(mid),
+                      use_container_width=True, type="primary",
+                      on_click=_open_module)
 
 
 def render_tutorial_mode():
