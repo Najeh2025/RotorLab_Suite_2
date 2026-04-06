@@ -301,7 +301,7 @@ def _load_compressor_example():
                                   "kxx":kxx,"kyy":kyy,"kxy":kxy,"cxx":cxx,"cyy":cyy})
             st.session_state["df_bear"]  = pd.DataFrame(bear_data)
             add_log(f"Compresseur chargé : {len(comp.nodes)} nœuds, {comp.m:.1f} kg", "ok")
-        st.rerun()
+
     except Exception as e:
         add_log(f"Erreur chargement compresseur : {e}", "err")
         st.error(str(e))
