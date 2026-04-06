@@ -1,5 +1,10 @@
+# modules/ai_copilot.py — SmartRotor Copilot v2.0
+# Adapte depuis RotorLab Suite 1.0 — Pr. Najeh Ben Guedria
+# =============================================================================
+
 import streamlit as st
 import json
+import numpy as np
 
 try:
     import google.generativeai as genai
@@ -8,120 +13,146 @@ except ImportError:
     GEMINI_OK = False
 
 
+# =============================================================================
+# POINTS D'ENTREE
+# =============================================================================
 def render_copilot(col_settings, col_graphics):
+    """Copilot integre dans le layout 3 panneaux."""
     with col_settings:
         st.markdown(
             '<div class="rl-settings-title">SmartRotor Copilot</div>',
             unsafe_allow_html=True
         )
-        st.caption("Assistant IA specialise en dynamique des rotors")
-        st.markdown("---")
-        st.markdown("**Contexte injecte automatiquement :**")
-        ctx = _build_context()
-        rotor = st.session_state.get("rotor")
-        if rotor:
-            st.success("Rotor : {} noeuds, {:.2f} kg".format(
-                ctx.get("n_nodes"), ctx.get("mass_kg")))
-            if ctx.get("modal"):
-                fn = ctx["modal"]["fn_hz"]
-                st.info("Modes : " + ", ".join(
-                    "{:.1f} Hz".format(f) for f in fn))
-        else:
-            st.warning("Aucun rotor charge.")
-        st.markdown("---")
-        st.caption("Gemini : " + ("Connecte" if GEMINI_OK else "Mode offline"))
+        _render_context_panel()
 
     with col_graphics:
         _render_chat_interface()
 
 
 def render_copilot_fullscreen():
-    st.subheader("SmartRotor Copilot - Powered by Google Gemini")
+    """Copilot en mode plein ecran."""
+    st.markdown("""
+    <div style='background:#f0f7ff;padding:15px;border-left:5px solid #1F5C8B;
+    border-radius:5px;margin-bottom:20px;'>
+    <strong>SmartRotor Copilot — Powered by Gemini AI</strong><br>
+    Assistant virtuel specialise en dynamique des rotors, ROSS, API 684 et ISO 1940.
+    </div>
+    """, unsafe_allow_html=True)
+
     col1, col2 = st.columns([1, 3])
     with col1:
-        ctx = _build_context()
-        rotor = st.session_state.get("rotor")
-        st.markdown("**Contexte session :**")
-        if rotor:
-            st.success("Rotor charge\n{} noeuds\n{:.2f} kg".format(
-                ctx.get("n_nodes"), ctx.get("mass_kg")))
-            if ctx.get("modal"):
-                st.info("Modes calcules : {}".format(
-                    len(ctx["modal"]["fn_hz"])))
-            if ctx.get("campbell"):
-                st.info("Campbell disponible")
-        else:
-            st.warning("Aucun rotor charge")
-        st.caption("Gemini : " + ("Connecte" if GEMINI_OK else "Mode offline"))
+        _render_context_panel()
     with col2:
         _render_chat_interface()
 
 
+# =============================================================================
+# PANNEAU CONTEXTE (Settings)
+# =============================================================================
+def _render_context_panel():
+    """Affiche le contexte du rotor actuel."""
+    rotor = st.session_state.get("rotor")
+    modal = st.session_state.get("res_modal")
+
+    st.caption("Contexte injecte automatiquement")
+
+    context_json = _build_context()
+
+    if rotor:
+        st.success("Rotor : {} noeuds | {:.2f} kg | {} DDL".format(
+            context_json.get("n_nodes"),
+            context_json.get("mass_kg"),
+            context_json.get("ndof")
+        ))
+    else:
+        st.warning("Aucun rotor charge.")
+
+    if modal and context_json.get("modal"):
+        fn_list = context_json["modal"]["fn_hz"]
+        ld_list = context_json["modal"]["log_dec"]
+        n_inst  = context_json["modal"]["n_instable"]
+        st.markdown("**Modes propres :**")
+        for i, (f, ld) in enumerate(zip(fn_list, ld_list)):
+            if ld <= 0:
+                st.markdown("- Mode {} : {:.2f} Hz | delta={:.4f} INSTABLE".format(
+                    i+1, f, ld))
+            elif ld < 0.1:
+                st.markdown("- Mode {} : {:.2f} Hz | delta={:.4f} marginal".format(
+                    i+1, f, ld))
+            else:
+                st.markdown("- Mode {} : {:.2f} Hz | delta={:.4f} OK".format(
+                    i+1, f, ld))
+        if n_inst > 0:
+            st.error("{} mode(s) INSTABLE(S) detecte(s) !".format(n_inst))
+
+    if context_json.get("api684"):
+        score = context_json["api684"]["score"]
+        color = "green" if score >= 100 else "orange" if score >= 67 else "red"
+        st.markdown(
+            "**API 684 :** <span style='color:{};font-weight:bold;'>"
+            "{:.0f}%</span>".format(color, score),
+            unsafe_allow_html=True
+        )
+
+    st.markdown("---")
+    status = "Connecte" if GEMINI_OK else "Mode offline"
+    st.caption("Gemini : {}".format(status))
+
+    with st.expander("Voir le contexte JSON complet"):
+        st.json(context_json)
+
+
+# =============================================================================
+# INTERFACE CHAT
+# =============================================================================
 def _render_chat_interface():
-    st.markdown(
-        '<div class="rl-card-info">'
-        '<strong>Votre expert virtuel en dynamique des rotors</strong><br>'
-        '<small>Je connais le contenu de votre session en cours. '
-        'Posez vos questions sur ROSS, vos resultats, '
-        'les normes API 684 / ISO 1940, ou demandez de l\'aide '
-        'pour interpreter vos graphiques.</small>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+    """Interface de chat principale."""
+    st.markdown("### Questions rapides")
 
-    # Questions rapides organisees par theme
-    themes = {
-        "Modelisation ROSS": [
-            "Comment creer un rotor avec ROSS ?",
-            "Comment modeliser un arbre conique ?",
-            "Comment choisir la raideur des paliers ?",
-        ],
-        "Analyses": [
-            "Que signifie un Log Dec negatif ?",
-            "Comment interpreter mon Campbell ?",
-            "Quelle est la difference FW et BW ?",
-        ],
-        "Normes": [
-            "Comment verifier la conformite API 684 ?",
-            "Comment calculer le balourd ISO 1940 ?",
-            "Quelles sont les limites ISO 7919-3 ?",
-        ],
-        "Defauts": [
-            "Quelle est la signature d'une fissure ?",
-            "Comment detecter un desalignement ?",
-            "Qu'est-ce que le frottement rotor-stator ?",
-        ],
-    }
+    quick_prompts = [
+        "Comment creer un rotor simple avec ROSS ?",
+        "Explique-moi le diagramme de Campbell",
+        "Pourquoi le Log Dec peut-il etre negatif ?",
+        "Comment ameliorer la stabilite de mon rotor ?",
+        "Quelle est la difference entre precession avant et arriere ?",
+        "Comment calculer le DAF (Dynamic Amplification Factor) ?",
+        "Comment modeliser un defaut de fissure avec ROSS ?",
+        "Comment verifier la conformite API 684 ?",
+        "Comment calculer le balourd tolere ISO 1940 ?",
+        "Qu'est-ce que la carte UCS Map ?",
+        "Comment fonctionne un palier hydrodynamique ?",
+        "Comment modeliser un MultiRotor avec GearElement ?",
+    ]
 
-    tab_labels = list(themes.keys())
-    tabs = st.tabs(tab_labels)
-    for tab, (theme, questions) in zip(tabs, themes.items()):
-        with tab:
-            cols = st.columns(3)
-            for i, q in enumerate(questions):
-                with cols[i % 3]:
-                    label = q[:35] + "..." if len(q) > 35 else q
-                    if st.button(label, key="qp_{}_{}".format(theme, i),
-                                 use_container_width=True):
-                        st.session_state["gpt_input"] = q
+    cols = st.columns(4)
+    for i, qp in enumerate(quick_prompts):
+        with cols[i % 4]:
+            label = qp[:40] + ("..." if len(qp) > 40 else "")
+            if st.button(label, key="qp_{}".format(i),
+                         use_container_width=True):
+                st.session_state["gpt_input"] = qp
 
     st.markdown("---")
 
-    # Historique
-    for msg in st.session_state.get("chat_history", []):
+    # Historique du chat
+    if "chat_history" not in st.session_state:
+        st.session_state["chat_history"] = []
+
+    for msg in st.session_state["chat_history"]:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    user_input = st.chat_input("Posez votre question en francais ou en anglais...")
+    # Saisie
+    user_input = st.chat_input("Posez votre question...")
     if not user_input:
         user_input = st.session_state.pop("gpt_input", None)
 
     if user_input:
-        st.session_state.setdefault("chat_history", [])
         st.session_state["chat_history"].append(
             {"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
+
         with st.chat_message("assistant"):
             with st.spinner("SmartRotor Copilot reflechit..."):
                 context  = _build_context()
@@ -134,37 +165,42 @@ def _render_chat_interface():
                 {"role": "assistant", "content": response})
 
     if st.session_state.get("chat_history"):
-        if st.button("Effacer la conversation", key="clear_chat"):
+        if st.button("Effacer la conversation", key="gpt_clear"):
             st.session_state["chat_history"] = []
 
 
+# =============================================================================
+# CONSTRUCTION DU CONTEXTE SESSION
+# =============================================================================
 def _build_context():
+    """Construit le dictionnaire de contexte depuis la session."""
     rotor  = st.session_state.get("rotor")
     modal  = st.session_state.get("res_modal")
     camp   = st.session_state.get("res_campbell")
     df_api = st.session_state.get("df_api")
-    ctx    = {"rotor_loaded": rotor is not None}
+
+    ctx = {"rotor_loaded": rotor is not None}
 
     if rotor:
-        ctx["n_nodes"]  = len(rotor.nodes)
-        ctx["mass_kg"]  = round(float(rotor.m), 2)
-        ctx["ndof"]     = rotor.ndof
+        ctx["n_nodes"]    = len(rotor.nodes)
+        ctx["mass_kg"]    = round(float(rotor.m), 2)
+        ctx["ndof"]       = rotor.ndof
         ctx["rotor_name"] = st.session_state.get("rotor_name", "Rotor")
 
     if modal:
-        import numpy as np
         fn = modal.wn / (2 * np.pi)
-        ld = getattr(modal, 'log_dec', [])
+        ld = getattr(modal, 'log_dec', np.zeros(len(fn)))
+        n  = min(6, len(fn))
         ctx["modal"] = {
-            "fn_hz":      [round(float(v), 2) for v in fn[:6]],
-            "log_dec":    [round(float(v), 4) for v in ld[:6]],
-            "n_instable": int(sum(1 for v in ld[:6] if v <= 0)),
+            "fn_hz":      [round(float(v), 2) for v in fn[:n]],
+            "log_dec":    [round(float(v), 4) for v in ld[:n]],
+            "n_instable": int(sum(1 for v in ld[:n] if v <= 0)),
         }
 
     if camp is not None:
         ctx["campbell"] = {"calculated": True}
-        if st.session_state.get("df_campbell") is not None:
-            df_c = st.session_state["df_campbell"]
+        df_c = st.session_state.get("df_campbell")
+        if df_c is not None:
             ctx["campbell"]["n_critical_speeds"] = len(df_c)
 
     if df_api is not None and not df_api.empty:
@@ -178,102 +214,132 @@ def _build_context():
     return ctx
 
 
+# =============================================================================
+# APPEL API GEMINI
+# =============================================================================
 def _call_gemini(user_msg, context, history):
+    """Appel a l'API Google Gemini avec detection automatique du modele."""
     if not GEMINI_OK:
         return _fallback(user_msg, context)
+
     try:
         if "GEMINI_API_KEY" not in st.secrets:
-            return _fallback(user_msg, context)
+            return (
+                "La cle GEMINI_API_KEY n'est pas configuree.\n\n"
+                + _fallback(user_msg, context)
+            )
 
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        valid = [
+
+        # Detection automatique du meilleur modele disponible
+        valid_models = [
             m.name for m in genai.list_models()
             if 'generateContent' in m.supported_generation_methods
         ]
-        if not valid:
-            return _fallback(user_msg, context)
+        if not valid_models:
+            return (
+                "Aucun modele Gemini disponible pour cette cle.\n\n"
+                + _fallback(user_msg, context)
+            )
 
-        model_name = next((m for m in valid if "flash" in m), valid[0])
+        # Selection intelligente : flash > pro > premier disponible
+        model_name = valid_models[0]
+        for m in valid_models:
+            if "flash" in m:
+                model_name = m
+                break
+            elif "pro" in m and "vision" not in m:
+                model_name = m
 
+        # Prompt systeme
         system_prompt = (
-            "Tu es SmartRotor Copilot, un ingenieur expert de niveau "
-            "Professeur en dynamique des rotors, vibrations des machines "
-            "tournantes et specialiste de la bibliotheque Python ROSS. "
-            "Tu travailles avec le Pr. Najeh Ben Guedria de l'ISTLS "
-            "Universite de Sousse, Tunisie.\n\n"
-            "Tes competences couvrent :\n"
-            "- Modelisation ROSS (ShaftElement, DiskElement, BearingElement, "
-            "SealElement, GearElement, MultiRotor)\n"
-            "- Analyses : statique, modale, Campbell, balourd, H(jw), "
-            "temporelle, defauts\n"
-            "- Normes : API 684 (vitesses critiques, stabilite), "
-            "ISO 1940 (equilibrage), ISO 7919-3 (limites vibratoires)\n"
-            "- Physique : couplage gyroscopique, effet gyroscopique, "
-            "precession FW/BW, instabilite fluide\n\n"
-            "Regles :\n"
-            "1. Reponds TOUJOURS en francais\n"
-            "2. Sois tres precis et pedagogique\n"
-            "3. Fournis du code ROSS fonctionnel quand c'est utile\n"
-            "4. Utilise le contexte du rotor actuel pour personnaliser "
-            "tes reponses\n"
-            "5. Structure tes reponses avec des titres ## et des listes\n\n"
-            "Contexte du rotor actuellement charge dans RotorLab Suite 2.0 :\n"
+            "Tu es SmartRotor Copilot, un ingenieur expert en dynamique des rotors, "
+            "mecanique vibratoire et specialiste absolu de la bibliotheque Python ROSS. "
+            "Ton role est d'assister des ingenieurs et des etudiants en Master.\n\n"
+            "Tes domaines d'expertise couvrent :\n"
+            "- La modelisation avec ROSS (ShaftElement, DiskElement, BearingElement, "
+            "SealElement, GearElement, MultiRotor).\n"
+            "- L'analyse modale, les diagrammes de Campbell, les reponses au balourd "
+            "(Bode, Nyquist), la reponse temporelle, les defauts.\n"
+            "- Les orbites temporelles et l'identification des instabilites "
+            "(whirl, whip).\n"
+            "- Les normes industrielles (API 684, ISO 1940, ISO 7919-3).\n"
+            "- La carte UCS, les paliers hydrodynamiques, les systemes MultiRotor.\n\n"
+            "Regles de comportement :\n"
+            "1. Sois extremement precis, scientifique et pedagogique.\n"
+            "2. Utilise le vocabulaire technique approprie (Log Dec, amortissement "
+            "croise, frequences naturelles, couplage gyroscopique, etc.).\n"
+            "3. Fournis du code ROSS fonctionnel quand c'est pertinent.\n"
+            "4. Reponds toujours en francais avec du Markdown structure.\n"
+            "5. Personnalise tes reponses avec les donnees du rotor actuel.\n\n"
+            "Parametres du rotor actuellement charge dans RotorLab Suite 2.0 :\n"
             + json.dumps(context, ensure_ascii=False, indent=2)
         )
 
         model = genai.GenerativeModel(model_name)
-        hist  = [
+
+        # Construction de l'historique Gemini
+        gemini_history = [
             {"role": "user",  "parts": [system_prompt]},
             {"role": "model", "parts": [
-                "Compris. Je suis SmartRotor Copilot, expert en dynamique "
-                "des rotors. Je connais le rotor actuellement charge et "
-                "je suis pret a vous aider avec precision."
+                "C'est bien note. Je suis SmartRotor Copilot, pret a analyser "
+                "vos rotors et a generer du code ROSS !"
             ]}
         ]
-        for h in history[-8:]:
+        for h in history[-6:]:
             role = "user" if h["role"] == "user" else "model"
-            hist.append({"role": role, "parts": [h["content"]]})
+            gemini_history.append({"role": role, "parts": [h["content"]]})
 
-        chat = model.start_chat(history=hist)
-        return chat.send_message(user_msg).text
+        chat     = model.start_chat(history=gemini_history)
+        response = chat.send_message(user_msg)
+        return response.text
 
+    except ImportError:
+        return (
+            "La bibliotheque google-generativeai n'est pas installee.\n\n"
+            + _fallback(user_msg, context)
+        )
     except Exception as e:
-        return "Erreur Gemini : {}\n\n{}".format(e, _fallback(user_msg, context))
+        nom_modele = model_name if 'model_name' in dir() else 'Inconnu'
+        return (
+            "Erreur Gemini (modele : {}) : {}\n\n".format(nom_modele, str(e))
+            + _fallback(user_msg, context)
+        )
 
 
+# =============================================================================
+# FALLBACK OFFLINE — Reponses pre-programmees
+# =============================================================================
 def _fallback(user_msg, context):
-    """Reponses offline detaillees sans API."""
-    msg = user_msg.lower()
+    """Reponses intelligentes pre-programmees sans API (mode offline)."""
+    msg_lower = user_msg.lower()
+    rotor_loaded = context.get("rotor_loaded", False)
 
-    # Contexte du rotor actuel
-    ctx_rotor = ""
-    if context.get("rotor_loaded"):
-        ctx_rotor = (
-            "\n\n---\n**Votre rotor actuel :** {} noeuds, {} kg, {} DDL".format(
+    # Contexte rotor
+    ctx_info = ""
+    if rotor_loaded:
+        ctx_info = (
+            "\n\n---\n*Votre rotor : {} noeuds, {} kg*".format(
                 context.get("n_nodes", "?"),
-                context.get("mass_kg", "?"),
-                context.get("ndof", "?")
+                context.get("mass_kg", "?")
             )
         )
         if context.get("modal"):
             fn_list = context["modal"]["fn_hz"]
             n_inst  = context["modal"]["n_instable"]
-            ctx_rotor += "\n\n**Modes propres calcules :**\n"
-            for i, f in enumerate(fn_list):
-                ld = context["modal"]["log_dec"][i]
+            ctx_info += "\n\nModes propres calcules :\n"
+            for i, (f, ld) in enumerate(zip(
+                    fn_list, context["modal"]["log_dec"])):
                 status = "INSTABLE" if ld <= 0 else (
                     "Conforme API" if ld >= 0.1 else "Marginal")
-                ctx_rotor += "- Mode {} : {:.2f} Hz | Log Dec = {:.4f} | {}\n".format(
+                ctx_info += "- Mode {} : {:.2f} Hz | delta={:.4f} | {}\n".format(
                     i+1, f, ld, status)
-        if context.get("api684"):
-            score  = context["api684"]["score"]
-            op_rpm = context["api684"]["op_rpm"]
-            ctx_rotor += "\n**API 684 :** Score {:.0f}% a {:.0f} RPM".format(
-                score, op_rpm)
+            if n_inst > 0:
+                ctx_info += "\n**{} mode(s) INSTABLE(S) !**".format(n_inst)
 
     # ── Reponses thematiques ──────────────────────────────────────────────
 
-    if any(k in msg for k in ["creer", "creer un rotor", "modeliser", "premier rotor"]):
+    if any(k in msg_lower for k in ["creer", "premier rotor", "modeliser"]):
         return (
             "## Creer un rotor avec ROSS\n\n"
             "```python\n"
@@ -284,279 +350,220 @@ def _fallback(user_msg, context):
             "# 2. Arbre (6 elements de 250mm, diam 50mm)\n"
             "shaft = [rs.ShaftElement(L=0.25, idl=0.0, odl=0.05, material=steel)\n"
             "         for _ in range(6)]\n\n"
-            "# 3. Disque au noeud 3\n"
+            "# 3. Disque au noeud central\n"
             "disk = rs.DiskElement.from_geometry(\n"
-            "    n=3, material=steel, width=0.07, i_d=0.05, o_d=0.30)\n\n"
+            "    n=3, material=steel, width=0.07, i_d=0.05, o_d=0.25)\n\n"
             "# 4. Paliers aux extremites\n"
             "b0 = rs.BearingElement(n=0, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n"
             "b6 = rs.BearingElement(n=6, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n\n"
             "# 5. Assemblage\n"
             "rotor = rs.Rotor(shaft, [disk], [b0, b6])\n"
             "print('Masse : {:.2f} kg'.format(rotor.m))\n"
-            "print('Noeuds :', rotor.nodes)\n"
             "rotor.plot_rotor()\n"
             "```\n\n"
-            "**Points cles :**\n"
-            "- Les noeuds sont numerotes de 0 a N (N = nombre d'elements)\n"
+            "**Conseils :**\n"
+            "- Noeuds numerotes de 0 a N (N = nombre d elements)\n"
             "- Les paliers DOIVENT etre sur des noeuds existants\n"
-            "- `from_geometry()` calcule automatiquement masse et inerties"
-            + ctx_rotor
+            "- `from_geometry()` calcule masse et inerties automatiquement"
+            + ctx_info
         )
 
-    if any(k in msg for k in ["campbell", "vitesse critique", "1x", "diagramme"]):
+    if "campbell" in msg_lower:
         return (
             "## Diagramme de Campbell\n\n"
-            "Le Campbell trace les **frequences des modes propres** "
-            "en fonction de la vitesse de rotation Omega.\n\n"
-            "### Interpretation\n"
-            "- **Courbes bleues (FW)** : modes de precession avant "
-            "(dans le sens de rotation). Frequence augmente avec Omega.\n"
-            "- **Courbes orange (BW)** : modes de precession arriere. "
-            "Frequence diminue avec Omega.\n"
-            "- **Droite rouge 1X** : excitation synchrone. "
-            "Les intersections = **vitesses critiques**.\n"
-            "- **Zone rouge hatchi** : zone interdite API 684 "
-            "(+/-15% de la vitesse operationnelle).\n\n"
-            "### Code ROSS\n"
+            "Le Campbell trace les **frequences des modes** en fonction "
+            "de la vitesse de rotation Omega.\n\n"
+            "**Interpretation :**\n"
+            "- **FW (Forward Whirl)** : precession dans le sens de rotation "
+            "-> frequence augmente avec Omega\n"
+            "- **BW (Backward Whirl)** : precession inverse "
+            "-> frequence diminue avec Omega\n"
+            "- **Droite 1X** (synchrone) : intersections = vitesses critiques\n"
+            "- **Droites 2X, 3X** : excitations super-synchrones\n\n"
             "```python\n"
-            "speeds = np.linspace(0, 10000*np.pi/30, 100)  # 0 a 10000 RPM\n"
-            "camp   = rotor.run_campbell(speeds, frequencies=12)\n"
+            "speeds = np.linspace(0, 10000*np.pi/30, 100)\n"
+            "camp = rotor.run_campbell(speeds, frequencies=12)\n"
             "camp.plot()\n\n"
-            "# Acces aux donnees\n"
-            "print('Frequences amorties (rad/s) :', camp.wd[:5, :4])\n"
+            "# Donnees numeriques\n"
+            "print('Freq. amorties (rad/s) :', camp.wd[:5, :4])\n"
             "print('Log Dec :', camp.log_dec[:5, :4])\n"
-            "print('Precession :', camp.whirl[:5, :4])\n"
             "```\n\n"
-            "### Effet gyroscopique\n"
-            "L'effet gyroscopique est proporitionnel a la vitesse Omega et "
-            "a l'inertie polaire Ip des disques. Il separe les modes FW et BW "
-            "et peut provoquer des instabilites si la raideur croisee Kxy "
-            "des paliers est elevee."
-            + ctx_rotor
+            "**Norme API 684 :** vitesses critiques a +/-15% de la vitesse "
+            "operationnelle."
+            + ctx_info
         )
 
-    if any(k in msg for k in ["log dec", "stabilit", "instabil"]):
+    if any(k in msg_lower for k in ["log dec", "instabilit", "stabilit"]):
         return (
             "## Log Decrement et Stabilite\n\n"
-            "Le Log Decrement **delta** quantifie l'amortissement de chaque mode :\n\n"
             "**delta = 2*pi*xi / sqrt(1 - xi^2)**\n\n"
-            "| Valeur de delta | Interpretation | Conformite API 684 |\n"
-            "|-----------------|----------------|--------------------|\n"
-            "| delta > 0.3 | Tres bien amorti | Oui |\n"
-            "| 0.1 < delta <= 0.3 | Correctement amorti | Oui |\n"
+            "| delta | Interpretation | API 684 |\n"
+            "|-------|----------------|---------|\n"
+            "| delta > 0.3 | Tres bien amorti | OK |\n"
+            "| 0.1 < delta <= 0.3 | Correctement amorti | OK |\n"
             "| 0 < delta <= 0.1 | Peu amorti | Limite |\n"
-            "| **delta <= 0** | **INSTABLE** | **Non** |\n\n"
-            "### Causes principales d'instabilite\n"
-            "1. **Raideur croisee Kxy** des paliers hydrodynamiques "
-            "(phenomene *oil whirl* / *oil whip*)\n"
-            "2. **Forces aero-elastiques** dans les etages de compression\n"
-            "3. **Friction interne** du materiau (amortissement interne > externe)\n\n"
-            "### Solutions\n"
-            "- Augmenter l'amortissement direct Cxx, Cyy des paliers\n"
-            "- Reduire la raideur croisee (palier lobe, palier tilting-pad)\n"
-            "- Modifier la vitesse operationnelle\n\n"
+            "| **delta <= 0** | **INSTABLE** | **NON** |\n\n"
+            "**Cause principale :** raideur croisee Kxy des paliers "
+            "hydrodynamiques (oil whirl).\n\n"
             "```python\n"
             "modal = rotor.run_modal(speed=3000*np.pi/30)\n"
-            "for i, (fn, ld) in enumerate(\n"
-            "        zip(modal.wn/(2*np.pi), modal.log_dec)):\n"
-            "    status = 'INSTABLE' if ld <= 0 else (\n"
-            "        'OK' if ld >= 0.1 else 'LIMITE')\n"
+            "for i, ld in enumerate(modal.log_dec[:6]):\n"
+            "    fn = modal.wn[i] / (2*np.pi)\n"
+            "    if ld <= 0:\n"
+            "        status = 'INSTABLE'\n"
+            "    elif ld < 0.1:\n"
+            "        status = 'LIMITE'\n"
+            "    else:\n"
+            "        status = 'OK'\n"
             "    print('Mode {} : {:.2f} Hz | delta={:.4f} | {}'.format(\n"
             "        i+1, fn, ld, status))\n"
             "```"
-            + ctx_rotor
+            + ctx_info
         )
 
-    if any(k in msg for k in ["balourd", "iso 1940", "desequilibr", "equilibrage"]):
+    if any(k in msg_lower for k in ["daf", "balourd", "desequilibr"]):
         return (
-            "## Balourd tolere - Norme ISO 1940\n\n"
-            "**Uper = m * G / (1000 * omega)**\n\n"
-            "- **m** : masse du rotor (kg)\n"
-            "- **G** : grade de qualite (voir tableau)\n"
-            "- **omega** : vitesse angulaire (rad/s)\n\n"
-            "| Grade | Application typique |\n"
-            "|-------|---------------------|\n"
-            "| G0.4 | Gyroscopes, turbines de precision |\n"
-            "| G1.0 | Turbines a gaz, turbines vapeur |\n"
-            "| **G2.5** | **Turbines, compresseurs, ventilateurs** |\n"
-            "| G6.3 | Machines-outils, moteurs electriques |\n"
-            "| G16 | Vilebrequins, transmissions |\n\n"
-            "### Code ROSS\n"
+            "## Reponse au Balourd et DAF\n\n"
             "```python\n"
-            "op_rpm = 3000\n"
-            "omega  = op_rpm * np.pi / 30\n"
-            "m_rot  = rotor.m  # masse du rotor\n\n"
-            "# Balourd tolere grade G2.5\n"
-            "Uper = (m_rot * 2.5) / (1000 * omega)\n"
-            "print('Balourd tolere G2.5 : {:.6f} kg.m'.format(Uper))\n\n"
-            "# Reponse au balourd\n"
             "resp = rotor.run_unbalance_response(\n"
-            "    node=[3], magnitude=[Uper], phase=[0.0],\n"
-            "    frequency_range=np.linspace(0, 5000, 500))\n"
-            "resp.plot_magnitude(probe=[3, 0])\n"
-            "```"
-            + ctx_rotor
+            "    node=[2],\n"
+            "    magnitude=[0.001],   # kg.m\n"
+            "    phase=[0.0],\n"
+            "    frequency_range=np.linspace(0, 5000, 500)\n"
+            ")\n"
+            "resp.plot_magnitude(probe=[2, 0])\n"
+            "resp.plot_phase(probe=[2, 0])\n"
+            "resp.plot_polar_bode(probe=[2, 0])\n"
+            "```\n\n"
+            "**DAF = A_max / A_statique**\n"
+            "- Systeme 1-DDL non amorti : DAF = 1/(2*xi)\n"
+            "- Reduction du DAF : augmenter Cxx/Cyy des paliers"
+            + ctx_info
         )
 
-    if any(k in msg for k in ["api 684", "conformite", "zone interdite", "norme"]):
+    if any(k in msg_lower for k in ["api 684", "conformite", "norme", "zone interdite"]):
         return (
-            "## Verification API 684 - 2eme edition\n\n"
-            "La norme API 684 definit les criteres de qualification "
-            "rotordynamique pour les turbomachines industrielles.\n\n"
-            "### Criteres obligatoires\n"
-            "1. **Marge vitesses critiques >= 15%** : "
-            "aucune vitesse critique dans [0.85*Nop ; 1.15*Nop]\n"
-            "2. **Log Dec >= 0.1** pour tous les modes dans la plage "
-            "operationnelle\n"
-            "3. **Reponse au balourd** : amplitudes < limites ISO 7919-3\n\n"
-            "### Code de verification\n"
+            "## Verification API 684\n\n"
+            "**Criteres obligatoires :**\n"
+            "1. Marge vitesse critique >= 15% : "
+            "pas de Vc dans [0.85*Nop, 1.15*Nop]\n"
+            "2. Log Dec >= 0.1 pour tous les modes\n"
+            "3. Reponse balourd < limites ISO 7919\n\n"
             "```python\n"
-            "op_rpm  = 3000  # Vitesse operationnelle\n"
-            "zone_lo = op_rpm * 0.85  # 2550 RPM\n"
-            "zone_hi = op_rpm * 1.15  # 3450 RPM\n\n"
-            "modal   = rotor.run_modal(speed=0)\n"
-            "fn_hz   = modal.wn / (2*np.pi)\n"
-            "vc_rpm  = fn_hz * 60\n\n"
-            "for i, (vc, ld) in enumerate(\n"
-            "        zip(vc_rpm[:6], modal.log_dec[:6])):\n"
-            "    in_zone = zone_lo <= vc <= zone_hi\n"
-            "    ok      = not in_zone and ld >= 0.1\n"
+            "op_rpm    = 3000\n"
+            "zone_low  = op_rpm * 0.85\n"
+            "zone_high = op_rpm * 1.15\n\n"
+            "modal  = rotor.run_modal(speed=0)\n"
+            "fn_hz  = modal.wn / (2*np.pi)\n"
+            "vc_rpm = fn_hz * 60\n\n"
+            "for i, (vc, ld) in enumerate(zip(vc_rpm[:6], modal.log_dec[:6])):\n"
+            "    in_zone = zone_low <= vc <= zone_high\n"
+            "    ok = not in_zone and ld >= 0.1\n"
             "    print('Mode {} : Vc={:.0f} RPM | delta={:.3f} | {}'.format(\n"
-            "        i+1, vc, ld,\n"
-            "        'CONFORME' if ok else 'NON CONFORME'))\n"
+            "        i+1, vc, ld, 'OK' if ok else 'NON CONFORME'))\n"
             "```"
-            + ctx_rotor
+            + ctx_info
         )
 
-    if any(k in msg for k in ["fissure", "crack", "defaut"]):
+    if any(k in msg_lower for k in ["fissure", "crack"]):
         return (
             "## Simulation de Fissure Transversale (ROSS)\n\n"
-            "### Modeles disponibles\n"
-            "- **Gasch** : variation de raideur respirante (breathing crack)\n"
-            "- **Mayes** : modele lineaire de la variation de raideur\n\n"
-            "### Signature vibratoire d'une fissure\n"
-            "- Composante **2X** caracteristique "
-            "(variation de raideur 2 fois par tour)\n"
-            "- Amplification 1X et 2X a la **demi-vitesse critique** (0.5*Vc)\n"
-            "- Orbites en forme de **huit** au lieu d'ellipses\n\n"
-            "### Code ROSS\n"
             "```python\n"
             "crack_res = rotor.run_crack(\n"
-            "    crack_depth=0.3,       # alpha = a/R = 0 a 0.9\n"
-            "    crack_node=3,          # noeud de la fissure\n"
-            "    speed=1500*np.pi/30,   # vitesse en rad/s\n"
+            "    crack_depth=0.3,       # alpha = a/R (0 a 0.9)\n"
+            "    crack_node=3,\n"
+            "    speed=1500*np.pi/30,\n"
             "    model='gasch'          # 'gasch' ou 'mayes'\n"
             ")\n"
             "crack_res.plot_orbit(node=3)\n"
             "```\n\n"
-            "### Profondeur et severite\n"
-            "| alpha (a/R) | Effet sur la raideur | Detectabilite |\n"
-            "|-------------|---------------------|---------------|\n"
-            "| 0.1 | Variation < 5% | Difficile |\n"
-            "| 0.3 | Variation ~20% | Moderee |\n"
-            "| 0.5 | Variation ~40% | Facile |\n"
-            "| > 0.7 | Rupture imminente | Critique |"
-            + ctx_rotor
+            "**Signature vibratoire :**\n"
+            "- Harmonique 2X caracteristique\n"
+            "- Amplification 1X a la vitesse critique\n"
+            "- Pic a N_crit/2 (demi-vitesse critique)\n"
+            "- Orbites en forme de 8"
+            + ctx_info
         )
 
-    if any(k in msg for k in ["desalignement", "misalignment", "accouplement"]):
+    if any(k in msg_lower for k in ["ucs", "undamped"]):
         return (
-            "## Desalignement (Misalignment)\n\n"
-            "### Types de desalignement\n"
-            "- **Parallele** : decalage lateral des axes (mis_distance_x/y)\n"
-            "- **Angulaire** : angle entre les axes (mis_angle)\n\n"
-            "### Signature vibratoire\n"
-            "- Forte composante **2X** (desalignement parallele)\n"
-            "- Composantes **1X + 2X + 3X** (desalignement angulaire)\n"
-            "- Orbites aplaties ou en forme de banane\n\n"
-            "### Code ROSS\n"
-            "```python\n"
-            "mis_res = rotor.run_misalignment(\n"
-            "    n=3,\n"
-            "    mis_type='parallel',\n"
-            "    mis_distance_x=0.001,  # 1 mm de desalignement\n"
-            "    mis_distance_y=0.0,\n"
-            "    radial_stiffness=5e7,\n"
-            "    bending_stiffness=5e7,\n"
-            "    speed=3000*np.pi/30\n"
-            ")\n"
-            "mis_res.plot_orbit(node=3)\n"
-            "```"
-            + ctx_rotor
-        )
-
-    if any(k in msg for k in ["palier", "bearing", "raideur", "rigidite"]):
-        return (
-            "## Choix et parametrage des paliers\n\n"
-            "### Types de paliers dans ROSS\n"
-            "| Type | Classe ROSS | Usage typique |\n"
-            "|------|-------------|---------------|\n"
-            "| Roulement rigide | BearingElement | Machines standard |\n"
-            "| Palier lisse HD | BearingFluidFilm | Turbines, compresseurs |\n"
-            "| Joint annulaire | SealElement | Etancheite |\n"
-            "| Palier magnetique | BearingElement | Tres haute vitesse |\n\n"
-            "### Valeurs typiques de raideur\n"
-            "| Machine | Kxx typique (N/m) | Cxx typique (N.s/m) |\n"
-            "|---------|-------------------|---------------------|\n"
-            "| Moteur electrique | 1e7 - 1e8 | 500 - 2000 |\n"
-            "| Compresseur centrifuge | 5e6 - 5e7 | 1000 - 5000 |\n"
-            "| Turbine vapeur | 1e7 - 1e8 | 2000 - 10000 |\n"
-            "| Machine-outil | 1e8 - 1e9 | 200 - 1000 |\n\n"
-            "### Code ROSS\n"
-            "```python\n"
-            "# Palier avec raideur croisee (palier lisse)\n"
-            "bearing = rs.BearingElement(\n"
-            "    n=0, kxx=1e7, kyy=5e6,\n"
-            "    kxy=2e6, kyx=-2e6,  # Termes croises (instabilisant)\n"
-            "    cxx=2000, cyy=2000\n"
-            ")\n"
-            "```\n\n"
-            "**Attention** : Kxy > 0 est destabilisant. "
-            "Verifiez toujours le Log Dec apres modification."
-            + ctx_rotor
-        )
-
-    if any(k in msg for k in ["ucs", "undamped critical", "carte"]):
-        return (
-            "## Undamped Critical Speed Map (UCS Map)\n\n"
-            "La carte UCS montre les **vitesses critiques non amorties** "
+            "## Undamped Critical Speed Map (UCS)\n\n"
+            "La carte UCS montre les vitesses critiques non amorties "
             "en fonction de la raideur des paliers.\n\n"
-            "### Utilite\n"
-            "- Choisir la raideur des paliers pour **eviter les resonances** "
-            "a la vitesse operationnelle\n"
-            "- Identifier les **plages de raideur acceptables**\n"
-            "- Outil de conception en phase preliminaire\n\n"
-            "### Lecture\n"
-            "- Axe X (log) : raideur des paliers K (N/m)\n"
-            "- Axe Y : vitesse critique (RPM)\n"
-            "- Ligne horizontale rouge : vitesse operationnelle\n"
-            "- **Zone favorable** : courbes loin de la ligne rouge\n\n"
-            "### Code ROSS\n"
+            "**Utilite :** choisir K pour que les Vc soient hors "
+            "de la plage operationnelle.\n\n"
             "```python\n"
-            "stiffness = np.logspace(5, 9, 30)  # 10^5 a 10^9 N/m\n"
+            "stiffness = np.logspace(5, 9, 30)\n"
             "ucs = rotor.run_ucs(\n"
             "    stiffness_range=stiffness,\n"
             "    num_modes=6\n"
             ")\n"
             "ucs.plot()\n"
             "```"
-            + ctx_rotor
+            + ctx_info
         )
 
-    # Reponse generique enrichie
+    if any(k in msg_lower for k in ["multirotor", "gear", "engrenage"]):
+        return (
+            "## MultiRotor et GearElement (ROSS)\n\n"
+            "```python\n"
+            "# Rotor 1 (moteur)\n"
+            "shaft1 = [rs.ShaftElement(L=0.25, idl=0, odl=0.05, material=steel)\n"
+            "          for _ in range(4)]\n"
+            "# Rotor 2 (recepteur)\n"
+            "shaft2 = [rs.ShaftElement(L=0.25, idl=0, odl=0.04, material=steel)\n"
+            "          for _ in range(3)]\n\n"
+            "# Element engrenage\n"
+            "gear = rs.GearElement(\n"
+            "    n=2,\n"
+            "    pitch_diameter=0.1,\n"
+            "    pressure_angle=np.radians(20),\n"
+            "    helix_angle=0.0\n"
+            ")\n"
+            "```\n\n"
+            "**Le Campbell couple montre :**\n"
+            "- Modes lateraux de chaque rotor\n"
+            "- Modes torsionnels\n"
+            "- Modes couples lateral-torsionnel\n"
+            "- Frequences d engrenement"
+            + ctx_info
+        )
+
+    if any(k in msg_lower for k in ["palier hydrodynamique", "fluid film",
+                                     "hydrodynamic"]):
+        return (
+            "## Paliers Hydrodynamiques (BearingFluidFilm)\n\n"
+            "Les paliers HD ont des coefficients variables avec la vitesse.\n\n"
+            "**Coefficients cles :**\n"
+            "- Kxx, Kyy : raideurs directes (stabilisantes)\n"
+            "- Kxy, Kyx : raideurs croisees (Kxy > 0 = destabilisant)\n"
+            "- Cxx, Cyy : amortissements directs\n\n"
+            "```python\n"
+            "# Palier lisse avec termes croises\n"
+            "bearing_hd = rs.BearingElement(\n"
+            "    n=0,\n"
+            "    kxx=1e7, kyy=5e6,\n"
+            "    kxy=2e6, kyx=-2e6,  # Termes croises\n"
+            "    cxx=2000, cyy=2000\n"
+            ")\n"
+            "```\n\n"
+            "**Instabilite oil whirl :** se produit quand Kxy "
+            "depasse l amortissement disponible. "
+            "Verifiez toujours le Log Dec apres modification."
+            + ctx_info
+        )
+
+    # Reponse generique
     return (
-        "## SmartRotor Copilot\n\n"
+        "Je suis SmartRotor Copilot, specialise en dynamique des rotors.\n\n"
         "Votre question : **{}**\n\n"
-        "Je peux vous aider sur les themes suivants. "
-        "Cliquez sur les boutons rapides ou reformulez :\n\n"
-        "| Theme | Mots-cles |\n"
-        "|-------|-----------|\n"
-        "| Modelisation | creer rotor, arbre, disque, palier |\n"
-        "| Campbell | diagramme, vitesse critique, FW, BW |\n"
-        "| Stabilite | log dec, instabilite, oil whirl |\n"
-        "| Equilibrage | balourd, ISO 1940, grade G |\n"
-        "| Normes | API 684, conformite, zone interdite |\n"
-        "| Defauts | fissure, desalignement, frottement |\n"
-        "| Paliers | raideur, amortissement, UCS map |"
-        + ctx_rotor
-    )
+        "Je peux vous aider avec :\n"
+        "- Création de modeles ROSS\n"
+        "- Analyses modales, Campbell, balourd, temporelle\n"
+        "- Simulation de defauts (fissure, desalignement, frottement)\n"
+        "- Normes API 684, ISO 1940, ISO 7919\n"
+        "- Carte UCS, paliers hydrodynamiques\n"
+        "- MultiRotor et GearElement\n\n"
+        "Utilisez les boutons de questions rapides ou precisez votre demande."
+        + ctx_info
+    ).format(user_msg)
