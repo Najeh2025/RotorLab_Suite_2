@@ -366,19 +366,42 @@ def _run_freq_response():
     n_pts = int(st.session_state.get("m4_npts_h",    500))
     freqs = np.linspace(0, fmax, n_pts)
 
+    last_err = ""
+
+    # Tentative 1 : sans argument (ROSS calcule sa propre plage)
+    try:
+        fr = rotor.run_freq_response()
+        st.session_state["res_freq"]       = fr
+        st.session_state["m4_freq_error"]  = None
+        st.session_state["m4_fmax_actual"] = fmax
+        _log("H(jw) calculee", "ok")
+        return
+    except Exception as e:
+        last_err = str(e)
+
+    # Tentative 2 : argument 'frequency'
     try:
         fr = rotor.run_freq_response(frequency=freqs)
-    except TypeError:
-        try:
-            fr = rotor.run_freq_response(frequency_range=freqs)
-        except Exception as e:
-            _log("Erreur H(jw) : {}".format(e), "err")
-            st.session_state["m4_freq_error"] = str(e)
-            return
+        st.session_state["res_freq"]       = fr
+        st.session_state["m4_freq_error"]  = None
+        _log("H(jw) calculee (frequency=)", "ok")
+        return
+    except Exception as e:
+        last_err = str(e)
 
-    st.session_state["res_freq"] = fr
-    st.session_state["m4_freq_error"] = None
-    _log("H(jw) calculee (fmax={} Hz)".format(fmax), "ok")
+    # Tentative 3 : argument 'speed_range' (rad/s)
+    try:
+        fr = rotor.run_freq_response(speed_range=freqs * 2 * np.pi)
+        st.session_state["res_freq"]       = fr
+        st.session_state["m4_freq_error"]  = None
+        _log("H(jw) calculee (speed_range=)", "ok")
+        return
+    except Exception as e:
+        last_err = str(e)
+
+    # Toutes les tentatives ont echoue
+    _log("Erreur H(jw) : {}".format(last_err), "err")
+    st.session_state["m4_freq_error"] = last_err
 
 
 # =============================================================================
