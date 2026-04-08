@@ -1042,36 +1042,44 @@ def _display_dfft():
     ))
 
     # Marqueurs harmoniques
-    fn_rpm = rpm / 60
-    colors_h = ["#E53935", "#FB8C00", "#FDD835", "#43A047"]
-    for n_harm, color in enumerate([1, 2, 3, 4], 1):
-        fn = n_harm * fn_rpm
-        if fn <= fs / 2:
-            fig.add_vline(
-                x=fn,
-                line_dash="dot",
-                line_color=color,
-                line_width=1.5,
-                annotation_text="{}X".format(n_harm),
-                annotation_font=dict(color=color, size=10)
-            )
+    # Marqueurs harmoniques
+    try:
+        fn_rpm = float(np.real(rpm)) / 60.0
+        colors_h = ["#E53935", "#FB8C00", "#FDD835", "#43A047"]
+        for n_harm, color in enumerate([1, 2, 3, 4], 1):
+            fn = float(n_harm * fn_rpm)
+            # On vérifie que la valeur est un nombre fini valide avant de dessiner
+            if np.isfinite(fn) and np.isfinite(fs) and fn <= fs / 2:
+                fig.add_vline(
+                    x=fn,
+                    line_dash="dot",
+                    line_color=color,
+                    line_width=1.5,
+                    annotation_text="{}X".format(n_harm),
+                    annotation_font=dict(color=color, size=10)
+                )
+    except Exception as e:
+        pass # Ignore l'affichage des harmoniques si la vitesse est invalide
 
     # Modes propres
     modal = st.session_state.get("res_modal")
-    if modal is not None:
+    if modal is not None and hasattr(modal, 'wn'):
         for i, wn in enumerate(modal.wn[:4]):
-            fn_mode = wn / (2 * np.pi)
-            if fn_mode <= fs / 2:
-                fig.add_vline(
-                    x=fn_mode,
-                    line_dash="dot",
-                    line_color="#22863A",
-                    line_width=1,
-                    opacity=0.6,
-                    annotation_text="M{}".format(i + 1),
-                    annotation_font=dict(color="#22863A", size=9)
-                )
-
+            try:
+                # Extraction de la partie réelle pure pour éviter les ValueError Plotly
+                fn_mode = float(np.real(wn)) / (2 * np.pi)
+                if np.isfinite(fn_mode) and np.isfinite(fs) and fn_mode <= fs / 2:
+                    fig.add_vline(
+                        x=fn_mode,
+                        line_dash="dot",
+                        line_color="#22863A",
+                        line_width=1,
+                        opacity=0.6,
+                        annotation_text="M{}".format(i + 1),
+                        annotation_font=dict(color="#22863A", size=9)
+                    )
+            except Exception:
+                pass # Ignore ce mode s'il n'est pas traçable
     fig.update_layout(
         height=460,
         title="Spectre DFFT — Noeud {} @ {:.0f} RPM".format(node, rpm),
