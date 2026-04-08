@@ -343,17 +343,23 @@ def _render_graphics(active_node: str):
     try:
         fig = rotor.plot_rotor()
         fig.update_layout(height=420, margin=dict(l=0, r=0, t=30, b=0))
-        st.plotly_chart(fig, use_container_width=True, key="m1_3d_plot")
-        # Capture pour le rapport PDF
-        try:
+        
+        # 1. Utilisation d'une clé dynamique pour forcer le rafraîchissement visuel
+        plot_key = f"m1_3d_plot_{id(rotor)}"
+        st.plotly_chart(fig, use_container_width=True, key=plot_key)
+        
+    except Exception as e:
+        # 2. Message d'erreur explicite si la géométrie plante
+        st.error(f"❌ Impossible d'afficher le modèle 3D. Vérifiez la cohérence de vos nœuds (ex: un disque/palier placé sur un nœud inexistant). Détail technique : {e}")
+
+    # 3. On sépare l'export Kaleido (qui est fragile) pour qu'il ne bloque pas l'affichage
+    try:
+        if 'fig' in locals():
             import kaleido  # noqa
             st.session_state["img_rotor"] = fig.to_image(
                 format="png", width=700, height=400)
-        except ImportError:
-            pass
-    except Exception as e:
-        st.warning(f"Visualisation 3D : {e}")
-
+    except Exception:
+        pass
     # ── Tableau récapitulatif des éléments ───────────────────────────────
     with st.expander("📋 Récapitulatif du modèle", expanded=False):
         tab_s, tab_d, tab_b = st.tabs(["Arbre", "Disques", "Paliers"])
