@@ -81,8 +81,15 @@ def _render_settings(active_node: str):
 
                     # Validation de la structure
                     if "shaft" not in data:
-                        st.error("Fichier JSON invalide : cle 'shaft' manquante.")
+                        st.error("Fichier JSON invalide : clé 'shaft' manquante.")
                     else:
+                        # 1. VIDER LE CACHE DES WIDGETS DATA_EDITOR
+                        # Cela force les tableaux à oublier l'ancien modèle
+                        for editor_key in ["m1_shaft_editor", "m1_disk_editor", "m1_bear_editor"]:
+                            if editor_key in st.session_state:
+                                del st.session_state[editor_key]
+
+                        # 2. METTRE À JOUR LES DONNÉES
                         st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
                         st.session_state["df_disk"]  = pd.DataFrame(
                             data.get("disks", data.get("disk", [])))
@@ -90,7 +97,8 @@ def _render_settings(active_node: str):
                             data.get("bearings", data.get("bearing", [])))
                         st.session_state["mat_name"] = data.get(
                             "material", "Acier standard (AISI 1045)")
-                        # Invalider le rotor et les resultats
+                        
+                        # Invalider le rotor et les résultats
                         st.session_state["rotor"]      = None
                         st.session_state["rotor_name"] = data.get(
                             "name", uploaded.name.replace(".json", ""))
@@ -98,16 +106,21 @@ def _render_settings(active_node: str):
                                     "res_ucs","res_unbalance","res_freq",
                                     "res_temporal"]:
                             st.session_state[key] = None
-                        # Marquer ce fichier comme deja charge
+                            
+                        # Marquer ce fichier comme déjà chargé
                         st.session_state["m1_last_file_id"] = file_id
-                        st.success("Modele '{}' charge avec succes !".format(
+                        st.success("Modèle '{}' chargé avec succès !".format(
                             st.session_state["rotor_name"]))
+                        
+                        # 3. FORCER L'ACTUALISATION DE L'INTERFACE
+                        st.rerun()
+
                 except json.JSONDecodeError as e:
-                    st.error("Fichier JSON malformed : {}".format(e))
+                    st.error("Fichier JSON malformé : {}".format(e))
                 except Exception as e:
                     st.error("Erreur lecture : {}".format(e))
             else:
-                st.info("Fichier '{}' deja charge.".format(uploaded.name))
+                st.info("Fichier '{}' déjà chargé.".format(uploaded.name))
 
     st.markdown("---")
 
@@ -313,9 +326,10 @@ def _render_graphics(active_node: str):
       <div class="rl-metric-value">{L_total:.3f}</div>
       <div class="rl-metric-unit">m</div>
     </div>""", unsafe_allow_html=True)
-    # DDL theorique = n_noeuds x 4 (formulation Timoshenko standard)
-    n_noeuds   = len(rotor.nodes)
-    ddl_theory = n_noeuds * 4
+    
+    # Récupération exacte des DDL depuis le moteur ROSS
+    n_noeuds = len(rotor.nodes)
+    ddl_total = rotor.ndof
 
     c4.markdown("""
     <div class="rl-metric-card">
