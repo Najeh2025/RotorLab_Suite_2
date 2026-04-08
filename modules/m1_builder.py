@@ -268,6 +268,9 @@ def _render_settings(active_node: str):
 # =============================================================================
 # PANNEAU GRAPHICS (droite)
 # =============================================================================
+# =============================================================================
+# PANNEAU GRAPHICS (droite)
+# =============================================================================
 def _render_graphics(active_node: str):
     st.markdown(
         '<div class="rl-graphics-title">'
@@ -291,55 +294,52 @@ def _render_graphics(active_node: str):
             <li>Cliquez sur <strong>🚀 Assembler le rotor</strong></li>
           </ol>
         </div>
-        <div class="rl-card-info" style="margin-top:8px;">
-          <strong>📂 Ou chargez directement :</strong><br>
-          <small>Utilisez le bouton <em>📂 Charger compresseur</em> dans l'arbre
-          de navigation (panneau gauche) pour charger le cas d'étude industriel
-          de référence ROSS.</small>
-        </div>
         """, unsafe_allow_html=True)
         return
 
     # ── Métriques globales ───────────────────────────────────────────────
-    n_el = len(st.session_state["df_shaft"])
+    n_el = len(st.session_state.get("df_shaft", []))
     L_total = sum(
         float(r.get("L (m)", 0))
-        for r in st.session_state["df_shaft"].to_dict("records")
+        for r in st.session_state.get("df_shaft", pd.DataFrame()).to_dict("records")
     )
 
     c1, c2, c3, c4 = st.columns(4)
+    
     c1.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">Masse totale</div>
       <div class="rl-metric-value">{rotor.m:.2f}</div>
       <div class="rl-metric-unit">kg</div>
     </div>""", unsafe_allow_html=True)
+    
     c2.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">Nœuds</div>
       <div class="rl-metric-value">{len(rotor.nodes)}</div>
       <div class="rl-metric-unit">{n_el} éléments</div>
     </div>""", unsafe_allow_html=True)
+    
     c3.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">Longueur</div>
       <div class="rl-metric-value">{L_total:.3f}</div>
       <div class="rl-metric-unit">m</div>
     </div>""", unsafe_allow_html=True)
-    
-    # Récupération exacte des DDL depuis le moteur ROSS
-    n_noeuds = len(rotor.nodes)
-    ddl_total = rotor.ndof
 
-    # Récupération exacte des DDL depuis le moteur ROSS
-    ddl_total = rotor.ndof 
+    # Sécurisation extrême de l'affichage DDL
+    try:
+        ddl_val = rotor.ndof
+    except Exception:
+        ddl_val = "Erreur"
 
-    c4.markdown("""
+    c4.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">DDL total</div>
-      <div class="rl-metric-value">{}</div>
-      <div class="rl-metric-unit">Valeur calculée par ROSS</div>
-    </div>""".format(ddl_total), unsafe_allow_html=True)
+      <div class="rl-metric-value">{ddl_val}</div>
+      <div class="rl-metric-unit">Valeur ROSS</div>
+    </div>""", unsafe_allow_html=True)
+    
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Visualisation 3D ─────────────────────────────────────────────────
@@ -347,22 +347,19 @@ def _render_graphics(active_node: str):
         fig = rotor.plot_rotor()
         fig.update_layout(height=420, margin=dict(l=0, r=0, t=30, b=0))
         
-        # 1. Utilisation d'une clé dynamique pour forcer le rafraîchissement visuel
         plot_key = f"m1_3d_plot_{id(rotor)}"
         st.plotly_chart(fig, use_container_width=True, key=plot_key)
         
-    except Exception as e:
-        # 2. Message d'erreur explicite si la géométrie plante
-        st.error(f"❌ Impossible d'afficher le modèle 3D. Vérifiez la cohérence de vos nœuds (ex: un disque/palier placé sur un nœud inexistant). Détail technique : {e}")
-
-    # 3. On sépare l'export Kaleido (qui est fragile) pour qu'il ne bloque pas l'affichage
-    try:
-        if 'fig' in locals():
+        # Capture pour le rapport PDF
+        try:
             import kaleido  # noqa
             st.session_state["img_rotor"] = fig.to_image(
                 format="png", width=700, height=400)
-    except Exception:
-        pass
+        except Exception:
+            pass
+    except Exception as e:
+        st.error(f"❌ Impossible d'afficher le modèle 3D. Détail : {e}")
+
     # ── Tableau récapitulatif des éléments ───────────────────────────────
     with st.expander("📋 Récapitulatif du modèle", expanded=False):
         tab_s, tab_d, tab_b = st.tabs(["Arbre", "Disques", "Paliers"])
@@ -391,13 +388,11 @@ def _render_graphics(active_node: str):
             "📥 Export Excel (.xlsx)",
             data=buf.getvalue(),
             file_name="rotor_parameters.xlsx",
-            mime="application/vnd.openxmlformats-officedocument"
-                 ".spreadsheetml.sheet",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="m1_excel"
         )
-    except ModuleNotFoundError:
+    except Exception:
         st.caption("⚠️ xlsxwriter manquant — export Excel désactivé.")
-
 
 # =============================================================================
 # ASSEMBLAGE DU ROTOR (logique métier)
