@@ -331,12 +331,15 @@ def _render_graphics(active_node: str):
     n_noeuds = len(rotor.nodes)
     ddl_total = rotor.ndof
 
+    # Récupération exacte des DDL depuis le moteur ROSS
+    ddl_total = rotor.ndof 
+
     c4.markdown("""
     <div class="rl-metric-card">
       <div class="rl-metric-label">DDL total</div>
       <div class="rl-metric-value">{}</div>
-      <div class="rl-metric-unit">{} noeuds x 4</div>
-    </div>""".format(ddl_theory, n_noeuds), unsafe_allow_html=True)
+      <div class="rl-metric-unit">Valeur calculée par ROSS</div>
+    </div>""".format(ddl_total), unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Visualisation 3D ─────────────────────────────────────────────────
