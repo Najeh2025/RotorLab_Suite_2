@@ -662,8 +662,7 @@ def _display_stability():
             line=dict(color=colors[i % len(colors)], width=2),
             hovertemplate=(
                 "Kxy = %{x:.2e} N/m<br>"
-                "Log Dec = %{y:.4f}<extra>Mode {}</extra>".format(
-                    mode_num)
+                f"Log Dec = %{{y:.4f}}<extra>Mode {mode_num}</extra>"
             )
         ))
 
