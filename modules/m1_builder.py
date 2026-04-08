@@ -64,23 +64,50 @@ def _render_settings(active_node: str):
                 key="m1_save"
             )
         uploaded = st.file_uploader(
-            "Charger un modèle (.json)",
+            "Charger un modele (.json)",
             type=["json"],
             label_visibility="collapsed",
             key="m1_upload"
         )
         if uploaded is not None:
-            try:
-                data = json.load(uploaded)
-                st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
-                st.session_state["df_disk"]  = pd.DataFrame(data["disks"])
-                st.session_state["df_bear"]  = pd.DataFrame(data["bearings"])
-                st.session_state["mat_name"] = data.get(
-                    "material", "Acier standard (AISI 1045)")
-                st.success("✅ Modèle chargé !")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Erreur lecture fichier : {e}")
+            # Calcul d'un identifiant unique pour ce fichier
+            file_id = "{}_{}".format(uploaded.name, uploaded.size)
+            # Charger seulement si c'est un nouveau fichier
+            if st.session_state.get("m1_last_file_id") != file_id:
+                try:
+                    import io
+                    content = uploaded.read()
+                    data    = json.loads(content.decode("utf-8"))
+
+                    # Validation de la structure
+                    if "shaft" not in data:
+                        st.error("Fichier JSON invalide : cle 'shaft' manquante.")
+                    else:
+                        st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
+                        st.session_state["df_disk"]  = pd.DataFrame(
+                            data.get("disks", data.get("disk", [])))
+                        st.session_state["df_bear"]  = pd.DataFrame(
+                            data.get("bearings", data.get("bearing", [])))
+                        st.session_state["mat_name"] = data.get(
+                            "material", "Acier standard (AISI 1045)")
+                        # Invalider le rotor et les resultats
+                        st.session_state["rotor"]      = None
+                        st.session_state["rotor_name"] = data.get(
+                            "name", uploaded.name.replace(".json", ""))
+                        for key in ["res_static","res_modal","res_campbell",
+                                    "res_ucs","res_unbalance","res_freq",
+                                    "res_temporal"]:
+                            st.session_state[key] = None
+                        # Marquer ce fichier comme deja charge
+                        st.session_state["m1_last_file_id"] = file_id
+                        st.success("Modele '{}' charge avec succes !".format(
+                            st.session_state["rotor_name"]))
+                except json.JSONDecodeError as e:
+                    st.error("Fichier JSON malformed : {}".format(e))
+                except Exception as e:
+                    st.error("Erreur lecture : {}".format(e))
+            else:
+                st.info("Fichier '{}' deja charge.".format(uploaded.name))
 
     st.markdown("---")
 
@@ -286,13 +313,16 @@ def _render_graphics(active_node: str):
       <div class="rl-metric-value">{L_total:.3f}</div>
       <div class="rl-metric-unit">m</div>
     </div>""", unsafe_allow_html=True)
-    c4.markdown(f"""
+    # DDL theorique = n_noeuds x 4 (formulation Timoshenko standard)
+    n_noeuds   = len(rotor.nodes)
+    ddl_theory = n_noeuds * 4
+
+    c4.markdown("""
     <div class="rl-metric-card">
       <div class="rl-metric-label">DDL total</div>
-      <div class="rl-metric-value">{rotor.ndof}</div>
-      <div class="rl-metric-unit">degrés de liberté</div>
-    </div>""", unsafe_allow_html=True)
-
+      <div class="rl-metric-value">{}</div>
+      <div class="rl-metric-unit">{} noeuds x 4</div>
+    </div>""".format(ddl_theory, n_noeuds), unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Visualisation 3D ─────────────────────────────────────────────────
