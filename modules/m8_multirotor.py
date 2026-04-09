@@ -144,46 +144,46 @@ def _run_multirotor():
     
     with st.spinner("Assemblage des rotors et calcul matriciel..."):
         try:
-            # Récupération des composants
+            # Récupération des composants de base (sans engrenages)
             s1, d1, b1 = _build_rotor_from_dict(data, suffix="")
             s2, d2, b2 = _build_rotor_from_dict(data, suffix="_2")
             
-            # Gestion de l'engrenage (GearElement)
+            # Gestion de l'engrenage
             gear_data = data.get("gears", [{}])[0]
             n1 = gear_data.get("nœud_rotor_1", 0)
             n2 = gear_data.get("nœud_rotor_2", 0)
             
-            # ASTUCE : Ajouter la masse des engrenages comme disques !
-            mg = gear_data.get("Masse (kg)", 0)
-            Ig = gear_data.get("Id (kg.m²)", 0)
-            Ipg = gear_data.get("Ip (kg.m²)", 0)
+            # Paramètres de l'engrenage
+            mg = float(gear_data.get("Masse (kg)", 5.0))
+            Ig = float(gear_data.get("Id (kg.m²)", 0.002))
+            Ipg = float(gear_data.get("Ip (kg.m²)", 0.004))
             
-            if mg > 0:
-                # Répartition arbitraire de la masse/inertie si on a une seule donnée globale
-                # L'idéal serait d'avoir m1, m2 distincts dans le JSON, mais on divise par 2 pour la sécurité
-                d1.append(rs.DiskElement(n=n1, m=mg/2, Id=Ig/2, Ip=Ipg/2))
-                d2.append(rs.DiskElement(n=n2, m=mg/2, Id=Ig/2, Ip=Ipg/2))
+            z1 = int(gear_data.get("n_teeth", 20))
+            z2 = int(gear_data.get("n_teeth_2", z1 * 1.5)) # Fallback si absent
+            d1_val = float(gear_data.get("pitch_diameter", 0.1))
+            d2_val = float(gear_data.get("pitch_diameter_2", d1_val * 1.5)) # Fallback si absent
+            
+            alpha = np.radians(float(gear_data.get("pr_angle", 20.0)))
 
-            # Construction des deux objets Rotor
-            rotor1 = rs.Rotor(s1, d1, b1)
-            rotor2 = rs.Rotor(s2, d2, b2)
+            # ⚙️ CORRECTION: On utilise pr_angle et on crée un engrenage par arbre
+            gear1 = rs.GearElement(
+                n=n1, m=mg/2, Id=Ig/2, Ip=Ipg/2,
+                n_teeth=z1, pitch_diameter=d1_val, pr_angle=alpha
+            )
+            gear2 = rs.GearElement(
+                n=n2, m=mg/2, Id=Ig/2, Ip=Ipg/2,
+                n_teeth=z2, pitch_diameter=d2_val, pr_angle=alpha
+            )
+
+            # ⚙️ CORRECTION: On injecte les GearElements directement dans chaque Rotor
+            rotor1 = rs.Rotor(shaft_elements=s1, disk_elements=d1, bearing_elements=b1, gear_elements=[gear1])
+            rotor2 = rs.Rotor(shaft_elements=s2, disk_elements=d2, bearing_elements=b2, gear_elements=[gear2])
             
             st.session_state["m8_rotor1"] = rotor1
             st.session_state["m8_rotor2"] = rotor2
 
-            # Création du couplage GearElement
-            gear_elem = rs.GearElement(
-                n=n1, # Le nœud sur le rotor 1
-                pitch_diameter=gear_data.get("pitch_diameter", 0.1),
-                pressure_angle=np.radians(gear_data.get("pr_angle", 20.0))
-            )
-
-            # Assemblage du MultiRotor
-            multi = rs.MultiRotor(
-                rotors=[rotor1, rotor2],
-                gear_elements=[gear_elem],
-                connections=[(0, n1, 1, n2)] # Connecte le rotor 0 (n1) au rotor 1 (n2)
-            )
+            # Assemblage du système couplé
+            multi = rs.MultiRotor(rotor1, rotor2)
             st.session_state["m8_multi"] = multi
 
             # Lancement des calculs Dynamiques
@@ -245,7 +245,6 @@ def _render_graphics():
         st.divider()
         st.markdown("**🔗 Rapport d'engrenage (Couplage)**")
         
-        # ROSS calcule la vitesse avec le rapport de diamètres ou de dents
         d1 = gear.get("pitch_diameter", 0.1)
         z1 = gear.get("n_teeth", 20)
         
