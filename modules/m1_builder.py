@@ -84,6 +84,7 @@ def _render_settings(active_node: str):
                         st.error("Fichier JSON invalide : clé 'shaft' manquante.")
                     else:
                         # 1. VIDER LE CACHE DES WIDGETS DATA_EDITOR
+                        # Cela force les tableaux à oublier l'ancien modèle
                         for editor_key in ["m1_shaft_editor", "m1_disk_editor", "m1_bear_editor"]:
                             if editor_key in st.session_state:
                                 del st.session_state[editor_key]
@@ -121,7 +122,7 @@ def _render_settings(active_node: str):
             else:
                 st.info("Fichier '{}' déjà chargé.".format(uploaded.name))
 
-    st.divider() # Amélioration UI : Utilisation de st.divider() au lieu de "---"
+    st.markdown("---")
 
     # ── Onglets de paramétrage ────────────────────────────────────────────
     tab_mat, tab_shaft, tab_disk, tab_bear = st.tabs(
@@ -174,17 +175,16 @@ def _render_settings(active_node: str):
             key="m1_shaft_editor",
             use_container_width=True,
             column_config={
-                # Amélioration UI : Ajout de tooltips via l'argument `help`
                 "L (m)":    st.column_config.NumberColumn(
-                    "L (m)", min_value=0.001, format="%.4f", help="Longueur de l'élément (m)"),
+                    "L (m)", min_value=0.001, format="%.4f"),
                 "id_L (m)": st.column_config.NumberColumn(
-                    "id_L (m)", min_value=0.0, format="%.4f", help="Diamètre interne gauche (m)"),
+                    "id_L (m)", min_value=0.0, format="%.4f"),
                 "od_L (m)": st.column_config.NumberColumn(
-                    "od_L (m)", min_value=0.001, format="%.4f", help="Diamètre externe gauche (m)"),
+                    "od_L (m)", min_value=0.001, format="%.4f"),
                 "id_R (m)": st.column_config.NumberColumn(
-                    "id_R (m)", min_value=0.0, format="%.4f", help="Diamètre interne droit (m)"),
+                    "id_R (m)", min_value=0.0, format="%.4f"),
                 "od_R (m)": st.column_config.NumberColumn(
-                    "od_R (m)", min_value=0.001, format="%.4f", help="Diamètre externe droit (m)"),
+                    "od_R (m)", min_value=0.001, format="%.4f"),
             }
         )
         n_el = len(st.session_state["df_shaft"])
@@ -202,15 +202,14 @@ def _render_settings(active_node: str):
             key="m1_disk_editor",
             use_container_width=True,
             column_config={
-                # Amélioration UI : Ajout de tooltips via l'argument `help`
                 "nœud":       st.column_config.NumberColumn(
-                    "Nœud", min_value=0, step=1, help="Numéro du nœud d'attache"),
+                    "Nœud", min_value=0, step=1),
                 "Masse (kg)": st.column_config.NumberColumn(
-                    "Masse (kg)", min_value=0.0, format="%.4f", help="Masse du disque"),
+                    "Masse (kg)", min_value=0.0, format="%.4f"),
                 "Id (kg.m²)": st.column_config.NumberColumn(
-                    "Id (kg.m²)", min_value=0.0, format="%.6f", help="Inertie diamétrale"),
+                    "Id (kg.m²)", min_value=0.0, format="%.6f"),
                 "Ip (kg.m²)": st.column_config.NumberColumn(
-                    "Ip (kg.m²)", min_value=0.0, format="%.6f", help="Inertie polaire"),
+                    "Ip (kg.m²)", min_value=0.0, format="%.6f"),
             }
         )
 
@@ -241,18 +240,16 @@ def _render_settings(active_node: str):
             key="m1_bear_editor",
             use_container_width=True,
             column_config={
-                # Amélioration UI : Ajout de tooltips via l'argument `help`
                 "Type": st.column_config.SelectboxColumn(
                     "Type",
                     options=["Palier", "Joint", "Roulement", "Masse"],
-                    required=True,
-                    help="Type de l'élément de support"
+                    required=True
                 ),
-                "kxx": st.column_config.NumberColumn("kxx (N/m)",  format="%.2e", help="Rigidité directe X"),
-                "kyy": st.column_config.NumberColumn("kyy (N/m)",  format="%.2e", help="Rigidité directe Y"),
-                "kxy": st.column_config.NumberColumn("kxy (N/m)",  format="%.2e", help="Rigidité croisée XY"),
-                "cxx": st.column_config.NumberColumn("cxx (N·s/m)",format="%.1f", help="Amortissement direct X"),
-                "cyy": st.column_config.NumberColumn("cyy (N·s/m)",format="%.1f", help="Amortissement direct Y"),
+                "kxx": st.column_config.NumberColumn("kxx (N/m)",  format="%.2e"),
+                "kyy": st.column_config.NumberColumn("kyy (N/m)",  format="%.2e"),
+                "kxy": st.column_config.NumberColumn("kxy (N/m)",  format="%.2e"),
+                "cxx": st.column_config.NumberColumn("cxx (N·s/m)",format="%.1f"),
+                "cyy": st.column_config.NumberColumn("cyy (N·s/m)",format="%.1f"),
             }
         )
         st.caption(
@@ -260,7 +257,7 @@ def _render_settings(active_node: str):
             "(capteur, demi-accouplement)."
         )
 
-    st.divider() # Amélioration UI : Utilisation de st.divider() au lieu de "---"
+    st.markdown("---")
 
     # ── BOUTON ASSEMBLER ──────────────────────────────────────────────────
     if st.button("🚀 Assembler le rotor", type="primary",
@@ -268,6 +265,9 @@ def _render_settings(active_node: str):
         _assemble_rotor()
 
 
+# =============================================================================
+# PANNEAU GRAPHICS (droite)
+# =============================================================================
 # =============================================================================
 # PANNEAU GRAPHICS (droite)
 # =============================================================================
@@ -304,21 +304,43 @@ def _render_graphics(active_node: str):
         for r in st.session_state.get("df_shaft", pd.DataFrame()).to_dict("records")
     )
 
-    # Amélioration UI : Utilisation du composant natif st.metric
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric(label="Masse totale", value=f"{rotor.m:.2f} kg")
-    c2.metric(label="Nœuds", value=len(rotor.nodes), delta=f"{n_el} éléments", delta_color="off")
-    c3.metric(label="Longueur", value=f"{L_total:.3f} m")
+    
+    c1.markdown(f"""
+    <div class="rl-metric-card">
+      <div class="rl-metric-label">Masse totale</div>
+      <div class="rl-metric-value">{rotor.m:.2f}</div>
+      <div class="rl-metric-unit">kg</div>
+    </div>""", unsafe_allow_html=True)
+    
+    c2.markdown(f"""
+    <div class="rl-metric-card">
+      <div class="rl-metric-label">Nœuds</div>
+      <div class="rl-metric-value">{len(rotor.nodes)}</div>
+      <div class="rl-metric-unit">{n_el} éléments</div>
+    </div>""", unsafe_allow_html=True)
+    
+    c3.markdown(f"""
+    <div class="rl-metric-card">
+      <div class="rl-metric-label">Longueur</div>
+      <div class="rl-metric-value">{L_total:.3f}</div>
+      <div class="rl-metric-unit">m</div>
+    </div>""", unsafe_allow_html=True)
 
     # Sécurisation extrême de l'affichage DDL
     try:
         ddl_val = rotor.ndof
     except Exception:
         ddl_val = "Erreur"
-        
-    c4.metric(label="DDL total", value=f"{ddl_val} DDL")
+
+    c4.markdown(f"""
+    <div class="rl-metric-card">
+      <div class="rl-metric-label">DDL total</div>
+      <div class="rl-metric-value">{ddl_val}</div>
+      <div class="rl-metric-unit">Valeur ROSS</div>
+    </div>""", unsafe_allow_html=True)
     
-    st.divider() # Amélioration UI : Séparation propre sous les métriques
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Visualisation 3D ─────────────────────────────────────────────────
     try:
@@ -497,10 +519,9 @@ def _assemble_rotor():
         except ImportError:
             pass
 
-        # Amélioration UI : Utilisation de st.toast au lieu de st.success
-        st.toast(
-            f"Rotor assemblé — {len(rotor.nodes)} nœuds | {rotor.m:.2f} kg | {rotor.ndof} DDL",
-            icon="✅"
+        st.success(
+            f"✅ Rotor assemblé — {len(rotor.nodes)} nœuds | "
+            f"{rotor.m:.2f} kg | {rotor.ndof} DDL"
         )
         st.rerun()
 
