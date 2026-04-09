@@ -1,4 +1,4 @@
-# modules/m8_multirotor.py — MultiRotor Validation & Loader
+# modules/m8_multirotor.py — MultiRotor Final Corrected
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -12,30 +12,27 @@ except ImportError:
     ROSS_OK = False
 
 # =============================================================================
-# MODÈLE DE VALIDATION (TUTORIAL 4)
+# MODÈLE DE VALIDATION (TUTORIAL 4) - CORRIGÉ
 # =============================================================================
 
 def build_tutorial_4_model():
     """
-    Construit exactement le système du Tutorial 4 de ROSS
-    pour valider la géométrie et les résultats.
+    Construit exactement le système du Tutorial 4 de ROSS.
+    Incorpore maintenant les propriétés physiques de l'engrenage.
     """
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
     # --- ROTOR 1 ---
-    # Shaft elements: L, idl, odl
     shaft1 = [
         rs.ShaftElement(L=0.10, idl=0.0, odl=0.30, material=mat),
         rs.ShaftElement(L=4.24, idl=0.0, odl=0.30, material=mat),
         rs.ShaftElement(L=1.16, idl=0.0, odl=0.22, material=mat),
         rs.ShaftElement(L=0.30, idl=0.0, odl=0.22, material=mat),
     ]
-    # Disks: n, m, Id, Ip
     disks1 = [
         rs.DiskElement(n=0, m=50.0, Id=1.50, Ip=3.00),
         rs.DiskElement(n=4, m=20.0, Id=0.50, Ip=1.00),
     ]
-    # Bearings: n, kxx, kyy, cxx, cyy
     bearings1 = [
         rs.BearingElement(n=0, kxx=1.839e8, kyy=2.004e8, cxx=3000.0, cyy=3000.0),
         rs.BearingElement(n=3, kxx=1.839e8, kyy=2.004e8, cxx=3000.0, cyy=3000.0),
@@ -57,16 +54,18 @@ def build_tutorial_4_model():
     ]
     r2 = rs.Rotor(shaft2, disks2, bearings2)
 
-    # --- GEAR ELEMENT ---
-    # Correction de l'argument 'pressure_angle' -> 'pr_angle'
+    # --- GEAR ELEMENT (CORRECTION : Ajout des 4 arguments obligatoires) ---
     gear = rs.GearElement(
         n=2, 
+        m=5.0,               # Masse (kg) - Obligatoire
+        Id=0.002,            # Inertie diamétrale (kg.m2) - Obligatoire
+        Ip=0.004,            # Inertie polaire (kg.m2) - Obligatoire
+        n_teeth=20,          # Nombre de dents - Obligatoire
         pitch_diameter=0.5, 
         pr_angle=np.radians(22.5) 
     )
 
     # --- MULTI ROTOR ---
-    # connections: (rotor_idx1, node1, rotor_idx2, node2)
     multi = rs.MultiRotor(
         rotors=[r1, r2], 
         gear_elements=[gear], 
@@ -94,9 +93,13 @@ def load_multirotor_from_json(json_file):
     r2 = build_rotor_from_json(data["shaft_2"], data["disks_2"], data["bearings_2"], mat)
     
     gear_info = data["gears"][0]
-    # Utilisation de pr_angle pour corriger l'erreur
+    # Utilisation stricte des clés du JSON pour remplir les arguments obligatoires
     gear = rs.GearElement(
         n=gear_info["nœud_rotor_1"], 
+        m=gear_info["Masse (kg)"],       # <--- Ajouté
+        Id=gear_info["Id (kg.m²)"],      # <--- Ajouté
+        Ip=gear_info["Ip (kg.m²)"],      # <--- Ajouté
+        n_teeth=gear_info["n_teeth"],    # <--- Ajouté
         pitch_diameter=gear_info["pitch_diameter"], 
         pr_angle=np.radians(gear_info["pr_angle"])
     )
@@ -109,7 +112,7 @@ def load_multirotor_from_json(json_file):
     return multi, r1, r2
 
 # =============================================================================
-# INTERFACE STREAMLIT
+# INTERFACE STREAMLIT (SANS CHANGEMENT MAJEUR)
 # =============================================================================
 
 def render_m8(col_settings, col_graphics):
@@ -139,7 +142,7 @@ def render_m8(col_settings, col_graphics):
                     st.session_state["m8_multi"] = multi
                     st.session_state["m8_rotor1"] = r1
                     st.session_state["m8_rotor2"] = r2
-                    st.success("Système assemblé !")
+                    st.success("Système assemblé avec succès !")
             except Exception as e:
                 st.error(f"Erreur lors du chargement : {e}")
 
@@ -176,7 +179,9 @@ def _display_results():
     with tab2:
         if "m8_camp" in st.session_state:
             camp = st.session_state["m8_camp"]
-            spd_rpm = np.linspace(0, 10000, 30) # Valeur indicative
+            # On utilise la vitesse max définie dans le slider pour l'axe X
+            vmax = st.session_state.get("vmax", 10000) # Simplification
+            spd_rpm = np.linspace(0, vmax, 30) 
             fn_mat = camp.wd / (2 * np.pi)
             fig = go.Figure()
             for i in range(fn_mat.shape[1]):
