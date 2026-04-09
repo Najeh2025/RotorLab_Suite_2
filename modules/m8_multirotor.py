@@ -16,13 +16,20 @@ except ImportError:
 # UTILITAIRE DE COMPATIBILITÉ MULTIROTOR
 # =============================================================================
 def build_multirotor_safely(r1, r2, gear, conn):
-    """Gère les différences de signature de l'API ROSS selon les versions."""
+    """
+    Gère les différences de signature de l'API ROSS selon les versions.
+    """
     try:
-        return rs.MultiRotor(rotors=[r1, r2], gear_elements=[gear], connections=[conn])
-    except AttributeError:
+        # L'API actuelle de ROSS attend les rotors un par un (grâce à *rotors)
+        # et exige que les engrenages et connexions soient des listes nommées.
         return rs.MultiRotor(r1, r2, gear_elements=[gear], connections=[conn])
-    except TypeError:
-        return rs.MultiRotor([r1, r2], [gear], [conn])
+    except Exception as e:
+        # En cas d'ancienne version de ROSS (qui n'utilisait que des listes positionnelles)
+        try:
+            return rs.MultiRotor([r1, r2], [gear], [conn])
+        except Exception:
+            # Si vraiment tout échoue, on renvoie l'erreur originale
+            raise RuntimeError(f"Impossible d'assembler le MultiRotor. API ROSS incompatible. Erreur: {e}")
 
 
 # =============================================================================
