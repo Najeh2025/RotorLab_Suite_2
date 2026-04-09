@@ -26,12 +26,9 @@ def _get_material(mat_name):
 def build_rotor_from_json(shaft_data, disk_data, bearing_data, material_obj):
     """Construit un objet rs.Rotor à partir des listes du JSON"""
     
-    # 1. Construction de l'arbre (gestion des diamètres variables L et R)
+    # 1. Construction de l'arbre
     shaft_elements = []
     for s in shaft_data:
-        # Note: rs.ShaftElement prend généralement idl et odl. 
-        # Si ROSS supporte les cônes, on utiliserait idl, odl, idr, odr.
-        # Ici on utilise la moyenne ou le côté gauche pour la compatibilité.
         element = rs.ShaftElement(
             L=s["L (m)"], 
             idl=s["id_L (m)"], 
@@ -40,14 +37,15 @@ def build_rotor_from_json(shaft_data, disk_data, bearing_data, material_obj):
         )
         shaft_elements.append(element)
 
-    # 2. Construction des disques (via Masse et Inertie)
+    # 2. Construction des disques (CORRIGÉ ICI)
     disk_elements = []
     for d in disk_data:
+        # On utilise Id et Ip avec Majuscules comme demandé par l'API ROSS
         disk = rs.DiskElement(
             n=d["nœud"], 
             m=d["Masse (kg)"], 
-            id=d["Id (kg.m²)"], 
-            ip=d["Ip (kg.m²)"]
+            Id=d["Id (kg.m²)"], 
+            Ip=d["Ip (kg.m²)"]
         )
         disk_elements.append(disk)
 
