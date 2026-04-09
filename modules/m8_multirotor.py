@@ -29,45 +29,51 @@ def build_multirotor_safely(r1, r2, gear, conn):
 # MODÈLE DE VALIDATION (SÉQUENCE EXACTE DU TUTORIEL 4)
 # =============================================================================
 
+# =============================================================================
+# MODÈLE DE VALIDATION (SÉQUENCE EXACTE DU TUTORIEL 4)
+# =============================================================================
+
 def build_tutorial_4_model():
     """Implémentation littérale du Tutorial 4 de ROSS."""
-    # 1. Matériau
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
-    # 2. ROTOR 1
+    # 2. ROTOR 1 (Utilisation stricte des arguments nommés)
     shaft1 = [
-        rs.ShaftElement(0.10, 0.0, 0.30, mat),
-        rs.ShaftElement(4.24, 0.0, 0.30, mat),
-        rs.ShaftElement(1.16, 0.0, 0.22, mat),
-        rs.ShaftElement(0.30, 0.0, 0.22, mat),
+        rs.ShaftElement(L=0.10, idl=0.0, odl=0.30, material=mat),
+        rs.ShaftElement(L=4.24, idl=0.0, odl=0.30, material=mat),
+        rs.ShaftElement(L=1.16, idl=0.0, odl=0.22, material=mat),
+        rs.ShaftElement(L=0.30, idl=0.0, odl=0.22, material=mat),
     ]
     disks1 = [
-        rs.DiskElement(0, 50.0, 1.50, 3.00),
-        rs.DiskElement(4, 20.0, 0.50, 1.00),
+        rs.DiskElement(n=0, m=50.0, Id=1.50, Ip=3.00),
+        rs.DiskElement(n=4, m=20.0, Id=0.50, Ip=1.00),
     ]
     bearings1 = [
-        rs.BearingElement(0, 1.839e8, 2.004e8, 3000.0, 3000.0),
-        rs.BearingElement(3, 1.839e8, 2.004e8, 3000.0, 3000.0),
+        rs.BearingElement(n=0, kxx=1.839e8, kyy=2.004e8, cxx=3000.0, cyy=3000.0),
+        rs.BearingElement(n=3, kxx=1.839e8, kyy=2.004e8, cxx=3000.0, cyy=3000.0),
     ]
     r1 = rs.Rotor(shaft1, disks1, bearings1)
 
     # 3. ROTOR 2
     shaft2 = [
-        rs.ShaftElement(1.50, 0.0, 0.25, mat),
-        rs.ShaftElement(2.50, 0.0, 0.25, mat),
-        rs.ShaftElement(1.00, 0.0, 0.20, mat),
+        rs.ShaftElement(L=1.50, idl=0.0, odl=0.25, material=mat),
+        rs.ShaftElement(L=2.50, idl=0.0, odl=0.25, material=mat),
+        rs.ShaftElement(L=1.00, idl=0.0, odl=0.20, material=mat),
     ]
     disks2 = [
-        rs.DiskElement(3, 35.0, 1.20, 2.40),
+        rs.DiskElement(n=3, m=35.0, Id=1.20, Ip=2.40),
     ]
     bearings2 = [
-        rs.BearingElement(0, 1.5e8, 1.5e8, 2500.0, 2500.0),
-        rs.BearingElement(2, 1.5e8, 1.5e8, 2500.0, 2500.0),
+        rs.BearingElement(n=0, kxx=1.5e8, kyy=1.5e8, cxx=2500.0, cyy=2500.0),
+        rs.BearingElement(n=2, kxx=1.5e8, kyy=1.5e8, cxx=2500.0, cyy=2500.0),
     ]
     r2 = rs.Rotor(shaft2, disks2, bearings2)
 
     # 4. GEAR ELEMENT
-    gear = rs.GearElement(2, 5.0, 0.002, 0.004, 20, 0.5, np.radians(22.5))
+    gear = rs.GearElement(
+        n=2, m=5.0, Id=0.002, Ip=0.004, 
+        n_teeth=20, pitch_diameter=0.5, pr_angle=np.radians(22.5)
+    )
 
     # 5. MULTI ROTOR
     multi = build_multirotor_safely(r1, r2, gear, (0, 2, 1, 1))
@@ -79,11 +85,23 @@ def build_tutorial_4_model():
 # =============================================================================
 
 def build_rotor_from_json(shaft_data, disk_data, bearing_data, material_obj):
-    shaft_elements = [rs.ShaftElement(s["L (m)"], s["id_L (m)"], s["od_L (m)"], material_obj) for s in shaft_data]
-    disk_elements = [rs.DiskElement(d["nœud"], d["Masse (kg)"], d["Id (kg.m²)"], d["Ip (kg.m²)"]) for d in disk_data]
-    bearing_elements = [rs.BearingElement(b["nœud"], b["kxx"], b["kyy"], b["cxx"], b["cyy"]) for b in bearing_data]
+    # Utilisation stricte des arguments nommés (kwargs) pour éviter les erreurs d'API ROSS
+    shaft_elements = [
+        rs.ShaftElement(
+            L=s["L (m)"], idl=s["id_L (m)"], odl=s["od_L (m)"], material=material_obj
+        ) for s in shaft_data
+    ]
+    disk_elements = [
+        rs.DiskElement(
+            n=d["nœud"], m=d["Masse (kg)"], Id=d["Id (kg.m²)"], Ip=d["Ip (kg.m²)"]
+        ) for d in disk_data
+    ]
+    bearing_elements = [
+        rs.BearingElement(
+            n=b["nœud"], kxx=b["kxx"], kyy=b["kyy"], cxx=b["cxx"], cyy=b["cyy"]
+        ) for b in bearing_data
+    ]
     return rs.Rotor(shaft_elements, disk_elements, bearing_elements)
-
 def load_multirotor_from_json(json_file):
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
