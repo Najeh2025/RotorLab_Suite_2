@@ -424,6 +424,7 @@ def _run_all():
             st.session_state["m8_gear_ratio"] = multi.mesh.gear_ratio    # ← AJOUTER cette ligne
             _log("MultiRotor couple calcule", "ok")
         except Exception as e_m:
+            st.session_state["m8_error"] = "MultiRotor ERREUR: {}".format(e_m)
             _log("MultiRotor: {} -> Campbell individuel".format(e_m), "warn")
             st.session_state["m8_multi_warn"] = str(e_m)
             z1 = _get_gear_params(data["rotor1"], "n_teeth")
@@ -437,9 +438,19 @@ def _run_all():
             _log("Campbell R1+R2 calcules", "ok")
 
         # Modales
+        # Modes individuels (gardés pour le fallback)
         st.session_state["m8_modal1"] = r1.run_modal(speed=0)
         st.session_state["m8_modal2"] = r2.run_modal(speed=0)
-        _log("Analyses modales terminees", "ok")
+        
+        # Modes du système couplé si MultiRotor disponible
+        multi = st.session_state.get("m8_multi")
+        if multi is not None:
+            try:
+                st.session_state["m8_modal_multi"] = multi.run_modal(speed=0)
+                _log("Modal MultiRotor couple calcule", "ok")
+            except Exception as e:
+                _log("Modal MultiRotor : {}".format(e), "warn")
+                _log("Analyses modales terminees", "ok")
 
         # Balourd
         _run_unbalance_calc(r1, r2)
@@ -493,28 +504,33 @@ def _display_geometry():
     rpm2  = rpm1 * z1 / z2 if z2 > 0 else 0
     fe    = rpm1 / 60 * z1
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**R1** — {:.0f} RPM | {:.2f} kg | {} noeuds".format(
-            rpm1, r1.m, len(r1.nodes)))
-        try:
-            fig1 = r1.plot_rotor()
-            fig1.update_layout(height=260, title="Rotor 1",
-                               margin=dict(l=0,r=0,t=30,b=0))
-            st.plotly_chart(fig1, use_container_width=True, key="m8_geo1")
-        except Exception as e:
-            st.warning("R1 : {}".format(e))
+    multi = st.session_state.get("m8_multi")
 
-    with col2:
-        st.markdown("**R2** — {:.0f} RPM | {:.2f} kg | {} noeuds".format(
-            rpm2, r2.m, len(r2.nodes)))
+    if multi is not None:
+        # ✅ Schéma couplé comme dans le tutorial
         try:
-            fig2 = r2.plot_rotor()
-            fig2.update_layout(height=260, title="Rotor 2",
-                               margin=dict(l=0,r=0,t=30,b=0))
-            st.plotly_chart(fig2, use_container_width=True, key="m8_geo2")
+            fig = multi.plot_rotor()
+            fig.update_layout(
+                height=350,
+                title="MultiRotor couplé — R1 + R2",
+                font=dict(size=11),          # ← taille police réduite
+                margin=dict(l=0,r=0,t=40,b=0)
+            )
+            st.plotly_chart(fig, use_container_width=True, key="m8_geo_multi")
         except Exception as e:
-            st.warning("R2 : {}".format(e))
+            st.warning("plot_rotor MultiRotor : {}".format(e))
+    else:
+        # Fallback si MultiRotor non disponible
+        st.warning("MultiRotor non couplé — affichage individuel")
+        col1, col2 = st.columns(2)
+        with col1:
+            fig1 = r1.plot_rotor()
+            fig1.update_layout(height=260, font=dict(size=10))
+            st.plotly_chart(fig1, use_container_width=True, key="m8_geo1")
+        with col2:
+            fig2 = r2.plot_rotor()
+            fig2.update_layout(height=260, font=dict(size=10))
+            st.plotly_chart(fig2, use_container_width=True, key="m8_geo2")
 
     st.markdown("---")
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -589,6 +605,23 @@ def _display_campbell():
 # AFFICHAGE MODAL
 # =============================================================================
 def _display_modal():
+     modal_multi = st.session_state.get("m8_modal_multi")
+
+    # ✅ Priorité : modes du système couplé
+    if modal_multi is not None:
+        st.markdown("**Modes du système MultiRotor couplé**")
+        fn = modal_multi.wn / (2 * np.pi)
+        ld = getattr(modal_multi, 'log_dec', np.zeros(len(fn)))
+        n  = min(12, len(fn))
+        df = pd.DataFrame({
+            "Mode":    list(range(1, n+1)),
+            "fn (Hz)": ["{:.3f}".format(fn[i]) for i in range(n)],
+            "Log Dec": ["{:.4f}".format(ld[i]) for i in range(n)],
+            "Statut":  ["INST" if ld[i]<=0 else "Marg" if ld[i]<0.1
+                        else "OK" for i in range(n)]
+        })
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        return   # ← ne pas afficher les modes individuels en dessous
     m1 = st.session_state.get("m8_modal1")
     m2 = st.session_state.get("m8_modal2")
     if m1 is None and m2 is None:
@@ -693,11 +726,19 @@ def _display_unbalance():
         freqs = np.linspace(0, 100, 300)
 
     amps = None
-    if hasattr(res,'data_magnitude') and callable(res.data_magnitude):
-        try:
-            amps = np.atleast_1d(
-                res.data_magnitude(probe=[node,0])).flatten()
-        except Exception: pass
+    # Lecture des fréquences depuis le résultat
+    freqs_hz = np.array(res.speed_range) / (2 * np.pi)   # rad/s → Hz
+    
+    # Lecture des amplitudes — API ROSS actuelle
+    try:
+        from ross import Probe
+        probe = Probe(node, 0)    # nœud, angle 0° = direction X
+        amps = res.data_magnitude(probe=probe)
+        except Exception:
+            # Fallback lecture directe
+            arr = np.abs(np.array(res.forced_resp))
+            dof = min(node * 4, arr.shape[0] - 1)
+            amps = arr[dof, :]
 
     if amps is None:
         for attr in ("forced_resp","response"):
@@ -758,6 +799,9 @@ def _display_benchmark():
     # Valeurs de reference (lecture tutorial ROSS Part 4)
     ref_r1 = [11.6, 17.3, 42.8, 65.1]
     ref_r2 = [ 8.4, 14.1, 31.2, 55.7]
+    # Fréquences propres du système couplé — Tutorial ROSS Part 4
+    # Source : Timbó et al. 2020, modèle générateur-turbine
+    ref_couplé = [109.0, 116.0, 146.0, 148.0, 276.0, 288.0, 447.0, 519.0]
 
     if m1 is None or m2 is None:
         st.info("Chargez le modele de reference et lancez les calculs.")
