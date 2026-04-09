@@ -12,6 +12,25 @@ except ImportError:
     ROSS_OK = False
 
 # =============================================================================
+# UTILITAIRE DE COMPATIBILITÉ MULTIROTOR
+# =============================================================================
+def build_multirotor_safely(r1, r2, gear, conn):
+    """
+    Gère les différences de signature de l'API ROSS selon les versions.
+    Empêche l'erreur 'list' object has no attribute 'disk_elements'.
+    """
+    try:
+        # Signature la plus stable : kwargs explicites
+        return rs.MultiRotor(rotors=[r1, r2], gear_elements=[gear], connections=[conn])
+    except AttributeError:
+        # L'AttributeError survient si ROSS attend *rotors (rotors unpackés)
+        return rs.MultiRotor(r1, r2, gear_elements=[gear], connections=[conn])
+    except TypeError:
+        # Si les kwargs sont rejetés, fallback au positionnel pur du tutoriel
+        return rs.MultiRotor([r1, r2], [gear], [conn])
+
+
+# =============================================================================
 # MODÈLE DE VALIDATION (SÉQUENCE EXACTE DU TUTORIEL 4)
 # =============================================================================
 
@@ -62,10 +81,8 @@ def build_tutorial_4_model():
     # Ordre : n, m, Id, Ip, n_teeth, pitch_diameter, pr_angle
     gear = rs.GearElement(2, 5.0, 0.002, 0.004, 20, 0.5, np.radians(22.5))
 
-    # 5. MULTI ROTOR (L'étape critique)
-    # Selon le tutoriel : MultiRotor([rotors], [gears], [connections])
-    # AUCUN argument nommé (pas de 'rotors='), uniquement positionnel.
-    multi = rs.MultiRotor([r1, r2], [gear], [(0, 2, 1, 1)])
+    # 5. MULTI ROTOR (L'étape critique corrigée)
+    multi = build_multirotor_safely(r1, r2, gear, (0, 2, 1, 1))
     
     return multi, r1, r2
 
@@ -102,8 +119,10 @@ def load_multirotor_from_json(json_file):
         np.radians(g_info["pr_angle"])
     )
     
-    # MultiRotor([rotors], [gears], [connections])
-    multi = rs.MultiRotor([r1, r2], [gear], [(0, g_info["nœud_rotor_1"], 1, g_info["nœud_rotor_2"])])
+    # MultiRotor sécurisé
+    conn = (0, g_info["nœud_rotor_1"], 1, g_info["nœud_rotor_2"])
+    multi = build_multirotor_safely(r1, r2, gear, conn)
+    
     return multi, r1, r2
 
 # =============================================================================
