@@ -263,11 +263,11 @@ def _build_modal_table(modal):
     stability = []
     for v in ld[:n]:
         if v > 0.3:
-            stability.append("Très stable")
+            stability.append("Très Stable")
         elif v > 0.1:
             stability.append("Stable (API 684)")
         elif v > 0:
-            stability.append("Peu amorti")
+            stability.append("Peu Amorti")
         else:
             stability.append("INSTABLE")
 
