@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import json
+import traceback  # <--- Ajout pour l'investigation des erreurs
 
 try:
     import ross as rs
@@ -15,17 +16,12 @@ except ImportError:
 # UTILITAIRE DE COMPATIBILITÉ MULTIROTOR
 # =============================================================================
 def build_multirotor_safely(r1, r2, gear, conn):
-    """
-    Gère les différences de signature de l'API ROSS selon les versions.
-    """
+    """Gère les différences de signature de l'API ROSS selon les versions."""
     try:
-        # Signature la plus stable : kwargs explicites
         return rs.MultiRotor(rotors=[r1, r2], gear_elements=[gear], connections=[conn])
     except AttributeError:
-        # L'AttributeError survient si ROSS attend *rotors
         return rs.MultiRotor(r1, r2, gear_elements=[gear], connections=[conn])
     except TypeError:
-        # Fallback positionnel pur
         return rs.MultiRotor([r1, r2], [gear], [conn])
 
 
@@ -34,10 +30,8 @@ def build_multirotor_safely(r1, r2, gear, conn):
 # =============================================================================
 
 def build_tutorial_4_model():
-    """
-    Implémentation littérale du Tutorial 4 de ROSS.
-    """
-    # 1. Matériau (avec rs.Material)
+    """Implémentation littérale du Tutorial 4 de ROSS."""
+    # 1. Matériau
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
     # 2. ROTOR 1
@@ -94,7 +88,6 @@ def load_multirotor_from_json(json_file):
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    # Matériau (avec rs.Material)
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
     
     r1 = build_rotor_from_json(data["shaft"], data["disks"], data["bearings"], mat)
@@ -148,7 +141,9 @@ def render_m8(col_settings, col_graphics):
                     st.session_state["m8_rotor2"] = r2
                     st.success("Système assemblé avec succès !")
             except Exception as e:
+                # ── MODIFICATION ICI : Affichage complet de l'erreur ──
                 st.error(f"Erreur : {e}")
+                st.code(traceback.format_exc(), language="python")
 
         st.markdown("---")
         vmax = st.slider("Vitesse max (RPM)", 1000, 20000, 10000)
@@ -160,6 +155,7 @@ def render_m8(col_settings, col_graphics):
                     st.success("Calcul terminé !")
                 except Exception as e:
                     st.error(f"Erreur : {e}")
+                    st.code(traceback.format_exc(), language="python")
 
     with col_graphics:
         _display_results()
