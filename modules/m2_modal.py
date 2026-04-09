@@ -153,10 +153,10 @@ def _display_static():
     plot_choice = st.radio(
         "Diagramme à afficher :",
         [
-            "Déformée de l'arbre",
-            "Moment fléchissant",
-            "Effort tranchant",
             "Corps libre"
+            "Effort tranchant",
+            "Moment fléchissant",
+            "Déformée de l'arbre",  
         ],
         horizontal=True,
         key="m2_stat_plot"
