@@ -1,4 +1,4 @@
-# modules/m8_multirotor.py — MultiRotor Positional Arguments Fix
+# modules/m8_multirotor.py — MultiRotor Final Fix
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -50,14 +50,14 @@ def build_tutorial_4_model():
     ]
     r2 = rs.Rotor(shaft2, disks2, bearings2)
 
-    # Engrenage
+    # Engrenage (Positionnel)
     gear = rs.GearElement(
         2, 5.0, 0.002, 0.004, 20, 0.5, np.radians(22.5)
     )
 
-    # MULTI ROTOR - CORRECTION : Utilisation d'arguments positionnels
-    # Ordre : ([rotors], [gears], [connections])
-    multi = rs.MultiRotor([r1, r2], [gear], [(0, 2, 1, 1)])
+    # MULTI ROTOR - CORRECTION MAJEURE : Pas de liste pour les rotors
+    # On passe r1, r2 séparément, puis la liste des engrenages, puis les connexions
+    multi = rs.MultiRotor(r1, r2, [gear], [(0, 2, 1, 1)])
     
     return multi, r1, r2
 
@@ -90,8 +90,8 @@ def load_multirotor_from_json(json_file):
         np.radians(gear_info["pr_angle"])
     )
     
-    # MULTI ROTOR - CORRECTION : Arguments positionnels
-    multi = rs.MultiRotor([r1, r2], [gear], [(0, gear_info["nœud_rotor_1"], 1, gear_info["nœud_rotor_2"])])
+    # MULTI ROTOR - CORRECTION MAJEURE : Pas de liste pour les rotors
+    multi = rs.MultiRotor(r1, r2, [gear], [(0, gear_info["nœud_rotor_1"], 1, gear_info["nœud_rotor_2"])])
     return multi, r1, r2
 
 # =============================================================================
