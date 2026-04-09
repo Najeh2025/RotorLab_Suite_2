@@ -15,27 +15,56 @@ except ImportError:
 # =============================================================================
 # UTILITAIRE DE COMPATIBILITÉ MULTIROTOR
 # =============================================================================
+# =============================================================================
+# UTILITAIRE DE COMPATIBILITÉ MULTIROTOR
+# =============================================================================
 def build_multirotor_safely(r1, r2, gear, conn):
     """
-    Gère les différences de signature de l'API ROSS selon les versions.
+    Gère toutes les variations historiques de l'API ROSS pour l'assemblage MultiRotor.
     """
+    # Pour les anciennes versions de ROSS, les éléments de couplage nécessitent
+    # de connaître le nœud de destination sur le Rotor 2 (n_link). 
+    # On l'injecte dynamiquement dans l'objet gear :
+    n1, n2 = conn[1], conn[3]
+    if not hasattr(gear, "n_link"):
+        gear.n_link = n2
+    if not hasattr(gear, "n_linked"):
+        gear.n_linked = n2
+
+    errors = []
+
+    # 1. API la plus probable pour votre version (cross_coupling_elements)
     try:
-        # L'API actuelle de ROSS attend les rotors un par un (grâce à *rotors)
-        # et exige que les engrenages et connexions soient des listes nommées.
+        return rs.MultiRotor(r1, r2, cross_coupling_elements=[gear])
+    except Exception as e:
+        errors.append(f"API 1 (cross_coupling): {e}")
+
+    # 2. API Mixte (cross_coupling + connections explicites)
+    try:
+        return rs.MultiRotor(r1, r2, cross_coupling_elements=[gear], connections=[conn])
+    except Exception as e:
+        errors.append(f"API 2 (cross_coupling + conn): {e}")
+
+    # 3. API Récente (*rotors, gear_elements, connections)
+    try:
         return rs.MultiRotor(r1, r2, gear_elements=[gear], connections=[conn])
     except Exception as e:
-        # En cas d'ancienne version de ROSS (qui n'utilisait que des listes positionnelles)
-        try:
-            return rs.MultiRotor([r1, r2], [gear], [conn])
-        except Exception:
-            # Si vraiment tout échoue, on renvoie l'erreur originale
-            raise RuntimeError(f"Impossible d'assembler le MultiRotor. API ROSS incompatible. Erreur: {e}")
+        errors.append(f"API 3 (gear_elements + conn): {e}")
 
+    # 4. API Intermédiaire avec listes
+    try:
+        return rs.MultiRotor(rotors=[r1, r2], gear_elements=[gear], connections=[conn])
+    except Exception as e:
+        errors.append(f"API 4 (rotors list): {e}")
 
-# =============================================================================
-# MODÈLE DE VALIDATION (SÉQUENCE EXACTE DU TUTORIEL 4)
-# =============================================================================
+    # 5. Fallback total positionnel
+    try:
+        return rs.MultiRotor(r1, r2, [gear])
+    except Exception as e:
+        errors.append(f"API 5 (positionnel pur): {e}")
 
+    # Si on arrive ici, toutes les méthodes ont échoué. On affiche l'erreur détaillée.
+    raise RuntimeError("L'API ROSS a rejeté toutes les syntaxes d'assemblage.\nDétails:\n" + "\n".join(errors))
 # =============================================================================
 # MODÈLE DE VALIDATION (SÉQUENCE EXACTE DU TUTORIEL 4)
 # =============================================================================
