@@ -1,4 +1,4 @@
-# modules/m8_json_loader.py — MultiRotor JSON Loader
+# modules/m8_multirotor.py — MultiRotor JSON Loader
 import streamlit as st
 import numpy as np
 import pandas as pd
