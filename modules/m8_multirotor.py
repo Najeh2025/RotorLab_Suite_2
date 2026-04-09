@@ -17,16 +17,15 @@ except ImportError:
 def build_multirotor_safely(r1, r2, gear, conn):
     """
     Gère les différences de signature de l'API ROSS selon les versions.
-    Empêche l'erreur 'list' object has no attribute 'disk_elements'.
     """
     try:
         # Signature la plus stable : kwargs explicites
         return rs.MultiRotor(rotors=[r1, r2], gear_elements=[gear], connections=[conn])
     except AttributeError:
-        # L'AttributeError survient si ROSS attend *rotors (rotors unpackés)
+        # L'AttributeError survient si ROSS attend *rotors
         return rs.MultiRotor(r1, r2, gear_elements=[gear], connections=[conn])
     except TypeError:
-        # Si les kwargs sont rejetés, fallback au positionnel pur du tutoriel
+        # Fallback positionnel pur
         return rs.MultiRotor([r1, r2], [gear], [conn])
 
 
@@ -37,25 +36,21 @@ def build_multirotor_safely(r1, r2, gear, conn):
 def build_tutorial_4_model():
     """
     Implémentation littérale du Tutorial 4 de ROSS.
-    Séquence : Material -> Rotors -> Gear -> MultiRotor
     """
-    # 1. Matériau
+    # 1. Matériau (avec rs.Material)
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
     # 2. ROTOR 1
-    # Shaft: L, idl, odl, material
     shaft1 = [
         rs.ShaftElement(0.10, 0.0, 0.30, mat),
         rs.ShaftElement(4.24, 0.0, 0.30, mat),
         rs.ShaftElement(1.16, 0.0, 0.22, mat),
         rs.ShaftElement(0.30, 0.0, 0.22, mat),
     ]
-    # Disks: n, m, Id, Ip
     disks1 = [
         rs.DiskElement(0, 50.0, 1.50, 3.00),
         rs.DiskElement(4, 20.0, 0.50, 1.00),
     ]
-    # Bearings: n, kxx, kyy, cxx, cyy (S'assurer que cxx/cyy sont présents)
     bearings1 = [
         rs.BearingElement(0, 1.839e8, 2.004e8, 3000.0, 3000.0),
         rs.BearingElement(3, 1.839e8, 2.004e8, 3000.0, 3000.0),
@@ -78,10 +73,9 @@ def build_tutorial_4_model():
     r2 = rs.Rotor(shaft2, disks2, bearings2)
 
     # 4. GEAR ELEMENT
-    # Ordre : n, m, Id, Ip, n_teeth, pitch_diameter, pr_angle
     gear = rs.GearElement(2, 5.0, 0.002, 0.004, 20, 0.5, np.radians(22.5))
 
-    # 5. MULTI ROTOR (L'étape critique corrigée)
+    # 5. MULTI ROTOR
     multi = build_multirotor_safely(r1, r2, gear, (0, 2, 1, 1))
     
     return multi, r1, r2
@@ -91,11 +85,8 @@ def build_tutorial_4_model():
 # =============================================================================
 
 def build_rotor_from_json(shaft_data, disk_data, bearing_data, material_obj):
-    # Utilisation positionnelle pour ShaftElement(L, idl, odl, material)
     shaft_elements = [rs.ShaftElement(s["L (m)"], s["id_L (m)"], s["od_L (m)"], material_obj) for s in shaft_data]
-    # Utilisation positionnelle pour DiskElement(n, m, Id, Ip)
     disk_elements = [rs.DiskElement(d["nœud"], d["Masse (kg)"], d["Id (kg.m²)"], d["Ip (kg.m²)"]) for d in disk_data]
-    # Utilisation positionnelle pour BearingElement(n, kxx, kyy, cxx, cyy)
     bearing_elements = [rs.BearingElement(b["nœud"], b["kxx"], b["kyy"], b["cxx"], b["cyy"]) for b in bearing_data]
     return rs.Rotor(shaft_elements, disk_elements, bearing_elements)
 
@@ -103,12 +94,13 @@ def load_multirotor_from_json(json_file):
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
+    # Matériau (avec rs.Material)
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
+    
     r1 = build_rotor_from_json(data["shaft"], data["disks"], data["bearings"], mat)
     r2 = build_rotor_from_json(data["shaft_2"], data["disks_2"], data["bearings_2"], mat)
     
     g_info = data["gears"][0]
-    # GearElement(n, m, Id, Ip, n_teeth, pitch_diameter, pr_angle)
     gear = rs.GearElement(
         g_info["nœud_rotor_1"], 
         g_info["Masse (kg)"], 
@@ -119,7 +111,6 @@ def load_multirotor_from_json(json_file):
         np.radians(g_info["pr_angle"])
     )
     
-    # MultiRotor sécurisé
     conn = (0, g_info["nœud_rotor_1"], 1, g_info["nœud_rotor_2"])
     multi = build_multirotor_safely(r1, r2, gear, conn)
     
@@ -192,8 +183,7 @@ def _display_results():
     with tab2:
         if "m8_camp" in st.session_state:
             camp = st.session_state["m8_camp"]
-            # On utilise l'axe X basé sur les vitesses calculées
-            spd_rpm = np.linspace(0, 10000, 30) # Ajustable
+            spd_rpm = np.linspace(0, 10000, 30) 
             fn_mat = camp.wd / (2 * np.pi)
             fig = go.Figure()
             for i in range(fn_mat.shape[1]):
