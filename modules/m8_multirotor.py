@@ -1,29 +1,36 @@
+import streamlit as st
 import ross as rs
 
-def test_minimal_multirotor():
-    print(f"Version de ROSS utilisée : {rs.__version__}")
+def test_minimal_multirotor_streamlit():
+    st.title("Test Minimal ROSS MultiRotor")
     
-    # Matériel de base
-    steel = rs.materials.steel
-    
-    # 1. Éléments du Rotor 1 (L'arbre va du nœud 0 au nœud 1)
-    shaft1 = [rs.ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel, n=0)]
-    gear1 = rs.GearElement(n=1, id=1, mass=2.0, Ie=0.1, Ip=0.1) # Attaché au nœud 1
-    
-    # 2. Éléments du Rotor 2 (L'arbre va du nœud 0 au nœud 1)
-    shaft2 = [rs.ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel, n=0)]
-    gear2 = rs.GearElement(n=0, id=2, mass=2.0, Ie=0.1, Ip=0.1) # Attaché au nœud 0
-    
-    # 3. Assemblage des Rotors individuels (Les engrenages vont dans disk_elements)
-    rotor1 = rs.Rotor(shaft_elements=shaft1, disk_elements=[gear1])
-    rotor2 = rs.Rotor(shaft_elements=shaft2, disk_elements=[gear2])
-    
-    # 4. Création du MultiRotor
     try:
+        st.write(f"**Version de ROSS utilisée :** {rs.__version__}")
+        
+        # Matériel de base
+        steel = rs.materials.steel
+        
+        # 1. Éléments du Rotor 1
+        shaft1 = [rs.ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel, n=0)]
+        gear1 = rs.GearElement(n=1, id=1, mass=2.0, Ie=0.1, Ip=0.1) 
+        
+        # 2. Éléments du Rotor 2
+        shaft2 = [rs.ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel, n=0)]
+        gear2 = rs.GearElement(n=0, id=2, mass=2.0, Ie=0.1, Ip=0.1) 
+        
+        # 3. Assemblage des Rotors individuels
+        rotor1 = rs.Rotor(shaft_elements=shaft1, disk_elements=[gear1])
+        rotor2 = rs.Rotor(shaft_elements=shaft2, disk_elements=[gear2])
+        
+        # 4. Création du MultiRotor
         mr = rs.MultiRotor(rotor1, rotor2)
-        print("🎉 Succès ! Le MultiRotor a été assemblé correctement.")
+        
+        st.success("🎉 Succès ! Le MultiRotor a été assemblé correctement avec la nouvelle API.")
+        st.write("Voici l'objet généré :", mr)
+        
     except Exception as e:
-        print(f"❌ Échec lors de l'assemblage du MultiRotor. L'erreur est : \n{e}")
+        st.error("❌ Échec lors de l'assemblage du MultiRotor.")
+        st.exception(e) # Streamlit va formater l'erreur proprement sur la page
 
-if __name__ == "__main__":
-    test_minimal_multirotor()
+# Exécution de la fonction pour Streamlit
+test_minimal_multirotor_streamlit()
