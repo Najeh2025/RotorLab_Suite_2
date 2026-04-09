@@ -17,43 +17,32 @@ except ImportError:
 # =============================================================================
 def build_multirotor_ultra_safely(r1, r2, gear, conn):
     """
-    Gère toutes les variations historiques de l'API ROSS.
-    Renommée pour forcer Streamlit à recompiler la fonction.
+    Version corrigée pour l'assemblage MultiRotor.
+    ROSS attend généralement une liste de rotors et une liste d'éléments de couplage.
     """
-    n1, n2 = conn[1], conn[3]
-    # Injection dynamique pour les versions de ROSS < 1.2
-    if not hasattr(gear, "n_link"):
-        gear.n_link = n2
-    if not hasattr(gear, "n_linked"):
-        gear.n_linked = n2
-
     errors = []
 
-    # API ROSS la plus classique (v1.x)
+    # Tentative 1 : Approche standard (Rotors, puis liste d'éléments de couplage)
     try:
-        return rs.MultiRotor(r1, r2, cross_coupling_elements=[gear])
+        # Dans beaucoup de versions, les éléments de couplage sont passés 
+        # après la liste des rotors.
+        return rs.MultiRotor([r1, r2], [gear])
     except Exception as e:
-        errors.append(f"API 1: {e}")
+        errors.append(f"Standard (rotors list): {e}")
 
-    # API ROSS Récente
+    # Tentative 2 : Approche par arguments nommés 'items'
     try:
-        return rs.MultiRotor(r1, r2, cross_coupling_elements=[gear], connections=[conn])
+        return rs.MultiRotor(rotors=[r1, r2], coupling_elements=[gear])
     except Exception as e:
-        errors.append(f"API 2: {e}")
+        errors.append(f"Named (coupling_elements): {e}")
 
-    # API avec gear_elements (la plus récente)
+    # Tentative 3 : Approche spécifique si ROSS attend les éléments directement
     try:
-        return rs.MultiRotor(r1, r2, gear_elements=[gear])
+        return rs.MultiRotor([r1, r2], gear_elements=[gear])
     except Exception as e:
-        errors.append(f"API 3: {e}")
+        errors.append(f"Named (gear_elements): {e}")
 
-    try:
-        return rs.MultiRotor(r1, r2, gear_elements=[gear], connections=[conn])
-    except Exception as e:
-        errors.append(f"API 4: {e}")
-
-    raise RuntimeError("Toutes les tentatives d'API ont échoué. Détails: " + " | ".join(errors))
-
+    raise RuntimeError("Échec de l'assemblage MultiRotor. Détails : " + " | ".join(errors))
 # =============================================================================
 # MODÈLE DE VALIDATION (SÉQUENCE EXACTE DU TUTORIEL 4)
 # =============================================================================
