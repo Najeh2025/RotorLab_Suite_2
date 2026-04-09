@@ -101,7 +101,7 @@ def load_multirotor_system(json_file):
 # INTERFACE STREAMLIT
 # =============================================================================
 
-def render_m8_json(col_settings, col_graphics):
+def render_m8(col_settings, col_graphics):
     with col_settings:
         st.markdown('<div class="rl-settings-title">JSON MultiRotor Loader</div>', unsafe_allow_html=True)
         
