@@ -176,14 +176,26 @@ def _run_multirotor():
             )
 
             # ⚙️ CORRECTION: On injecte les GearElements directement dans chaque Rotor
-            rotor1 = rs.Rotor(shaft_elements=s1, disk_elements=d1, bearing_elements=b1, gear_elements=[gear1])
-            rotor2 = rs.Rotor(shaft_elements=s2, disk_elements=d2, bearing_elements=b2, gear_elements=[gear2])
+            # 1. Création des rotors individuels (SANS l'argument gear_elements)
+            rotor1 = rs.Rotor(shaft_elements=s1, disk_elements=d1, bearing_elements=b1)
+            rotor2 = rs.Rotor(shaft_elements=s2, disk_elements=d2, bearing_elements=b2)
             
             st.session_state["m8_rotor1"] = rotor1
             st.session_state["m8_rotor2"] = rotor2
 
-            # Assemblage du système couplé
-            multi = rs.MultiRotor(rotor1, rotor2)
+            # 2. Création de l'élément de couplage (Rigidité de l'engrenage)
+            gear_elem = rs.GearElement(
+                n=n1,
+                pitch_diameter=d1_val,
+                pr_angle=alpha
+            )
+
+            # 3. Assemblage final du système couplé via MultiRotor
+            multi = rs.MultiRotor(
+                rotors=[rotor1, rotor2],
+                gear_elements=[gear_elem],
+                connections=[(0, n1, 1, n2)]
+            )
             st.session_state["m8_multi"] = multi
 
             # Lancement des calculs Dynamiques
