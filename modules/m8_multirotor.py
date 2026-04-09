@@ -39,6 +39,7 @@ REFERENCE_JSON = {
         ],
         "gear_elements": [
             {"n": 3, "m": 14.37, "Id": 0.068, "Ip": 0.136,
+             "width": 0.07,              # ← AJOUTER
              "n_teeth": 37, "base_diameter": 0.19,
              "pressure_angle_deg": 22.5, "helix_angle_deg": 0.0}
         ],
@@ -59,6 +60,7 @@ REFERENCE_JSON = {
         "disks": [],
         "gear_elements": [
             {"n": 1, "m": 322.0, "Id": 24.17, "Ip": 48.34,
+             "width": 0.20,              # ← AJOUTER
              "n_teeth": 159, "base_diameter": 0.826,
              "pressure_angle_deg": 22.5, "helix_angle_deg": 0.0}
         ],
@@ -348,12 +350,16 @@ def _build_rotor_from_json(rotor_data, mat):
     for g in rotor_data.get("gear_elements", []):
         try:
             gear = rs.GearElement(
-                n=int(g["n"]), m=float(g["m"]),
-                Id=float(g["Id"]), Ip=float(g["Ip"]),
+                n=int(g["n"]),
+                m=float(g["m"]),
+                Id=float(g["Id"]),
+                Ip=float(g["Ip"]),
+                width=float(g.get("width", 0.07)),   # ← AJOUT OBLIGATOIRE
                 n_teeth=int(g["n_teeth"]),
                 base_diameter=float(g["base_diameter"]),
-                pr_angle=rs.Q_(float(g.get("pressure_angle_deg",22.5)),"deg"),
-                helix_angle=float(g.get("helix_angle_deg",0.0)))
+                pressure_angle=rs.Q_(float(g.get("pressure_angle_deg", 22.5)), "deg"),  # ← "pressure_angle" pas "pr_angle"
+                helix_angle=float(g.get("helix_angle_deg", 0.0))
+                )
             disks.append(gear)
         except Exception as e:
             _log("GearElement fallback : {}".format(e), "warn")
@@ -411,9 +417,11 @@ def _run_all():
         try:
             multi = rs.MultiRotor(rotors=[r1, r2])
             st.session_state["m8_multi"] = multi
-            camp = multi.run_campbell(speeds, frequencies=n_modes)
-            st.session_state["m8_camp"]     = camp
+            frequency_range = rs.Q_(np.linspace(0, vmax, npts), "RPM")  # ← REMPLACER speeds par frequency_range en RPM
+            camp = multi.run_campbell(frequency_range, frequencies=n_modes)
+            st.session_state["m8_camp"]      = camp
             st.session_state["m8_camp_vmax"] = vmax
+            st.session_state["m8_gear_ratio"] = multi.mesh.gear_ratio    # ← AJOUTER cette ligne
             _log("MultiRotor couple calcule", "ok")
         except Exception as e_m:
             _log("MultiRotor: {} -> Campbell individuel".format(e_m), "warn")
@@ -443,27 +451,25 @@ def _run_all():
 
 def _run_unbalance_calc(r1, r2):
     try:
-        unb_mag = float(st.session_state.get("m8_unb_mag", 1e-3))
-        rotor_s = r1 if "1" in st.session_state.get("m8_unb_rotor","R1") \
-                  else r2
-        vmax    = float(st.session_state.get("m8_vmax", 4000))
-        freqs   = np.linspace(0, vmax/60, 300)
-        node_m  = len(rotor_s.nodes) // 2
+        unb_mag  = float(st.session_state.get("m8_unb_mag", 1e-3))
+        vmax     = float(st.session_state.get("m8_vmax", 4000))
+        rotor_s  = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") \
+                   else r2
+        node_m   = len(rotor_s.nodes) // 2
 
-        for kw in [
-            {"node":[node_m],"unbalance_magnitude":[unb_mag],
-             "unbalance_phase":[0.0],"frequency":freqs},
-            {"node":[node_m],"magnitude":[unb_mag],
-             "phase":[0.0],"frequency_range":freqs},
-        ]:
-            try:
-                res = rotor_s.run_unbalance_response(**kw)
-                st.session_state["m8_unbal_res"]  = res
-                st.session_state["m8_unbal_node"] = node_m
-                _log("Balourd calcule (N{})".format(node_m), "ok")
-                return
-            except TypeError:
-                continue
+        freqs_rad = np.linspace(0, vmax * np.pi / 30, 300)  # ← rad/s
+
+        res = rotor_s.run_unbalance_response(
+            node=[node_m],
+            unbalance_magnitude=[unb_mag],
+            unbalance_phase=[0.0],
+            frequency=freqs_rad
+        )
+
+        st.session_state["m8_unbal_res"]  = res
+        st.session_state["m8_unbal_node"] = node_m
+        _log("Balourd calcule (N{})".format(node_m), "ok")
+
     except Exception as e:
         _log("Balourd : {}".format(e), "warn")
 
@@ -552,76 +558,22 @@ def _display_campbell():
     CR1 = ["#1F5C8B","#0288D1","#00796B","#388E3C","#1565C0","#006064"]
     CR2 = ["#C55A11","#E64A19","#C62828","#AD1457","#6A1B9A","#00695C"]
 
-    fig = go.Figure()
+    # Si MultiRotor couplé disponible → utiliser l'API native ROSS
+    if camp_m is not None:
+        gear_ratio = st.session_state.get("m8_gear_ratio", 0.2327)
+        fig = camp_m.plot(
+            frequency_units="Hz",
+            harmonics=[1, round(gear_ratio, 3)]
+        )
+        fig.update_layout(height=480)
+        st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
 
-    def _add(camp, colors, prefix):
-        if hasattr(camp,'speed_range') and camp.speed_range is not None:
-            sr = np.array(camp.speed_range)
-        else:
-            sr = np.linspace(0, vmax*np.pi/30,
-                             int(st.session_state.get("m8_npts",25)))
-        spd = sr * 30/np.pi
-        fn_mat = None
-        if hasattr(camp,'wd') and camp.wd is not None:
-            fn_mat = camp.wd / (2*np.pi)
-        elif hasattr(camp,'wn') and camp.wn is not None:
-            fn_mat = camp.wn / (2*np.pi)
-        if fn_mat is None:
-            return
-        wh = getattr(camp,'whirl',None)
-        for i in range(min(6, fn_mat.shape[1])):
-            fn_i  = fn_mat[:,i]
-            is_fw = fn_i[-1] > fn_i[0]
-            if wh is not None:
-                mid = len(spd)//2
-                is_fw = "forward" in str(wh[mid,i]).lower()
-            lbl = "{} M{} ({})".format(prefix, i+1, "FW" if is_fw else "BW")
-            fig.add_trace(go.Scatter(
-                x=spd, y=fn_i, name=lbl,
-                line=dict(color=colors[i%len(colors)], width=2,
-                          dash="solid" if is_fw else "dash"),
-                hovertemplate="%{x:.0f} RPM / %{y:.2f} Hz<extra>"+lbl+"</extra>"
-            ))
-
-    if camp_m:  _add(camp_m, CR1, "Couple")
+    # Sinon fallback : Campbell individuels R1 + R2
     else:
-        if camp1: _add(camp1, CR1, "R1")
-        if camp2: _add(camp2, CR2, "R2")
+        fig = go.Figure()
 
-    xl = np.array([0, vmax])
-    if "1X" in harms:
-        fig.add_trace(go.Scatter(x=xl, y=xl/60, name="1X R1",
-            line=dict(color="#E53935",width=1.5,dash="dot")))
-        fig.add_trace(go.Scatter(x=xl, y=xl/60*z1/z2, name="1X R2",
-            line=dict(color="#FB8C00",width=1.5,dash="dot")))
-    if "2X" in harms:
-        fig.add_trace(go.Scatter(x=xl, y=xl/30, name="2X R1",
-            line=dict(color="#E57373",width=1,dash="dot"), opacity=0.7))
-    if "fe" in harms:
-        fig.add_trace(go.Scatter(x=xl, y=xl/60*z1,
-            name="fe (z1={})".format(z1),
-            line=dict(color="#7B1FA2",width=2,dash="dashdot")))
-
-    fig.add_vline(x=rpm1, line_dash="dash", line_color="#1F5C8B",
-                  annotation_text=" N1={:.0f}".format(rpm1),
-                  annotation_font=dict(color="#1F5C8B"))
-    fig.add_vline(x=rpm2, line_dash="dash", line_color="#C55A11",
-                  annotation_text=" N2={:.0f}".format(rpm2),
-                  annotation_font=dict(color="#C55A11"))
-
-    title = "Campbell MultiRotor couple" if camp_m else \
-            "Campbell R1+R2 (independants)"
-    fig.update_layout(height=480, title=title,
-                      xaxis_title="Vitesse R1 (RPM)",
-                      yaxis_title="Frequence (Hz)",
-                      plot_bgcolor="white",
-                      xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
-                      yaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
-                      legend=dict(orientation="h",yanchor="bottom",
-                                  y=1.02,xanchor="right",x=1,
-                                  font=dict(size=10)))
-    st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
-
+        def _add(camp, colors, prefix):
+            # ... garder votre code existant tel quel ...
     df_f = pd.DataFrame({
         "Grandeur": ["N1","N2","i = z1/z2","fe","2fe","3fe"],
         "Valeur": [
@@ -930,9 +882,9 @@ gear = rs.GearElement(
 
 **MultiRotor ROSS :**
 ```python
-multi = rs.MultiRotor(rotors=[rotor1, rotor2])
-speeds = np.linspace(0, 2000*np.pi/30, 50)
-camp = multi.run_campbell(speeds, frequencies=12)
+multi = rs.MultiRotor(rotors=[r1, r2])
+frequency_range = rs.Q_(np.linspace(0, vmax, npts), "RPM")  # ← Q_() en RPM
+camp = multi.run_campbell(frequency_range, frequencies=n_modes)
 ```
 
 **Frequences caracteristiques :**
