@@ -1,4 +1,4 @@
-# modules/m8_multirotor.py — MultiRotor Final Corrected
+# modules/m8_multirotor.py — MultiRotor Positional Arguments Fix
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -12,17 +12,13 @@ except ImportError:
     ROSS_OK = False
 
 # =============================================================================
-# MODÈLE DE VALIDATION (TUTORIAL 4) - CORRIGÉ
+# MODÈLE DE VALIDATION (TUTORIAL 4)
 # =============================================================================
 
 def build_tutorial_4_model():
-    """
-    Construit exactement le système du Tutorial 4 de ROSS.
-    Incorpore maintenant les propriétés physiques de l'engrenage.
-    """
     mat = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
-    # --- ROTOR 1 ---
+    # Rotor 1
     shaft1 = [
         rs.ShaftElement(L=0.10, idl=0.0, odl=0.30, material=mat),
         rs.ShaftElement(L=4.24, idl=0.0, odl=0.30, material=mat),
@@ -39,7 +35,7 @@ def build_tutorial_4_model():
     ]
     r1 = rs.Rotor(shaft1, disks1, bearings1)
 
-    # --- ROTOR 2 ---
+    # Rotor 2
     shaft2 = [
         rs.ShaftElement(L=1.50, idl=0.0, odl=0.25, material=mat),
         rs.ShaftElement(L=2.50, idl=0.0, odl=0.25, material=mat),
@@ -54,28 +50,19 @@ def build_tutorial_4_model():
     ]
     r2 = rs.Rotor(shaft2, disks2, bearings2)
 
-    # --- GEAR ELEMENT (CORRECTION : Ajout des 4 arguments obligatoires) ---
+    # Engrenage
     gear = rs.GearElement(
-        n=2, 
-        m=5.0,               # Masse (kg) - Obligatoire
-        Id=0.002,            # Inertie diamétrale (kg.m2) - Obligatoire
-        Ip=0.004,            # Inertie polaire (kg.m2) - Obligatoire
-        n_teeth=20,          # Nombre de dents - Obligatoire
-        pitch_diameter=0.5, 
-        pr_angle=np.radians(22.5) 
+        2, 5.0, 0.002, 0.004, 20, 0.5, np.radians(22.5)
     )
 
-    # --- MULTI ROTOR ---
-    multi = rs.MultiRotor(
-        rotors=[r1, r2], 
-        gear_elements=[gear], 
-        connections=[(0, 2, 1, 1)]
-    )
+    # MULTI ROTOR - CORRECTION : Utilisation d'arguments positionnels
+    # Ordre : ([rotors], [gears], [connections])
+    multi = rs.MultiRotor([r1, r2], [gear], [(0, 2, 1, 1)])
     
     return multi, r1, r2
 
 # =============================================================================
-# LOGIQUE DE CHARGEMENT JSON (CORRIGÉE)
+# LOGIQUE DE CHARGEMENT JSON
 # =============================================================================
 
 def build_rotor_from_json(shaft_data, disk_data, bearing_data, material_obj):
@@ -93,32 +80,27 @@ def load_multirotor_from_json(json_file):
     r2 = build_rotor_from_json(data["shaft_2"], data["disks_2"], data["bearings_2"], mat)
     
     gear_info = data["gears"][0]
-    # Utilisation stricte des clés du JSON pour remplir les arguments obligatoires
     gear = rs.GearElement(
-        n=gear_info["nœud_rotor_1"], 
-        m=gear_info["Masse (kg)"],       # <--- Ajouté
-        Id=gear_info["Id (kg.m²)"],      # <--- Ajouté
-        Ip=gear_info["Ip (kg.m²)"],      # <--- Ajouté
-        n_teeth=gear_info["n_teeth"],    # <--- Ajouté
-        pitch_diameter=gear_info["pitch_diameter"], 
-        pr_angle=np.radians(gear_info["pr_angle"])
+        gear_info["nœud_rotor_1"], 
+        gear_info["Masse (kg)"], 
+        gear_info["Id (kg.m²)"], 
+        gear_info["Ip (kg.m²)"], 
+        gear_info["n_teeth"], 
+        gear_info["pitch_diameter"], 
+        np.radians(gear_info["pr_angle"])
     )
     
-    multi = rs.MultiRotor(
-        rotors=[r1, r2], 
-        gear_elements=[gear], 
-        connections=[(0, gear_info["nœud_rotor_1"], 1, gear_info["nœud_rotor_2"])]
-    )
+    # MULTI ROTOR - CORRECTION : Arguments positionnels
+    multi = rs.MultiRotor([r1, r2], [gear], [(0, gear_info["nœud_rotor_1"], 1, gear_info["nœud_rotor_2"])])
     return multi, r1, r2
 
 # =============================================================================
-# INTERFACE STREAMLIT (SANS CHANGEMENT MAJEUR)
+# INTERFACE STREAMLIT
 # =============================================================================
 
 def render_m8(col_settings, col_graphics):
     with col_settings:
         st.markdown('<div class="rl-settings-title">MultiRotor System</div>', unsafe_allow_html=True)
-        
         mode = st.radio("Source du modèle", ["Modèle de Validation (Tutorial 4)", "Charger JSON"], index=0)
         
         if mode == "Charger JSON":
@@ -131,14 +113,12 @@ def render_m8(col_settings, col_graphics):
             if not ROSS_OK:
                 st.error("ROSS n'est pas installé.")
                 return
-            
             try:
                 with st.spinner("Construction..."):
                     if mode == "Modèle de Validation (Tutorial 4)":
                         multi, r1, r2 = build_tutorial_4_model()
                     else:
                         multi, r1, r2 = load_multirotor_from_json("temp_system.json")
-                    
                     st.session_state["m8_multi"] = multi
                     st.session_state["m8_rotor1"] = r1
                     st.session_state["m8_rotor2"] = r2
@@ -165,7 +145,6 @@ def _display_results():
     if "m8_multi" not in st.session_state:
         st.info("Veuillez assembler le système.")
         return
-
     tab1, tab2 = st.tabs(["Géométrie", "Campbell"])
     with tab1:
         col1, col2 = st.columns(2)
@@ -175,13 +154,10 @@ def _display_results():
         with col2:
             st.markdown("**Rotor 2**")
             st.plotly_chart(st.session_state["m8_rotor2"].plot_rotor(), use_container_width=True)
-
     with tab2:
         if "m8_camp" in st.session_state:
             camp = st.session_state["m8_camp"]
-            # On utilise la vitesse max définie dans le slider pour l'axe X
-            vmax = st.session_state.get("vmax", 10000) # Simplification
-            spd_rpm = np.linspace(0, vmax, 30) 
+            spd_rpm = np.linspace(0, 10000, 30) 
             fn_mat = camp.wd / (2 * np.pi)
             fig = go.Figure()
             for i in range(fn_mat.shape[1]):
