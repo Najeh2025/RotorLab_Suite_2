@@ -421,7 +421,18 @@ def _run_all():
 
         # ── MultiRotor couple ─────────────────────────────────────────────
         try:
-            multi = rs.MultiRotor(rotors=[r1, r2])
+            # Recuperer les noeuds des engrenages depuis le JSON
+            gear_node_r1 = int(data["rotor1"]["gear_elements"][0]["n"])
+            gear_node_r2 = int(data["rotor2"]["gear_elements"][0]["n"])
+
+            multi = rs.MultiRotor(
+                r1,
+                r2,
+                coupled_nodes=(gear_node_r1, gear_node_r2),
+                gear_mesh_stiffness=1e8,
+                orientation_angle=0,
+                position="below",
+            )
             st.session_state["m8_multi"] = multi
 
             frequency_range = rs.Q_(np.linspace(0, vmax, npts), "RPM")
