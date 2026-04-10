@@ -376,22 +376,35 @@ def _build_rotor_from_json(rotor_data, mat, rotor_name=""):
     gear_elements = []
     for g in rotor_data.get("gear_elements", []):
         try:
-            gear = rs.GearElement(
-                n=int(g["n"]),
-                m=float(g["m"]),
-                Id=float(g["Id"]),
-                Ip=float(g["Ip"]),
-                width=float(g.get("width", 0.07)),
-                n_teeth=int(g["n_teeth"]),
-                base_diameter=float(g["base_diameter"]),
-                pressure_angle=float(g.get("pressure_angle_deg", 22.5)),  # <--- MODIFIE ICI (plus de rs.Q_)
-                helix_angle=float(g.get("helix_angle_deg", 0.0)))
-            gear_elements.append(gear)
-            _log(f"GearElement créé pour {rotor_name} au nœud {g['n']}", "ok")
+            # Inspection dynamique de l'API pour s'adapter aux versions de ROSS
+            import inspect
+            gear_sig = inspect.signature(rs.GearElement.__init__)
+            valid_args = set(gear_sig.parameters.keys())
+            
+            # Dictionnaire de tous les paramètres possibles
+            gear_kwargs = {
+                "n": int(g["n"]),
+                "m": float(g["m"]),
+                "Id": float(g["Id"]),
+                "Ip": float(g["Ip"]),
+                "width": float(g.get("width", 0.07)),  # Existe dans les anciennes versions
+                "n_teeth": int(g["n_teeth"]),
+                "base_diameter": float(g["base_diameter"]),
+                "pressure_angle": float(g.get("pressure_angle_deg", 22.5)),  # Float pur (pas rs.Q_)
+                "helix_angle": float(g.get("helix_angle_deg", 0.0))
+            }
+            
+            # On filtre pour ne garder que ce que la version actuelle de ROSS accepte
+            filtered_kwargs = {k: v for k, v in gear_kwargs.items() if k in valid_args}
+            
+            gear = rs.GearElement(**filtered_kwargs)
+            disks.append(gear)
+            
         except Exception as e:
-            # Au lieu de remplacer par un DiskElement, on arrête avec un message clair
-            error_msg = f"ERREUR CRITIQUE - GearElement {rotor_name} nœud {g.get('n')} : {e}"
-            _log(error_msg, "err")
+            _log("GearElement erreur : {} — utilisation DiskElement".format(e), "warn")
+            disks.append(rs.DiskElement(
+                n=int(g["n"]), m=float(g["m"]),
+                Id=float(g["Id"]), Ip=float(g["Ip"])))
             # On propage l'erreur pour arrêter le processus
             raise ValueError(error_msg)
 
