@@ -223,15 +223,14 @@ def _render_tab_params():
         st.radio("Harmoniques", ["1X", "1X + 2X", "1X + 2X + fe"],
                  index=2, horizontal=True, key="m8_harmonics")
 
-    st.markdown('<div class="rl-section-header">Reponse au balourd</div>',
-                unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
+    st.markdown('<div class="rl-section-header">Reponse au balourd</div>', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
     with c1:
-        st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3,
-                        format="%.4f", key="m8_unb_mag")
+        st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3, format="%.4f", key="m8_unb_mag")
     with c2:
-        st.radio("Rotor", ["Rotor 1", "Rotor 2"],
-                 key="m8_unb_rotor", horizontal=True)
+        st.radio("Rotor", ["Rotor 1", "Rotor 2"], key="m8_unb_rotor", horizontal=True)
+    with c3:
+        st.radio("Plan de mesure", ["Horizontal (X)", "Vertical (Y)"], key="m8_unb_dof", horizontal=True)
 
 
 def _render_tab_run():
@@ -338,84 +337,24 @@ def _get_gear_params(rotor_data, key):
 # CONSTRUCTION DEPUIS JSON (VERSION CORRIGÉE)
 # =============================================================================
 def _build_rotor_from_json(rotor_data, mat, rotor_name=""):
-    """
-    Construit un objet Rotor ROSS à partir d'un dictionnaire JSON.
-    Lève une erreur explicite si un GearElement ne peut être créé.
-    """
-    shaft = []
-    # Construction des éléments d'arbre
-    for el in rotor_data["shaft"]:
-        shaft.append(rs.ShaftElement(
-            L=float(el["L"]),
-            idl=float(el.get("idl", 0.0)),
-            odl=float(el["odl"]),
-            idr=float(el.get("idr", el.get("idl", 0.0))),
-            odr=float(el.get("odr", el["odl"])),
-            material=mat,
-            shear_effects=True,
-            rotary_inertia=True,
-            gyroscopic=True))
-
-    disks = []
-    # Construction des disques (DiskElement)
-    for d in rotor_data.get("disks", []):
-        disks.append(rs.DiskElement(
-            n=int(d["n"]), m=float(d["m"]),
-            Id=float(d["Id"]), Ip=float(d["Ip"])))
-
-    # === CORRECTION 2 : Validation stricte des GearElements ===
-    # On crée une liste spécifique pour les engrenages
+    shaft = [rs.ShaftElement(L=float(e["L"]), idl=float(e.get("idl", 0.0)), odl=float(e["odl"]), idr=float(e.get("idr", 0.0)), odr=float(e.get("odr", e["odl"])), material=mat, shear_effects=True, rotary_inertia=True, gyroscopic=True) for e in rotor_data["shaft"]]
+    
+    disks = [rs.DiskElement(n=int(d["n"]), m=float(d["m"]), Id=float(d["Id"]), Ip=float(d["Ip"])) for d in rotor_data.get("disks", [])]
+    
     gear_elements = []
     for g in rotor_data.get("gear_elements", []):
         try:
-            # Inspection dynamique de l'API pour s'adapter aux versions de ROSS
             import inspect
-            gear_sig = inspect.signature(rs.GearElement.__init__)
-            valid_args = set(gear_sig.parameters.keys())
-            
-            # Dictionnaire de tous les paramètres possibles
-            gear_kwargs = {
-                "n": int(g["n"]),
-                "m": float(g["m"]),
-                "Id": float(g["Id"]),
-                "Ip": float(g["Ip"]),
-                "width": float(g.get("width", 0.07)),  # Existe dans les anciennes versions
-                "n_teeth": int(g["n_teeth"]),
-                "base_diameter": float(g["base_diameter"]),
-                "pressure_angle": float(g.get("pressure_angle_deg", 22.5)),  # Float pur (pas rs.Q_)
-                "helix_angle": float(g.get("helix_angle_deg", 0.0))
-            }
-            
-            # On filtre pour ne garder que ce que la version actuelle de ROSS accepte
-            filtered_kwargs = {k: v for k, v in gear_kwargs.items() if k in valid_args}
-            
-            gear = rs.GearElement(**filtered_kwargs)
-            disks.append(gear)
-            
+            sig = inspect.signature(rs.GearElement.__init__)
+            kw = {"n": int(g["n"]), "m": float(g["m"]), "Id": float(g["Id"]), "Ip": float(g["Ip"]), "width": float(g.get("width", 0.07)), "n_teeth": int(g["n_teeth"]), "base_diameter": float(g["base_diameter"]), "pressure_angle": float(g.get("pressure_angle_deg", 22.5)), "helix_angle": float(g.get("helix_angle_deg", 0.0))}
+            gear_elements.append(rs.GearElement(**{k: v for k, v in kw.items() if k in sig.parameters}))
         except Exception as e:
-            _log("GearElement erreur : {} — utilisation DiskElement".format(e), "warn")
-            disks.append(rs.DiskElement(
-                n=int(g["n"]), m=float(g["m"]),
-                Id=float(g["Id"]), Ip=float(g["Ip"])))
-            # On propage l'erreur pour arrêter le processus
-            raise ValueError(error_msg)
+            _log("GearElement erreur, fallback DiskElement: {}".format(e), "warn")
+            gear_elements.append(rs.DiskElement(n=int(g["n"]), m=float(g["m"]), Id=float(g["Id"]), Ip=float(g["Ip"])))
 
-    # On combine les disques et les engrenages pour créer le rotor
-    all_disks = disks + gear_elements
+    bears = [rs.BearingElement(n=int(b["n"]), kxx=float(b["kxx"]), kyy=float(b.get("kyy", b["kxx"])), kxy=float(b.get("kxy", 0.0)), kyx=float(b.get("kyx", 0.0)), cxx=float(b.get("cxx", 500.0)), cyy=float(b.get("cyy", 500.0))) for b in rotor_data["bearings"]]
 
-    bears = []
-    for b in rotor_data["bearings"]:
-        bears.append(rs.BearingElement(
-            n=int(b["n"]),
-            kxx=float(b["kxx"]),
-            kyy=float(b.get("kyy", b["kxx"])),
-            kxy=float(b.get("kxy", 0.0)),
-            kyx=float(b.get("kyx", 0.0)),
-            cxx=float(b.get("cxx", 500.0)),
-            cyy=float(b.get("cyy", b.get("cxx", 500.0)))))
-
-    return rs.Rotor(shaft, all_disks, bears)
-
+    return rs.Rotor(shaft, disks + gear_elements, bears)
 # =============================================================================
 # CALCUL PRINCIPAL (VERSION CORRIGÉE)
 # =============================================================================
@@ -792,71 +731,61 @@ def _display_modal():
 def _display_unbalance():
     res = st.session_state.get("m8_unbal_res")
     if res is None:
-        st.info("Lancez les calculs.")
-        return
-
+        return st.info("Lancez les calculs.")
+    
     node = int(st.session_state.get("m8_unbal_node", 2))
+    is_x = "X" in st.session_state.get("m8_unb_dof", "Horizontal (X)")
+    dof_idx = node * 4 + (0 if is_x else 1)
+    plan_label = "X (Horizontal)" if is_x else "Y (Vertical)"
 
-    # Recuperer les frequences en Hz
-    freqs_hz = None
-    if hasattr(res, "speed_range") and res.speed_range is not None:
-        sr = np.array(res.speed_range)
-        freqs_hz = sr / (2 * np.pi) if sr.max() < 5000 else sr / 60
-    if freqs_hz is None:
-        freqs_hz = np.linspace(0, 100, 300)
-
-    # Recuperer les amplitudes
-    amps = None
     try:
-        from ross import Probe
-        probe = Probe(node, 0)
-        amps  = np.array(res.data_magnitude(probe=probe)).flatten()
-    except Exception:
-        pass
-
-    if amps is None:
-        for attr in ("forced_resp", "response"):
-            if hasattr(res, attr):
-                arr = np.abs(np.array(getattr(res, attr)))
-                if arr.ndim == 2:
-                    dof  = min(node * 4, arr.shape[0] - 1)
-                    amps = arr[dof, :]
-                else:
-                    amps = arr
-                break
-
-    if amps is None:
-        st.warning("Donnees de reponse indisponibles.")
+        # Extraction robuste : forced_resp est une matrice complexe (ndofs x nfrequencies)
+        # Ordre ROSS : X0, Y0, A0, B0, X1, Y1, A1, B1...
+        forced_resp = np.array(res.forced_resp)
+        amps = np.abs(forced_resp[dof_idx, :])
+        phases = np.angle(forced_resp[dof_idx, :], deg=True)
+        freqs_rad = np.array(res.speed_range)
+        freqs_hz = freqs_rad / (2 * np.pi)
+    except Exception as e:
+        st.error("Erreur d'extraction des donnees : {}".format(e))
         return
 
-    n = min(len(amps), len(freqs_hz))
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=freqs_hz[:n],
-        y=np.array(amps[:n]) * 1e6,
-        line=dict(color="#1F5C8B", width=2),
-        fill="tozeroy",
-        fillcolor="rgba(31,92,139,0.08)",
-        hovertemplate="f=%{x:.1f}Hz | A=%{y:.4f}µm<extra></extra>"))
+    # Création du graphique avec axe secondaire pour la phase
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    m1 = st.session_state.get("m8_modal1")
-    if m1:
-        for i, wn in enumerate(m1.wn[:4]):
+    fig.add_trace(go.Scatter(
+        x=freqs_hz, y=amps * 1e6, name="Amplitude",
+        line=dict(color="#1F5C8B", width=2), fill="tozeroy", fillcolor="rgba(31,92,139,0.08)"
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=freqs_hz, y=phases, name="Phase",
+        line=dict(color="#E64A19", width=1.5, dash="dot")
+    ), secondary_y=True)
+
+    # Ajout des résonances modales (individuelles car le balourd est calculé sur un rotor isolé)
+    r1 = st.session_state.get("m8_rotor1")
+    r2 = st.session_state.get("m8_rotor2")
+    selected_rotor = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") else r2
+    m_modal = st.session_state.get("m8_modal1") if "1" in st.session_state.get("m8_unb_rotor", "R1") else st.session_state.get("m8_modal2")
+    
+    if m_modal:
+        for i, wn in enumerate(m_modal.wn[:4]):
             fn = wn / (2 * np.pi)
-            fig.add_vline(x=fn, line_dash="dot", line_color="#22863A",
-                          annotation_text="M{}".format(i + 1),
-                          annotation_font=dict(color="#22863A", size=10))
+            fig.add_vline(x=fn, line_dash="dash", line_color="#22863A",
+                          annotation_text="f{}={:.1f}Hz".format(i+1, fn),
+                          annotation_font=dict(color="#22863A", size=9))
 
     fig.update_layout(
-        height=400,
-        title="Balourd — N{} ({})".format(node, st.session_state.get("m8_unb_rotor", "R1")),
-        xaxis_title="Frequence (Hz)",
-        yaxis_title="Amplitude (µm)",
+        height=450, title="Reponse au balourd - Noeud {} ({})".format(node, plan_label),
         plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
-        yaxis=dict(showgrid=True, gridcolor="#F0F4FF"))
+        xaxis_title="Frequence (Hz)",
+        legend=dict(orientation="h", y=1.1)
+    )
+    fig.update_yaxes(title_text="Amplitude (um)", secondary_y=False, showgrid=True, gridcolor="#F0F4FF")
+    fig.update_yaxes(title_text="Phase (deg)", secondary_y=True, range=[-180, 180])
+    
     st.plotly_chart(fig, use_container_width=True, key="m8_unb_fig")
-
 
 # =============================================================================
 # BENCHMARK ROSS PART 4
