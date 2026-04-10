@@ -281,15 +281,22 @@ def _render_tab_run():
 # =============================================================================
 # PANNEAU GRAPHICS
 # =============================================================================
+# =============================================================================
+# PANNEAU GRAPHICS
+# =============================================================================
 def _render_graphics():
     st.markdown(
         '<div class="rl-graphics-title">MultiRotor — Results</div>',
         unsafe_allow_html=True)
 
-    tab_geo, tab_camp, tab_modal, tab_unbal, tab_bench, tab_theory = st.tabs([
+    # Déclaration des onglets (sur une seule liste)
+    tabs = st.tabs([
         "Geometrie", "Campbell couple", "Analyse modale",
-        "Reponse balourd", "Benchmark", "Theorie"
+        "Reponse balourd", "Benchmark", "Theorie", "Diagnostic"
     ])
+    
+    # Assignation séparée (évite les erreurs de copier-coller)
+    tab_geo, tab_camp, tab_modal, tab_unbal, tab_bench, tab_theory, tab_diag = tabs
 
     with tab_geo:    _display_geometry()
     with tab_camp:   _display_campbell()
@@ -1091,6 +1098,9 @@ camp.plot(frequency_units="Hz",
 # =============================================================================
 # AFFICHAGE DIAGNOSTIC
 # =============================================================================
+# =============================================================================
+# AFFICHAGE DIAGNOSTIC
+# =============================================================================
 def _display_diagnostic():
     """Onglet de diagnostic complet pour le systeme MultiRotor."""
     st.markdown("### Diagnostic du systeme MultiRotor")
@@ -1113,21 +1123,24 @@ def _display_diagnostic():
     with col1:
         status_r1 = "OK" if r1 is not None else "NON INITIALISE"
         color = "green" if r1 is not None else "red"
-        st.markdown(f'<div style="padding:10px;background:#{"e8f5e9" if r1 else "ffebee"};border-radius:5px;">'
+        bg = "#e8f5e9" if r1 else "#ffebee"
+        st.markdown(f'<div style="padding:10px;background:{bg};border-radius:5px;">'
                     f'<strong>Rotor 1:</strong> <span style="color:{color}">{status_r1}</span>'
                     f'</div>', unsafe_allow_html=True)
     
     with col2:
         status_r2 = "OK" if r2 is not None else "NON INITIALISE"
         color = "green" if r2 is not None else "red"
-        st.markdown(f'<div style="padding:10px;background:#{"e8f5e9" if r2 else "ffebee"};border-radius:5px;">'
+        bg = "#e8f5e9" if r2 else "#ffebee"
+        st.markdown(f'<div style="padding:10px;background:{bg};border-radius:5px;">'
                     f'<strong>Rotor 2:</strong> <span style="color:{color}">{status_r2}</span>'
                     f'</div>', unsafe_allow_html=True)
     
     with col3:
         status_m = "COUPLE" if multi is not None else "NON COUPLE"
         color = "green" if multi is not None else "orange"
-        st.markdown(f'<div style="padding:10px;background:#{"e8f5e9" if multi else "fff3e0"};border-radius:5px;">'
+        bg = "#e8f5e9" if multi else "#fff3e0"
+        st.markdown(f'<div style="padding:10px;background:{bg};border-radius:5px;">'
                     f'<strong>MultiRotor:</strong> <span style="color:{color}">{status_m}</span>'
                     f'</div>', unsafe_allow_html=True)
     
@@ -1150,12 +1163,12 @@ def _display_diagnostic():
     checks = []
     
     if r1 is not None:
-        checks.append(("R1 assemble", True, f"{len(r1.nodes)} noeuds, {r1.m:.2f} kg"))
+        checks.append(("R1 assemble", True, "{} noeuds, {:.2f} kg".format(len(r1.nodes), r1.m)))
     else:
         checks.append(("R1 assemble", False, "Non defini"))
     
     if r2 is not None:
-        checks.append(("R2 assemble", True, f"{len(r2.nodes)} noeuds, {r2.m:.2f} kg"))
+        checks.append(("R2 assemble", True, "{} noeuds, {:.2f} kg".format(len(r2.nodes), r2.m)))
     else:
         checks.append(("R2 assemble", False, "Non defini"))
     
@@ -1166,7 +1179,7 @@ def _display_diagnostic():
     
     if modal_multi is not None:
         fn_modes = modal_multi.wn / (2 * np.pi)
-        checks.append(("Modal couple", True, f"{len(fn_modes)} modes calcules"))
+        checks.append(("Modal couple", True, "{} modes calcules".format(len(fn_modes))))
     else:
         checks.append(("Modal couple", False, "Non calcule"))
     
@@ -1179,9 +1192,9 @@ def _display_diagnostic():
     
     for name, ok, detail in checks:
         icon = "✅" if ok else "❌"
-        st.markdown(f"{icon} **{name}**: {detail}")
+        st.markdown("{} **{}**: {}".format(icon, name, detail))
     
-    # ── Section 4 : Analyse des modes propres ────────────────────────────
+    # ── Section 4 : Analyse des frequences propres ────────────────────────
     st.markdown("#### 4. Analyse des frequences propres")
     
     data = st.session_state.get("m8_json_data", {})
@@ -1194,34 +1207,28 @@ def _display_diagnostic():
         fn = modal_multi.wn / (2 * np.pi)
         st.markdown("**Modes du systeme couple:**")
         
-        # Detection de modes proches de fe
         warnings_freq = []
         for i, f in enumerate(fn):
-            if abs(f - fe) / fe < 0.1:  # A 10% de fe
+            if fe > 0 and abs(f - fe) / fe < 0.1:
                 warnings_freq.append((i+1, f, "PROCHE DE fe"))
-            elif abs(f - 2*fe) / (2*fe) < 0.1:
+            elif fe > 0 and abs(f - 2*fe) / (2*fe) < 0.1:
                 warnings_freq.append((i+1, f, "PROCHE DE 2fe"))
         
         if warnings_freq:
             st.warning("⚠️ Modes proches des frequences d'engrenement:")
             for mode, freq, reason in warnings_freq:
-                st.markdown(f"  - Mode {mode}: {freq:.2f} Hz → {reason}")
+                st.markdown("  - Mode {}: {:.2f} Hz → {}".format(mode, freq, reason))
         else:
             st.success("Aucun mode proche de fe ou 2fe (bonne marge)")
-    
     elif m1 is not None and m2 is not None:
-        fn1 = m1.wn / (2 * np.pi)
-        fn2 = m2.wn / (2 * np.pi)
         st.info("Modes individuels (systeme non couple - analyse limitee)")
-        st.markdown(f"fe = {fe:.1f} Hz")
+        st.markdown("fe = {:.1f} Hz".format(fe))
     
     # ── Section 5 : Verification du rapport d'engrenage ──────────────────
     st.markdown("#### 5. Verification du rapport d'engrenage")
     
     if r1 is not None and r2 is not None:
-        r1d = data.get("rotor1", {})
         r2d = data.get("rotor2", {})
-        z1 = _get_gear_params(r1d, "n_teeth")
         z2 = _get_gear_params(r2d, "n_teeth")
         
         if z1 > 0 and z2 > 0:
@@ -1233,12 +1240,12 @@ def _display_diagnostic():
                 st.metric("z1", z1)
                 st.metric("z2", z2)
             with col2:
-                st.metric("Rapport theorique", f"{ratio_theo:.4f}")
+                st.metric("Rapport theorique", "{:.4f}".format(ratio_theo))
                 if ratio_calc != ratio_theo:
-                    st.metric("Rapport calcule (ROSS)", f"{ratio_calc:.4f}")
+                    st.metric("Rapport calcule (ROSS)", "{:.4f}".format(ratio_calc))
                     ecart = abs(ratio_calc - ratio_theo) / ratio_theo * 100
                     if ecart > 1:
-                        st.warning(f"Ecart rapport: {ecart:.2f}%")
+                        st.warning("Ecart rapport: {:.2f}%".format(ecart))
     
     # ── Section 6 : Informations de debug ────────────────────────────────
     st.markdown("#### 6. Informations de debug")
@@ -1248,13 +1255,11 @@ def _display_diagnostic():
         for key in sorted(debug_keys):
             val = st.session_state[key]
             if val is None:
-                st.markdown(f"`{key}`: `None`")
-            elif isinstance(val, (rs.Rotor, rs.MultiRotor)):
-                st.markdown(f"`{key}`: `{type(val).__name__}` ✅")
-            elif hasattr(val, 'shape'):
-                st.markdown(f"`{key}`: `ndarray {val.shape}`")
+                st.markdown("`{}`: `None`".format(key))
             else:
-                st.markdown(f"`{key}`: `{type(val).__name__}`")
+                # Sécurisé : ne dépend pas de l'import de 'rs'
+                type_name = type(val).__name__
+                st.markdown("`{}`: `{}`".format(key, type_name))
     
     # ── Section 7 : Suggestions ──────────────────────────────────────────
     st.markdown("#### 7. Suggestions")
