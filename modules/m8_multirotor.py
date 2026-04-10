@@ -223,14 +223,16 @@ def _render_tab_params():
         st.radio("Harmoniques", ["1X", "1X + 2X", "1X + 2X + fe"],
                  index=2, horizontal=True, key="m8_harmonics")
 
-    st.markdown('<div class="rl-section-header">Reponse au balourd</div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
+        st.markdown('<div class="rl-section-header">Reponse au balourd</div>', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3, format="%.4f", key="m8_unb_mag")
     with c2:
         st.radio("Rotor", ["Rotor 1", "Rotor 2"], key="m8_unb_rotor", horizontal=True)
     with c3:
         st.radio("Plan de mesure", ["Horizontal (X)", "Vertical (Y)"], key="m8_unb_dof", horizontal=True)
+    with c4:
+        st.number_input("Noeud de mesure", min_value=0, value=0, step=1, key="m8_unb_node_ui", help="Indice du noeud ou le balourd est applique et mesure (0 = premier noeud)")
 
 
 def _render_tab_run():
@@ -477,11 +479,16 @@ def _run_unbalance_calc(r1, r2):
     try:
         unb_mag  = float(st.session_state.get("m8_unb_mag", 1e-3))
         vmax     = float(st.session_state.get("m8_vmax", 4000))
-        rotor_s  = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") \
-                   else r2
-        node_m   = len(rotor_s.nodes) // 2
+        rotor_s  = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") else r2
+        
+        # Lecture du noeud choisi par l'utilisateur dans l'UI
+        node_m = int(st.session_state.get("m8_unb_node_ui", 0))
+        
+        # Securite : verification que le noeud existe bien pour le rotor choisi
+        max_node = len(rotor_s.nodes) - 1
+        if node_m > max_node:
+            node_m = max_node
 
-        # Frequences en rad/s
         freqs_rad = np.linspace(0, vmax * np.pi / 30, 300)
 
         res = rotor_s.run_unbalance_response(
