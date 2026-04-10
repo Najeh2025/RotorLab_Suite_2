@@ -223,17 +223,15 @@ def _render_tab_params():
         st.radio("Harmoniques", ["1X", "1X + 2X", "1X + 2X + fe"],
                  index=2, horizontal=True, key="m8_harmonics")
 
-        st.markdown('<div class="rl-section-header">Reponse au balourd</div>', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
+            st.markdown('<div class="rl-section-header">Reponse au balourd</div>', unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
     with c1:
-        st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3, format="%.4f", key="m8_unb_mag")
+        st.radio("Rotor cible", ["Rotor 1", "Rotor 2"], key="m8_unb_rotor", horizontal=True)
+        st.number_input("Noeud de mesure", min_value=0, value=0, step=1, key="m8_unb_node_ui", help="Indice du noeud (0 = premier noeud)")
     with c2:
-        st.radio("Rotor", ["Rotor 1", "Rotor 2"], key="m8_unb_rotor", horizontal=True)
-    with c3:
         st.radio("Plan de mesure", ["Horizontal (X)", "Vertical (Y)"], key="m8_unb_dof", horizontal=True)
-    with c4:
-        st.number_input("Noeud de mesure", min_value=0, value=0, step=1, key="m8_unb_node_ui", help="Indice du noeud ou le balourd est applique et mesure (0 = premier noeud)")
-
+        st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3, format="%.4f", key="m8_unb_mag")
 
 def _render_tab_run():
     st.markdown('<div class="rl-section-header">Lancement</div>',
