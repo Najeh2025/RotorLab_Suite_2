@@ -277,10 +277,6 @@ def _render_tab_run():
             mime="application/json",
             key="m8_save")
 
-
-# =============================================================================
-# PANNEAU GRAPHICS
-# =============================================================================
 # =============================================================================
 # PANNEAU GRAPHICS
 # =============================================================================
@@ -338,10 +334,6 @@ def _get_gear_params(rotor_data, key):
         return gears[0].get(key, 0)
     return 0
 
-
-# =============================================================================
-# CONSTRUCTION DEPUIS JSON
-# =============================================================================
 # =============================================================================
 # CONSTRUCTION DEPUIS JSON (VERSION CORRIGÉE)
 # =============================================================================
@@ -424,9 +416,6 @@ def _build_rotor_from_json(rotor_data, mat, rotor_name=""):
 
     return rs.Rotor(shaft, all_disks, bears)
 
-# =============================================================================
-# CALCUL PRINCIPAL
-# =============================================================================
 # =============================================================================
 # CALCUL PRINCIPAL (VERSION CORRIGÉE)
 # =============================================================================
@@ -641,105 +630,36 @@ def _display_geometry():
 # =============================================================================
 def _display_campbell():
     camp_m = st.session_state.get("m8_camp")
-    camp1  = st.session_state.get("m8_camp1")
-    camp2  = st.session_state.get("m8_camp2")
-    if camp_m is None and camp1 is None:
-        st.info("Lancez les calculs.")
-        return
-
-    data  = st.session_state.get("m8_json_data", {})
-    r1d   = data.get("rotor1", {})
-    r2d   = data.get("rotor2", {})
-    z1    = _get_gear_params(r1d, "n_teeth")
-    z2    = _get_gear_params(r2d, "n_teeth")
-    rpm1  = float(r1d.get("speed_rpm", 1000))
-    rpm2  = rpm1 * z1/z2 if z2 > 0 else 0
-    fe    = rpm1/60 * z1
-    vmax  = float(st.session_state.get("m8_camp_vmax", 4000))
-    harms = st.session_state.get("m8_harmonics", "1X + 2X + fe")
-
-    CR1 = ["#1F5C8B","#0288D1","#00796B","#388E3C","#1565C0","#006064"]
-    CR2 = ["#C55A11","#E64A19","#C62828","#AD1457","#6A1B9A","#00695C"]
-
-    fig = go.Figure()
-
-    def _add(camp, colors, prefix):
-        if hasattr(camp,'speed_range') and camp.speed_range is not None:
-            sr = np.array(camp.speed_range)
-        else:
-            sr = np.linspace(0, vmax*np.pi/30,
-                             int(st.session_state.get("m8_npts",25)))
-        spd = sr * 30/np.pi
-        fn_mat = None
-        if hasattr(camp,'wd') and camp.wd is not None:
-            fn_mat = camp.wd / (2*np.pi)
-        elif hasattr(camp,'wn') and camp.wn is not None:
-            fn_mat = camp.wn / (2*np.pi)
-        if fn_mat is None:
-            return
-        wh = getattr(camp,'whirl',None)
-        for i in range(min(6, fn_mat.shape[1])):
-            fn_i  = fn_mat[:,i]
-            is_fw = fn_i[-1] > fn_i[0]
-            if wh is not None:
-                mid = len(spd)//2
-                is_fw = "forward" in str(wh[mid,i]).lower()
-            lbl = "{} M{} ({})".format(prefix, i+1, "FW" if is_fw else "BW")
-            fig.add_trace(go.Scatter(
-                x=spd, y=fn_i, name=lbl,
-                line=dict(color=colors[i%len(colors)], width=2,
-                          dash="solid" if is_fw else "dash"),
-                hovertemplate="%{x:.0f} RPM / %{y:.2f} Hz<extra>"+lbl+"</extra>"
-            ))
-
-    if camp_m:  _add(camp_m, CR1, "Couple")
-    else:
-        if camp1: _add(camp1, CR1, "R1")
-        if camp2: _add(camp2, CR2, "R2")
-
-    xl = np.array([0, vmax])
-    if "1X" in harms:
-        fig.add_trace(go.Scatter(x=xl, y=xl/60, name="1X R1",
-            line=dict(color="#E53935",width=1.5,dash="dot")))
-        fig.add_trace(go.Scatter(x=xl, y=xl/60*z1/z2, name="1X R2",
-            line=dict(color="#FB8C00",width=1.5,dash="dot")))
-    if "2X" in harms:
-        fig.add_trace(go.Scatter(x=xl, y=xl/30, name="2X R1",
-            line=dict(color="#E57373",width=1,dash="dot"), opacity=0.7))
-    if "fe" in harms:
-        fig.add_trace(go.Scatter(x=xl, y=xl/60*z1,
-            name="fe (z1={})".format(z1),
-            line=dict(color="#7B1FA2",width=2,dash="dashdot")))
-
-    fig.add_vline(x=rpm1, line_dash="dash", line_color="#1F5C8B",
-                  annotation_text=" N1={:.0f}".format(rpm1),
-                  annotation_font=dict(color="#1F5C8B"))
-    fig.add_vline(x=rpm2, line_dash="dash", line_color="#C55A11",
-                  annotation_text=" N2={:.0f}".format(rpm2),
-                  annotation_font=dict(color="#C55A11"))
-
-    title = "Campbell MultiRotor couple" if camp_m else \
-            "Campbell R1+R2 (independants)"
-    fig.update_layout(height=480, title=title,
-                      xaxis_title="Vitesse R1 (RPM)",
-                      yaxis_title="Frequence (Hz)",
-                      plot_bgcolor="white",
-                      xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
-                      yaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
-                      legend=dict(orientation="h",yanchor="bottom",
-                                  y=1.02,xanchor="right",x=1,
-                                  font=dict(size=10)))
-    st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
-
-    df_f = pd.DataFrame({
-        "Grandeur": ["N1","N2","i = z1/z2","fe","2fe","3fe"],
-        "Valeur": [
-            "{:.0f} RPM".format(rpm1), "{:.0f} RPM".format(rpm2),
-            "{}/{} = {:.4f}".format(z1,z2,z1/z2 if z2>0 else 0),
-            "{:.2f} Hz".format(fe), "{:.2f} Hz".format(2*fe),
-            "{:.2f} Hz".format(3*fe)]
-    })
-    st.dataframe(df_f, use_container_width=True, hide_index=True)
+    if not camp_m:
+        return st.info("Lancez les calculs.")
+    data = st.session_state.get("m8_json_data", {})
+    z1 = _get_gear_params(data["rotor1"], "n_teeth")
+    z2 = _get_gear_params(data["rotor2"], "n_teeth")
+    rpm1 = float(data["rotor1"]["speed_rpm"])
+    rpm2 = rpm1 * z1 / z2
+    fe = rpm1 / 60 * z1
+    vmax = float(st.session_state.get("m8_camp_vmax", 4000))
+    try:
+        harm = [1]
+        if "2X" in st.session_state.get("m8_harmonics", ""):
+            harm.append(2)
+        harm.append(round(z1/z2, 4))
+        fig = camp_m.plot(frequency_units="Hz", harmonics=harm)
+        y_max = 600
+        try:
+            y_max = max(600, float(np.max(camp_m.wn))/(2*np.pi)*1.15)
+        except Exception:
+            pass
+        fig.update_yaxes(range=[0, min(y_max, 800)])
+        if "fe" in st.session_state.get("m8_harmoniques", "1X + 2X + fe") and fe < y_max*1.5:
+            fig.add_hline(y=fe, line_dash="longdash", line_color="#7B1FA2", line_width=2.5, annotation_text=" fe = {:.0f} Hz".format(fe))
+        fig.add_vline(x=rpm1, line_dash="dash", line_color="#1F5C8B", line_width=2, annotation_text=" N1={:.0f} RPM".format(rpm1))
+        if rpm2 <= vmax:
+            fig.add_vline(x=rpm2, line_dash="dash", line_color="#C55A11", line_width=2, annotation_text=" N2={:.0f} RPM".format(rpm2))
+        fig.update_layout(height=550, title="Diagramme de Campbell - MultiRotor couple", plot_bgcolor="white", legend=dict(orientation="h", yanchor="bottom", y=1.02))
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.warning(str(e))
 
 
 # =============================================================================
