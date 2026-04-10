@@ -384,7 +384,7 @@ def _build_rotor_from_json(rotor_data, mat, rotor_name=""):
                 width=float(g.get("width", 0.07)),
                 n_teeth=int(g["n_teeth"]),
                 base_diameter=float(g["base_diameter"]),
-                pressure_angle=rs.Q_(float(g.get("pressure_angle_deg", 22.5)), "deg"),
+                pressure_angle=float(g.get("pressure_angle_deg", 22.5)),  # <--- MODIFIE ICI (plus de rs.Q_)
                 helix_angle=float(g.get("helix_angle_deg", 0.0)))
             gear_elements.append(gear)
             _log(f"GearElement créé pour {rotor_name} au nœud {g['n']}", "ok")
@@ -464,14 +464,24 @@ def _run_all():
 
         # ── MultiRotor couple ─────────────────────────────────────────────
         try:
-            multi = rs.MultiRotor(
-                r1,
-                r2,
-                coupled_nodes=(gear_node_r1, gear_node_r2),
-                gear_mesh_stiffness=1e8,
-                orientation_angle=0,
-                position="below",
-            )
+            # Tentative avec l'API ROSS moderne (liste de rotors)
+            try:
+                multi = rs.MultiRotor(
+                    rotors=[r1, r2],
+                    gear_mesh_stiffness=1e8
+                )
+            except TypeError:
+                # Fallback ancienne API (arguments separes)
+                gear_node_r1 = int(data["rotor1"]["gear_elements"][0]["n"])
+                gear_node_r2 = int(data["rotor2"]["gear_elements"][0]["n"])
+                multi = rs.MultiRotor(
+                    r1,
+                    r2,
+                    coupled_nodes=(gear_node_r1, gear_node_r2),
+                    gear_mesh_stiffness=1e8,
+                    orientation_angle=0,
+                    position="below",
+                )
             st.session_state["m8_multi"] = multi
 
             frequency_range = rs.Q_(np.linspace(0, vmax, npts), "RPM")
