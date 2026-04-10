@@ -297,6 +297,7 @@ def _render_graphics():
     with tab_unbal:  _display_unbalance()
     with tab_bench:  _display_benchmark()
     with tab_theory: _display_theory()
+    with tab_diag:   _display_diagnostic()
 
 
 # =============================================================================
@@ -1087,6 +1088,196 @@ camp.plot(frequency_units="Hz",
     })
     st.dataframe(df_types, use_container_width=True, hide_index=True)
 
+# =============================================================================
+# AFFICHAGE DIAGNOSTIC
+# =============================================================================
+def _display_diagnostic():
+    """Onglet de diagnostic complet pour le systeme MultiRotor."""
+    st.markdown("### Diagnostic du systeme MultiRotor")
+    
+    r1 = st.session_state.get("m8_rotor1")
+    r2 = st.session_state.get("m8_rotor2")
+    multi = st.session_state.get("m8_multi")
+    modal_multi = st.session_state.get("m8_modal_multi")
+    m1 = st.session_state.get("m8_modal1")
+    m2 = st.session_state.get("m8_modal2")
+    camp = st.session_state.get("m8_camp")
+    error = st.session_state.get("m8_error")
+    warn = st.session_state.get("m8_multi_warn")
+    
+    # ── Section 1 : Etat du systeme ──────────────────────────────────────
+    st.markdown("#### 1. Etat du systeme")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        status_r1 = "OK" if r1 is not None else "NON INITIALISE"
+        color = "green" if r1 is not None else "red"
+        st.markdown(f'<div style="padding:10px;background:#{"e8f5e9" if r1 else "ffebee"};border-radius:5px;">'
+                    f'<strong>Rotor 1:</strong> <span style="color:{color}">{status_r1}</span>'
+                    f'</div>', unsafe_allow_html=True)
+    
+    with col2:
+        status_r2 = "OK" if r2 is not None else "NON INITIALISE"
+        color = "green" if r2 is not None else "red"
+        st.markdown(f'<div style="padding:10px;background:#{"e8f5e9" if r2 else "ffebee"};border-radius:5px;">'
+                    f'<strong>Rotor 2:</strong> <span style="color:{color}">{status_r2}</span>'
+                    f'</div>', unsafe_allow_html=True)
+    
+    with col3:
+        status_m = "COUPLE" if multi is not None else "NON COUPLE"
+        color = "green" if multi is not None else "orange"
+        st.markdown(f'<div style="padding:10px;background:#{"e8f5e9" if multi else "fff3e0"};border-radius:5px;">'
+                    f'<strong>MultiRotor:</strong> <span style="color:{color}">{status_m}</span>'
+                    f'</div>', unsafe_allow_html=True)
+    
+    # ── Section 2 : Erreurs et warnings ──────────────────────────────────
+    st.markdown("#### 2. Erreurs et avertissements")
+    
+    if error:
+        st.error("**Erreur principale:**")
+        st.code(str(error), language="python")
+    else:
+        st.success("Aucune erreur principale detectee.")
+    
+    if warn:
+        with st.expander("Details de l'erreur MultiRotor (cliquer pour voir)", expanded=False):
+            st.code(str(warn), language="python")
+    
+    # ── Section 3 : Verifications de coherence ───────────────────────────
+    st.markdown("#### 3. Verifications de coherence")
+    
+    checks = []
+    
+    if r1 is not None:
+        checks.append(("R1 assemble", True, f"{len(r1.nodes)} noeuds, {r1.m:.2f} kg"))
+    else:
+        checks.append(("R1 assemble", False, "Non defini"))
+    
+    if r2 is not None:
+        checks.append(("R2 assemble", True, f"{len(r2.nodes)} noeuds, {r2.m:.2f} kg"))
+    else:
+        checks.append(("R2 assemble", False, "Non defini"))
+    
+    if multi is not None:
+        checks.append(("MultiRotor couple", True, "OK"))
+    else:
+        checks.append(("MultiRotor couple", False, "Voir erreurs ci-dessus"))
+    
+    if modal_multi is not None:
+        fn_modes = modal_multi.wn / (2 * np.pi)
+        checks.append(("Modal couple", True, f"{len(fn_modes)} modes calcules"))
+    else:
+        checks.append(("Modal couple", False, "Non calcule"))
+    
+    if camp is not None:
+        checks.append(("Campbell", True, "Calcule"))
+    elif st.session_state.get("m8_camp1") is not None:
+        checks.append(("Campbell (fallback)", True, "Individuel R1+R2"))
+    else:
+        checks.append(("Campbell", False, "Non calcule"))
+    
+    for name, ok, detail in checks:
+        icon = "✅" if ok else "❌"
+        st.markdown(f"{icon} **{name}**: {detail}")
+    
+    # ── Section 4 : Analyse des modes propres ────────────────────────────
+    st.markdown("#### 4. Analyse des frequences propres")
+    
+    data = st.session_state.get("m8_json_data", {})
+    r1d = data.get("rotor1", {})
+    z1 = _get_gear_params(r1d, "n_teeth")
+    rpm1 = float(r1d.get("speed_rpm", 1000))
+    fe = rpm1 / 60 * z1
+    
+    if modal_multi is not None:
+        fn = modal_multi.wn / (2 * np.pi)
+        st.markdown("**Modes du systeme couple:**")
+        
+        # Detection de modes proches de fe
+        warnings_freq = []
+        for i, f in enumerate(fn):
+            if abs(f - fe) / fe < 0.1:  # A 10% de fe
+                warnings_freq.append((i+1, f, "PROCHE DE fe"))
+            elif abs(f - 2*fe) / (2*fe) < 0.1:
+                warnings_freq.append((i+1, f, "PROCHE DE 2fe"))
+        
+        if warnings_freq:
+            st.warning("⚠️ Modes proches des frequences d'engrenement:")
+            for mode, freq, reason in warnings_freq:
+                st.markdown(f"  - Mode {mode}: {freq:.2f} Hz → {reason}")
+        else:
+            st.success("Aucun mode proche de fe ou 2fe (bonne marge)")
+    
+    elif m1 is not None and m2 is not None:
+        fn1 = m1.wn / (2 * np.pi)
+        fn2 = m2.wn / (2 * np.pi)
+        st.info("Modes individuels (systeme non couple - analyse limitee)")
+        st.markdown(f"fe = {fe:.1f} Hz")
+    
+    # ── Section 5 : Verification du rapport d'engrenage ──────────────────
+    st.markdown("#### 5. Verification du rapport d'engrenage")
+    
+    if r1 is not None and r2 is not None:
+        r1d = data.get("rotor1", {})
+        r2d = data.get("rotor2", {})
+        z1 = _get_gear_params(r1d, "n_teeth")
+        z2 = _get_gear_params(r2d, "n_teeth")
+        
+        if z1 > 0 and z2 > 0:
+            ratio_theo = z1 / z2
+            ratio_calc = st.session_state.get("m8_gear_ratio", ratio_theo)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("z1", z1)
+                st.metric("z2", z2)
+            with col2:
+                st.metric("Rapport theorique", f"{ratio_theo:.4f}")
+                if ratio_calc != ratio_theo:
+                    st.metric("Rapport calcule (ROSS)", f"{ratio_calc:.4f}")
+                    ecart = abs(ratio_calc - ratio_theo) / ratio_theo * 100
+                    if ecart > 1:
+                        st.warning(f"Ecart rapport: {ecart:.2f}%")
+    
+    # ── Section 6 : Informations de debug ────────────────────────────────
+    st.markdown("#### 6. Informations de debug")
+    
+    with st.expander("Variables session_state (debug)", expanded=False):
+        debug_keys = [k for k in st.session_state.keys() if k.startswith("m8_")]
+        for key in sorted(debug_keys):
+            val = st.session_state[key]
+            if val is None:
+                st.markdown(f"`{key}`: `None`")
+            elif isinstance(val, (rs.Rotor, rs.MultiRotor)):
+                st.markdown(f"`{key}`: `{type(val).__name__}` ✅")
+            elif hasattr(val, 'shape'):
+                st.markdown(f"`{key}`: `ndarray {val.shape}`")
+            else:
+                st.markdown(f"`{key}`: `{type(val).__name__}`")
+    
+    # ── Section 7 : Suggestions ──────────────────────────────────────────
+    st.markdown("#### 7. Suggestions")
+    
+    if multi is None:
+        st.markdown("""
+        **MultiRotor non couple - causes possibles:**
+        1. Version ROSS incompatible - verifier `pip show ross`
+        2. API MultiRotor modifiee dans les versions recentes
+        3. Parametres gear_mesh_stiffness mal configures
+        4. Erreur dans la definition des noeuds couples
+        
+        **Solution alternative:** Utiliser `GearElement` directement sur chaque rotor
+        avec coupling manuel via matrices de raideur.
+        """)
+    
+    if error and "GearElement" in str(error):
+        st.markdown("""
+        **Erreur GearElement detectee:** Verifier que les parametres
+        `pressure_angle` et `helix_angle` sont correctement definis avec
+        `rs.Q_(value, "deg")` pour l'angle de pression.
+        """)
+
 
 # =============================================================================
 # HELPER LOG
@@ -1098,45 +1289,3 @@ def _log(message, level="info"):
     except Exception:
         pass
 
-def _run_diagnostic():
-    """Vérifie l'état du système MultiRotor"""
-    st.markdown("### Diagnostic MultiRotor")
-    
-    # 1. Vérifier ROSS
-    if not ROSS_OK:
-        st.error("❌ ROSS non installé")
-        return
-    
-    st.success(f"✅ ROSS version : {rs.__version__}")
-    
-    # 2. Vérifier les rotors
-    r1 = st.session_state.get("m8_rotor1")
-    r2 = st.session_state.get("m8_rotor2")
-    
-    if r1 is None or r2 is None:
-        st.warning("⚠️ Rotors non construits")
-        return
-    
-    # 3. Vérifier les GearElements
-    gear1_found = any(isinstance(d, rs.GearElement) for d in r1.disk_elements)
-    gear2_found = any(isinstance(d, rs.GearElement) for d in r2.disk_elements)
-    
-    st.write(f"Rotor 1 : {len(r1.nodes)} nœuds, GearElement : {'✅' if gear1_found else '❌'}")
-    st.write(f"Rotor 2 : {len(r2.nodes)} nœuds, GearElement : {'✅' if gear2_found else '❌'}")
-    
-    # 4. Tester la création du MultiRotor
-    try:
-        test_multi = rs.MultiRotor(r1, r2, coupled_nodes=(3, 1), gear_mesh_stiffness=1e8)
-        st.success("✅ MultiRotor créé avec succès")
-        
-        # Afficher les propriétés
-        st.write(f"Rapport d'engrenage : {test_multi.mesh.gear_ratio:.4f}")
-        
-        # Tester le plot
-        fig = test_multi.plot_rotor()
-        st.plotly_chart(fig, use_container_width=True)
-        
-    except Exception as e:
-        st.error(f"❌ Échec création MultiRotor : {e}")
-        import traceback
-        st.code(traceback.format_exc())
