@@ -763,11 +763,11 @@ def _display_unbalance():
         line=dict(color="#E64A19", width=1.5, dash="dot")
     ), secondary_y=True)
 
-    # Ajout des résonances modales du systeme COUPLE
-    m_modal = st.session_state.get("m8_modal_multi")
-    if m_modal is None:
-        # Fallback sur les modes individuels si le système n'est pas couplé
-        m_modal = st.session_state.get("m8_modal1") if "1" in st.session_state.get("m8_unb_rotor", "R1") else st.session_state.get("m8_modal2")
+    # Ajout des résonances modales (individuelles car le balourd est calculé sur un rotor isolé)
+    r1 = st.session_state.get("m8_rotor1")
+    r2 = st.session_state.get("m8_rotor2")
+    selected_rotor = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") else r2
+    m_modal = st.session_state.get("m8_modal1") if "1" in st.session_state.get("m8_unb_rotor", "R1") else st.session_state.get("m8_modal2")
     
     if m_modal:
         for i, wn in enumerate(m_modal.wn[:4]):
@@ -776,21 +776,17 @@ def _display_unbalance():
                           annotation_text="f{}={:.1f}Hz".format(i+1, fn),
                           annotation_font=dict(color="#22863A", size=9))
 
-    # Titre explicatif sur la nature du calcul
-    title_text = "Reponse au balourd (Rotor isole) - Noeud {} ({})".format(node, plan_label)
-    subtitle_text = "Les modes propres (lignes vertes) sont ceux du systeme MultiRotor couple complet"
-    
     fig.update_layout(
-        height=450, 
-        title=dict(text="{}<br><sup style='color:gray'>{}</sup>".format(title_text, subtitle_text), font=dict(size=13)),
+        height=450, title="Reponse au balourd - Noeud {} ({})".format(node, plan_label),
         plot_bgcolor="white",
         xaxis_title="Frequence (Hz)",
-        legend=dict(orientation="h", y=1.12)
+        legend=dict(orientation="h", y=1.1)
     )
     fig.update_yaxes(title_text="Amplitude (um)", secondary_y=False, showgrid=True, gridcolor="#F0F4FF")
     fig.update_yaxes(title_text="Phase (deg)", secondary_y=True, range=[-180, 180])
     
     st.plotly_chart(fig, use_container_width=True, key="m8_unb_fig")
+
 # =============================================================================
 # BENCHMARK ROSS PART 4
 # =============================================================================
