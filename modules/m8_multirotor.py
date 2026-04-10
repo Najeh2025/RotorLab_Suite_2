@@ -16,13 +16,13 @@ except ImportError:
     ROSS_OK = False
 
 # =============================================================================
-# MODELE DE REFERENCE
+# MODELE DE REFERENCE - ROSS Tutorial Part 4
 # =============================================================================
 REFERENCE_JSON = {
     "name": "ROSS Tutorial Part 4 - Reference MultiRotor",
     "material": {"name": "Steel", "rho": 7810, "E": 211e9, "G_s": 81.2e9},
     "rotor1": {
-        "description": "Rotor moteur",
+        "description": "Rotor moteur (generateur + pignon z=37)",
         "shaft": [
             {"L": 0.300, "idl": 0.0, "odl": 0.123, "idr": 0.0, "odr": 0.123},
             {"L": 0.092, "idl": 0.0, "odl": 0.150, "idr": 0.0, "odr": 0.150},
@@ -47,7 +47,7 @@ REFERENCE_JSON = {
         "speed_rpm": 1200.0
     },
     "rotor2": {
-        "description": "Rotor recepteur",
+        "description": "Rotor recepteur (turbine + roue z=159)",
         "shaft": [
             {"L": 0.080, "idl": 0.0, "odl": 0.321, "idr": 0.0, "odr": 0.321},
             {"L": 0.200, "idl": 0.0, "odl": 0.321, "idr": 0.0, "odr": 0.321},
@@ -68,291 +68,1088 @@ REFERENCE_JSON = {
     }
 }
 
+# =============================================================================
+# POINT D ENTREE
+# =============================================================================
 def render_m8(col_settings, col_graphics):
     with col_settings:
         _render_settings()
     with col_graphics:
         _render_graphics()
 
+# =============================================================================
+# PANNEAU SETTINGS
+# =============================================================================
 def _render_settings():
-    st.markdown('<div class="rl-settings-title">MultiRotor & GearElement [NEW]</div>', unsafe_allow_html=True)
-    st.markdown('<span class="rl-badge rl-badge-new">NEW v2.0</span>', unsafe_allow_html=True)
-    tab_load, tab_params, tab_run = st.tabs(["Chargement du modele", "Parametres de calcul", "Statut & Actions"])
-    with tab_load: _render_tab_load()
-    with tab_params: _render_tab_params()
-    with tab_run: _render_tab_run()
+    st.markdown(
+        '<div class="rl-settings-title">MultiRotor & GearElement [NEW]</div>',
+        unsafe_allow_html=True)
+    st.markdown(
+        '<span class="rl-badge rl-badge-new">NEW v2.0</span>',
+        unsafe_allow_html=True)
+
+    tab_load, tab_params, tab_run = st.tabs([
+        "Chargement du modele",
+        "Parametres de calcul",
+        "Statut & Actions"
+    ])
+
+    with tab_load:
+        _render_tab_load()
+    with tab_params:
+        _render_tab_params()
+    with tab_run:
+        _render_tab_run()
 
 def _render_tab_load():
-    st.markdown('<div class="rl-section-header">Source du modele</div>', unsafe_allow_html=True)
-    source = st.radio("Source :", ["Modele de reference (ROSS Tutorial Part 4)", "Charger un fichier JSON"], key="m8_source")
+    st.markdown('<div class="rl-section-header">Source du modele</div>',
+                unsafe_allow_html=True)
+
+    source = st.radio(
+        "Source :",
+        ["Modele de reference (ROSS Tutorial Part 4)", "Charger un fichier JSON"],
+        key="m8_source")
+
     if source == "Modele de reference (ROSS Tutorial Part 4)":
-        if st.button("Charger le modele de reference", type="primary", key="m8_load_ref", use_container_width=True):
-            st.session_state["m8_json_data"] = REFERENCE_JSON
-            st.session_state["m8_loaded"] = True
+        st.markdown("""
+        <div class="rl-card-info">
+          <strong>Benchmark ROSS Tutorial Part 4</strong><br>
+          <small>Generateur-turbine couple par engrenage droit 22.5 deg.<br>
+          R1 : 7 noeuds | R2 : 5 noeuds | z1=37, z2=159, i=0.2327<br>
+          N1=1200 RPM, N2=279 RPM, fe=740 Hz</small>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("Charger le modele de reference", type="primary",
+                     key="m8_load_ref", use_container_width=True):
+            st.session_state["m8_json_data"]   = REFERENCE_JSON
+            st.session_state["m8_loaded"]      = True
             st.session_state["m8_source_name"] = "ROSS Tutorial Part 4"
             _clear_results()
-            _log("Modele reference charge", "ok")
-        st.download_button("Telecharger le JSON de reference", data=json.dumps(REFERENCE_JSON, indent=2), file_name="ross_tutorial_part4.json", mime="application/json", key="m8_dl_ref")
+            _log("Modele reference ROSS Part 4 charge", "ok")
+
+        st.download_button(
+            "Telecharger le JSON de reference",
+            data=json.dumps(REFERENCE_JSON, indent=2),
+            file_name="ross_tutorial_part4.json",
+            mime="application/json",
+            key="m8_dl_ref")
+
     else:
-        uploaded = st.file_uploader("Fichier JSON MultiRotor", type=["json"], label_visibility="collapsed", key="m8_upload")
+        uploaded = st.file_uploader(
+            "Fichier JSON MultiRotor",
+            type=["json"],
+            label_visibility="collapsed",
+            key="m8_upload")
+
         if uploaded is not None:
             try:
                 data = json.loads(uploaded.read().decode("utf-8"))
-                st.session_state["m8_json_data"] = data
-                st.session_state["m8_loaded"] = True
-                st.session_state["m8_source_name"] = data.get("name", uploaded.name)
+                st.session_state["m8_json_data"]    = data
+                st.session_state["m8_loaded"]       = True
+                st.session_state["m8_source_name"]  = data.get("name", uploaded.name)
                 _clear_results()
                 st.success("Charge : {}".format(st.session_state["m8_source_name"]))
             except Exception as e:
                 st.error("Erreur JSON : {}".format(e))
+
     if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
         _show_model_summary()
 
 def _show_model_summary():
     data = st.session_state["m8_json_data"]
-    z1 = data["rotor1"]["gear_elements"][0]["n_teeth"] if data["rotor1"].get("gear_elements") else 1
-    z2 = data["rotor2"]["gear_elements"][0]["n_teeth"] if data["rotor2"].get("gear_elements") else 1
-    rpm1 = float(data["rotor1"].get("speed_rpm", 1000))
-    st.caption("R1: {} el | z={} | R2: {} el | z={} | i={:.4f}".format(len(data["rotor1"].get("shaft",[])), z1, len(data["rotor2"].get("shaft",[])), z2, z1/z2))
+    r1d  = data.get("rotor1", {})
+    r2d  = data.get("rotor2", {})
+    z1   = r1d["gear_elements"][0]["n_teeth"] if r1d.get("gear_elements") else 1
+    z2   = r2d["gear_elements"][0]["n_teeth"] if r2d.get("gear_elements") else 1
+    rpm1 = float(r1d.get("speed_rpm", 1000))
+    rpm2 = rpm1 * z1 / z2 if z2 > 0 else 0
+    fe   = rpm1 / 60 * z1
 
-def _render_tab_params():
-    st.markdown('<div class="rl-section-header">Parametres Campbell</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("**Resume :**")
     c1, c2 = st.columns(2)
     with c1:
-        st.number_input("Vitesse max (RPM)", 500.0, 30000.0, 4000.0, step=500.0, key="m8_vmax")
+        st.caption("R1 : {} el | {} disques | {} paliers".format(
+            len(r1d.get("shaft", [])),
+            len(r1d.get("disks", [])),
+            len(r1d.get("bearings", []))))
+        st.caption("{:.0f} RPM | {} dents".format(rpm1, z1))
+    with c2:
+        st.caption("R2 : {} el | {} disques | {} paliers".format(
+            len(r2d.get("shaft", [])),
+            len(r2d.get("disks", [])),
+            len(r2d.get("bearings", []))))
+        st.caption("{:.0f} RPM | {} dents".format(rpm2, z2))
+    st.caption("fe = {:.2f} Hz | i = {}/{} = {:.4f}".format(
+        fe, z1, z2, z1/z2 if z2 > 0 else 0))
+
+def _render_tab_params():
+    st.markdown('<div class="rl-section-header">Parametres Campbell</div>',
+                unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.number_input("Vitesse max (RPM)", 500.0, 30000.0, 4000.0,
+                        step=500.0, key="m8_vmax")
         st.slider("Resolution (points)", 10, 80, 25, key="m8_npts")
     with c2:
         st.slider("Nombre de modes", 4, 24, 12, key="m8_n_modes")
-        st.radio("Harmoniques", ["1X", "1X + 2X", "1X + 2X + fe"], index=2, horizontal=True, key="m8_harmonics")
-    st.markdown('<div class="rl-section-header">Reponse au balourd</div>', unsafe_allow_html=True)
+        st.radio("Harmoniques", ["1X", "1X + 2X", "1X + 2X + fe"],
+                 index=2, horizontal=True, key="m8_harmonics")
+
+    st.markdown('<div class="rl-section-header">Reponse au balourd</div>',
+                unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3, format="%.4f", key="m8_unb_mag")
+        st.number_input("Magnitude (kg.m)", 1e-6, 1.0, 1e-3,
+                        format="%.4f", key="m8_unb_mag")
     with c2:
-        st.radio("Rotor", ["Rotor 1", "Rotor 2"], key="m8_unb_rotor", horizontal=True)
+        st.radio("Rotor", ["Rotor 1", "Rotor 2"],
+                 key="m8_unb_rotor", horizontal=True)
 
 def _render_tab_run():
+    st.markdown('<div class="rl-section-header">Lancement</div>',
+                unsafe_allow_html=True)
+
     if not st.session_state.get("m8_loaded"):
-        st.warning("Chargez un modele.")
+        st.warning("Chargez d'abord un modele.")
         return
-    st.success("Modele : {}".format(st.session_state.get("m8_source_name", "--")))
-    st.button("Assembler et lancer tous les calculs", type="primary", key="m8_run_all", use_container_width=True, on_click=_run_all)
+
+    st.success("Modele : {}".format(
+        st.session_state.get("m8_source_name", "--")))
+
+    st.button("Assembler et lancer tous les calculs",
+              type="primary", key="m8_run_all",
+              use_container_width=True, on_click=_run_all)
+
     if st.session_state.get("m8_error"):
         st.error(st.session_state["m8_error"])
-    checks = [("m8_rotor1","Rotor 1"), ("m8_rotor2","Rotor 2"), ("m8_multi","MultiRotor couple"), ("m8_camp","Campbell")]
-    for k, l in checks:
-        st.caption("[{}] {}".format("OK" if st.session_state.get(k) else "...", l))
 
+    checks = [
+        ("m8_rotor1",    "Rotor 1 assemble"),
+        ("m8_rotor2",    "Rotor 2 assemble"),
+        ("m8_multi",     "MultiRotor couple"),
+        ("m8_modal_multi","Modal MultiRotor couple"),
+        ("m8_modal1",    "Modal Rotor 1"),
+        ("m8_modal2",    "Modal Rotor 2"),
+        ("m8_camp",      "Campbell MultiRotor"),
+        ("m8_unbal_res", "Reponse au balourd"),
+    ]
+    for key, label in checks:
+        icon = "OK" if st.session_state.get(key) is not None else "..."
+        st.caption("[{}] {}".format(icon, label))
+
+    if st.session_state.get("m8_json_data"):
+        st.markdown("---")
+        st.download_button(
+            "Sauvegarder le modele (.json)",
+            data=json.dumps(st.session_state["m8_json_data"], indent=2),
+            file_name="multirotor_model.json",
+            mime="application/json",
+            key="m8_save")
+
+# =============================================================================
+# PANNEAU GRAPHICS
+# =============================================================================
 def _render_graphics():
-    st.markdown('<div class="rl-graphics-title">MultiRotor - Results</div>', unsafe_allow_html=True)
-    tabs = st.tabs(["Geometrie", "Campbell couple", "Analyse modale", "Reponse balourd", "Benchmark", "Theorie", "Diagnostic"])
-    tab_geo, tab_camp, tab_modal, tab_unbal, tab_bench, tab_theory, tab_diag = tabs
-    with tab_geo: _display_geometry()
-    with tab_camp: _display_campbell()
-    with tab_modal: _display_modal()
-    with tab_unbal: _display_unbalance()
-    with tab_bench: _display_benchmark()
-    with tab_theory: _display_theory()
-    with tab_diag: _display_diagnostic()
+    st.markdown(
+        '<div class="rl-graphics-title">MultiRotor - Results</div>',
+        unsafe_allow_html=True)
 
+    tabs = st.tabs([
+        "Geometrie", "Campbell couple", "Analyse modale",
+        "Reponse balourd", "Benchmark", "Theorie", "Diagnostic"
+    ])
+    tab_geo, tab_camp, tab_modal, tab_unbal, tab_bench, tab_theory, tab_diag = tabs
+
+    with tab_geo:    _display_geometry()
+    with tab_camp:   _display_campbell()
+    with tab_modal:  _display_modal()
+    with tab_unbal:  _display_unbalance()
+    with tab_bench:  _display_benchmark()
+    with tab_theory: _display_theory()
+    with tab_diag:   _display_diagnostic()
+
+# =============================================================================
+# UTILITAIRES
+# =============================================================================
 def _clear_results():
-    for k in ["m8_rotor1", "m8_rotor2", "m8_multi", "m8_modal1", "m8_modal2", "m8_modal_multi", "m8_camp", "m8_camp1", "m8_camp2", "m8_unbal_res", "m8_error", "m8_multi_warn", "m8_gear_ratio"]:
+    for k in ["m8_rotor1", "m8_rotor2", "m8_multi",
+              "m8_modal1", "m8_modal2", "m8_modal_multi",
+              "m8_camp", "m8_camp1", "m8_camp2",
+              "m8_unbal_res", "m8_error", "m8_multi_warn",
+              "m8_gear_ratio"]:
         st.session_state[k] = None
 
 def _get_gear_params(rotor_data, key):
     gears = rotor_data.get("gear_elements", [])
-    return gears[0].get(key, 0) if gears else 0
+    if gears:
+        return gears[0].get(key, 0)
+    return 0
 
+# =============================================================================
+# CONSTRUCTION DEPUIS JSON
+# =============================================================================
 def _build_rotor_from_json(rotor_data, mat):
     shaft = []
     for el in rotor_data["shaft"]:
-        shaft.append(rs.ShaftElement(L=float(el["L"]), idl=float(el.get("idl",0.0)), odl=float(el["odl"]), idr=float(el.get("idr",0.0)), odr=float(el.get("odr",el["odl"])), material=mat, shear_effects=True, rotary_inertia=True, gyroscopic=True))
+        shaft.append(rs.ShaftElement(
+            L=float(el["L"]),
+            idl=float(el.get("idl", 0.0)),
+            odl=float(el["odl"]),
+            idr=float(el.get("idr", el.get("idl", 0.0))),
+            odr=float(el.get("odr", el["odl"])),
+            material=mat,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True))
+
     disks = []
     for d in rotor_data.get("disks", []):
-        disks.append(rs.DiskElement(n=int(d["n"]), m=float(d["m"]), Id=float(d["Id"]), Ip=float(d["Ip"])))
+        disks.append(rs.DiskElement(
+            n=int(d["n"]), m=float(d["m"]),
+            Id=float(d["Id"]), Ip=float(d["Ip"])))
+
     for g in rotor_data.get("gear_elements", []):
         try:
             import inspect
             gear_sig = inspect.signature(rs.GearElement.__init__)
             valid_args = set(gear_sig.parameters.keys())
-            gear_kwargs = {"n": int(g["n"]), "m": float(g["m"]), "Id": float(g["Id"]), "Ip": float(g["Ip"]), "width": float(g.get("width", 0.07)), "n_teeth": int(g["n_teeth"]), "base_diameter": float(g["base_diameter"]), "pressure_angle": float(g.get("pressure_angle_deg", 22.5)), "helix_angle": float(g.get("helix_angle_deg", 0.0))}
+            
+            gear_kwargs = {
+                "n": int(g["n"]),
+                "m": float(g["m"]),
+                "Id": float(g["Id"]),
+                "Ip": float(g["Ip"]),
+                "width": float(g.get("width", 0.07)),
+                "n_teeth": int(g["n_teeth"]),
+                "base_diameter": float(g["base_diameter"]),
+                "pressure_angle": float(g.get("pressure_angle_deg", 22.5)),
+                "helix_angle": float(g.get("helix_angle_deg", 0.0))
+            }
+            
             filtered_kwargs = {k: v for k, v in gear_kwargs.items() if k in valid_args}
             disks.append(rs.GearElement(**filtered_kwargs))
         except Exception as e:
-            disks.append(rs.DiskElement(n=int(g["n"]), m=float(g["m"]), Id=float(g["Id"]), Ip=float(g["Ip"])))
+            _log("GearElement erreur : {} - utilisation DiskElement".format(e), "warn")
+            disks.append(rs.DiskElement(
+                n=int(g["n"]), m=float(g["m"]),
+                Id=float(g["Id"]), Ip=float(g["Ip"])))
+
     bears = []
     for b in rotor_data["bearings"]:
-        bears.append(rs.BearingElement(n=int(b["n"]), kxx=float(b["kxx"]), kyy=float(b.get("kyy", b["kxx"])), cxx=float(b.get("cxx", 500.0)), cyy=float(b.get("cyy", 500.0))))
+        bears.append(rs.BearingElement(
+            n=int(b["n"]),
+            kxx=float(b["kxx"]),
+            kyy=float(b.get("kyy", b["kxx"])),
+            kxy=float(b.get("kxy", 0.0)),
+            kyx=float(b.get("kyx", 0.0)),
+            cxx=float(b.get("cxx", 500.0)),
+            cyy=float(b.get("cyy", b.get("cxx", 500.0)))))
+
     return rs.Rotor(shaft, disks, bears)
 
+# =============================================================================
+# CALCUL PRINCIPAL
+# =============================================================================
 def _run_all():
-    if not st.session_state.get("m8_loaded") or not st.session_state.get("m8_json_data"): return
-    if not ROSS_OK: return
-    data = st.session_state["m8_json_data"]
-    mat_d = data.get("material", {"name": "Steel", "rho": 7810, "E": 211e9, "G_s": 81.2e9})
-    mat = rs.Material(name="Steel", rho=float(mat_d["rho"]), E=float(mat_d["E"]), G_s=float(mat_d["G_s"]))
+    if not st.session_state.get("m8_loaded") or \
+            not st.session_state.get("m8_json_data"):
+        st.session_state["m8_error"] = "Aucun modele charge."
+        return
+    if not ROSS_OK:
+        st.session_state["m8_error"] = "ROSS non disponible."
+        return
+
+    data  = st.session_state["m8_json_data"]
+    mat_d = data.get("material",
+                     {"name": "Steel", "rho": 7810, "E": 211e9, "G_s": 81.2e9})
+    mat = rs.Material(
+        name=str(mat_d.get("name", "Steel")).replace(" ", "_"),
+        rho=float(mat_d["rho"]),
+        E=float(mat_d["E"]),
+        G_s=float(mat_d["G_s"]))
+
     try:
         r1 = _build_rotor_from_json(data["rotor1"], mat)
         r2 = _build_rotor_from_json(data["rotor2"], mat)
         st.session_state["m8_rotor1"] = r1
         st.session_state["m8_rotor2"] = r2
-        st.session_state["m8_error"] = None
-        vmax = float(st.session_state.get("m8_vmax", 4000))
-        npts = int(st.session_state.get("m8_npts", 25))
+        st.session_state["m8_error"]  = None
+        _log("R1:{} noeuds {:.1f}kg | R2:{} noeuds {:.1f}kg".format(
+            len(r1.nodes), r1.m, len(r2.nodes), r2.m), "ok")
+
+        vmax    = float(st.session_state.get("m8_vmax", 4000))
+        npts    = int(st.session_state.get("m8_npts", 25))
         n_modes = int(st.session_state.get("m8_n_modes", 12))
+
+        # -- MultiRotor couple --
         try:
             try:
                 multi = rs.MultiRotor(rotors=[r1, r2], gear_mesh_stiffness=1e8)
             except TypeError:
-                multi = rs.MultiRotor(r1, r2, coupled_nodes=(3, 1), gear_mesh_stiffness=1e8)
+                gear_node_r1 = int(data["rotor1"]["gear_elements"][0]["n"])
+                gear_node_r2 = int(data["rotor2"]["gear_elements"][0]["n"])
+                multi = rs.MultiRotor(
+                    r1, r2,
+                    coupled_nodes=(gear_node_r1, gear_node_r2),
+                    gear_mesh_stiffness=1e8,
+                    orientation_angle=0,
+                    position="below",
+                )
             st.session_state["m8_multi"] = multi
+
             frequency_range = rs.Q_(np.linspace(0, vmax, npts), "RPM")
             camp = multi.run_campbell(frequency_range, frequencies=n_modes)
-            st.session_state["m8_camp"] = camp
-            st.session_state["m8_camp_vmax"] = vmax
+            st.session_state["m8_camp"]       = camp
+            st.session_state["m8_camp_vmax"]  = vmax
             st.session_state["m8_gear_ratio"] = multi.mesh.gear_ratio
+            _log("MultiRotor couple et Campbell calcules", "ok")
+
         except Exception as e_m:
             import traceback
-            st.session_state["m8_error"] = "MultiRotor ERREUR: {}".format(e_m)
-            st.session_state["m8_multi_warn"] = traceback.format_exc()
+            msg_complet = traceback.format_exc()
+            st.session_state["m8_error"]      = "MultiRotor ERREUR: {}".format(e_m)
+            st.session_state["m8_multi_warn"] = msg_complet
+            _log("MultiRotor ERREUR: {}".format(e_m), "err")
+
+        # -- Analyses modales --
         st.session_state["m8_modal1"] = r1.run_modal(speed=0)
         st.session_state["m8_modal2"] = r2.run_modal(speed=0)
-        if st.session_state.get("m8_multi"):
-            try: st.session_state["m8_modal_multi"] = st.session_state["m8_multi"].run_modal(speed=0)
-            except: pass
+        _log("Analyses modales individuelles terminees", "ok")
+
+        multi_ok = st.session_state.get("m8_multi")
+        if multi_ok is not None:
+            try:
+                st.session_state["m8_modal_multi"] = multi_ok.run_modal(speed=0)
+                _log("Modal MultiRotor couple calcule", "ok")
+            except Exception as e:
+                _log("Modal MultiRotor : {}".format(e), "warn")
+
+        # -- Reponse au balourd --
         _run_unbalance_calc(r1, r2)
+
     except Exception as e:
         import traceback
         st.session_state["m8_error"] = traceback.format_exc()
+        _log("Erreur generale : {}".format(e), "err")
 
 def _run_unbalance_calc(r1, r2):
     try:
-        vmax = float(st.session_state.get("m8_vmax", 4000))
-        rotor_s = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") else r2
-        node_m = len(rotor_s.nodes) // 2
-        freqs_rad = np.linspace(0, vmax * np.pi / 30, 300)
-        res = rotor_s.run_unbalance_response(node=[node_m], unbalance_magnitude=[1e-3], unbalance_phase=[0.0], frequency=freqs_rad)
-        st.session_state["m8_unbal_res"] = res
-        st.session_state["m8_unbal_node"] = node_m
-    except Exception: pass
+        unb_mag  = float(st.session_state.get("m8_unb_mag", 1e-3))
+        vmax     = float(st.session_state.get("m8_vmax", 4000))
+        rotor_s  = r1 if "1" in st.session_state.get("m8_unb_rotor", "R1") else r2
+        node_m   = len(rotor_s.nodes) // 2
 
+        freqs_rad = np.linspace(0, vmax * np.pi / 30, 300)
+
+        res = rotor_s.run_unbalance_response(
+            node=[node_m],
+            unbalance_magnitude=[unb_mag],
+            unbalance_phase=[0.0],
+            frequency=freqs_rad)
+
+        st.session_state["m8_unbal_res"]  = res
+        st.session_state["m8_unbal_node"] = node_m
+        _log("Balourd calcule (N{})".format(node_m), "ok")
+
+    except Exception as e:
+        import traceback
+        _log("Balourd : {}".format(traceback.format_exc()), "warn")
+
+# =============================================================================
+# AFFICHAGE GEOMETRIE (DETAILLE)
+# =============================================================================
 def _display_geometry():
     r1 = st.session_state.get("m8_rotor1")
     r2 = st.session_state.get("m8_rotor2")
-    if r1 is None or r2 is None: return st.info("Lancez les calculs.")
+    if r1 is None or r2 is None:
+        st.info("Chargez un modele et lancez les calculs.")
+        return
+
+    data = st.session_state.get("m8_json_data", {})
+    r1d  = data.get("rotor1", {})
+    r2d  = data.get("rotor2", {})
+    z1   = _get_gear_params(r1d, "n_teeth")
+    z2   = _get_gear_params(r2d, "n_teeth")
+    rpm1 = float(r1d.get("speed_rpm", 1000))
+    rpm2 = rpm1 * z1 / z2 if z2 > 0 else 0
+    fe   = rpm1 / 60 * z1
+
     multi = st.session_state.get("m8_multi")
+
     if multi is not None:
         try:
             fig = multi.plot_rotor()
-            fig.update_layout(height=380, title="MultiRotor couple", margin=dict(l=0, r=0, t=40, b=0))
+            fig.update_layout(
+                height=380,
+                title="MultiRotor couple - R1 + R2",
+                font=dict(size=11),
+                margin=dict(l=0, r=0, t=40, b=0))
             st.plotly_chart(fig, use_container_width=True, key="m8_geo_multi")
-        except Exception as e: st.warning("{}".format(e))
+        except Exception as e:
+            st.warning("plot_rotor MultiRotor : {}".format(e))
     else:
         st.warning("MultiRotor non couple - affichage individuel")
-        c1, c2 = st.columns(2)
-        with c1:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**R1** - {:.0f} RPM | {:.2f} kg".format(rpm1, r1.m))
             try:
                 fig1 = r1.plot_rotor()
-                fig1.update_layout(height=260, title="Rotor 1", margin=dict(l=0, r=0, t=30, b=0))
+                fig1.update_layout(height=260, title="Rotor 1",
+                                   font=dict(size=10),
+                                   margin=dict(l=0, r=0, t=30, b=0))
                 st.plotly_chart(fig1, use_container_width=True, key="m8_geo1")
-            except Exception: pass
-        with c2:
+            except Exception as e:
+                st.warning("R1 : {}".format(e))
+        with col2:
+            st.markdown("**R2** - {:.0f} RPM | {:.2f} kg".format(rpm2, r2.m))
             try:
                 fig2 = r2.plot_rotor()
-                fig2.update_layout(height=260, title="Rotor 2", margin=dict(l=0, r=0, t=30, b=0))
+                fig2.update_layout(height=260, title="Rotor 2",
+                                   font=dict(size=10),
+                                   margin=dict(l=0, r=0, t=30, b=0))
                 st.plotly_chart(fig2, use_container_width=True, key="m8_geo2")
-            except Exception: pass
+            except Exception as e:
+                st.warning("R2 : {}".format(e))
 
+    st.markdown("---")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("z1 / z2",   "{} / {}".format(z1, z2))
+    c2.metric("Rapport i",  "{:.4f}".format(z1 / z2 if z2 > 0 else 0))
+    c3.metric("N1",         "{:.0f} RPM".format(rpm1))
+    c4.metric("N2",         "{:.0f} RPM".format(rpm2))
+    c5.metric("fe",         "{:.1f} Hz".format(fe))
+
+# =============================================================================
+# AFFICHAGE CAMPBELL (CORRIGE ET DETAILLE)
+# =============================================================================
 def _display_campbell():
     camp_m = st.session_state.get("m8_camp")
-    if camp_m is None: return st.info("Lancez les calculs.")
+    camp1  = st.session_state.get("m8_camp1")
+    camp2  = st.session_state.get("m8_camp2")
+
+    if camp_m is None and camp1 is None:
+        st.info("Lancez les calculs.")
+        return
+
     data = st.session_state.get("m8_json_data", {})
-    z1 = _get_gear_params(data.get("rotor1", {}), "n_teeth")
-    z2 = _get_gear_params(data.get("rotor2", {}), "n_teeth")
-    rpm1 = float(data.get("rotor1", {}).get("speed_rpm", 1000))
+    r1d  = data.get("rotor1", {})
+    r2d  = data.get("rotor2", {})
+    z1   = _get_gear_params(r1d, "n_teeth")
+    z2   = _get_gear_params(r2d, "n_teeth")
+    rpm1 = float(r1d.get("speed_rpm", 1000))
     rpm2 = rpm1 * z1 / z2 if z2 > 0 else 0
-    fe = rpm1 / 60 * z1
+    fe   = rpm1 / 60 * z1
     vmax = float(st.session_state.get("m8_camp_vmax", 4000))
     gear_ratio = z1 / z2 if z2 > 0 else 0.2327
-    harm_sel = st.session_state.get("m8_harmonics", "1X + 2X + fe")
-    try:
-        plot_harmonics = [1]
-        if "2X" in harm_sel: plot_harmonics.append(2)
-        if abs(gear_ratio - 1) > 0.01: plot_harmonics.append(round(gear_ratio, 4))
-        fig = camp_m.plot(frequency_units="Hz", harmonics=plot_harmonics)
-        y_max_auto = 600
-        try:
-            if hasattr(camp_m, 'wn') and camp_m.wn is not None:
-                y_max_auto = max(600, float(np.max(camp_m.wn)) / (2 * np.pi) * 1.15)
-        except Exception: pass
-        fig.update_yaxes(range=[0, min(y_max_auto, 800)])
-        if "fe" in harm_sel and fe < y_max_auto * 1.5:
-            fig.add_hline(y=fe, line_dash="longdash", line_color="#7B1FA2", line_width=2.5, annotation_text=" fe = {:.0f} Hz".format(fe), annotation_position="top left", annotation_font=dict(color="#7B1FA2", size=11))
-        fig.add_vline(x=rpm1, line_dash="dash", line_color="#1F5C8B", line_width=2, annotation_text=" N1 = {:.0f} RPM".format(rpm1), annotation_font=dict(color="#1F5C8B", size=11))
-        if rpm2 > 0 and rpm2 <= vmax:
-            fig.add_vline(x=rpm2, line_dash="dash", line_color="#C55A11", line_width=2, annotation_text=" N2 = {:.0f} RPM".format(rpm2), annotation_font=dict(color="#C55A11", size=11))
-        fig.update_layout(height=550, title="Diagramme de Campbell - MultiRotor couple", xaxis_title="Vitesse R1 (RPM)", yaxis_title="Frequence (Hz)", plot_bgcolor="white", legend=dict(orientation="h", yanchor="bottom", y=1.02))
-        st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
-    except Exception as e:
-        import traceback
-        st.warning("Erreur plot: {}".format(e))
-        with st.expander("Details", expanded=False): st.code(traceback.format_exc())
 
-def _display_modal():
-    m1 = st.session_state.get("m8_modal1")
-    m2 = st.session_state.get("m8_modal2")
-    if m1 is None and m2 is None: return st.info("Lancez les calculs.")
+    harm_sel = st.session_state.get("m8_harmonics", "1X + 2X + fe")
+
+    # -- Campbell couple via API native ROSS --
+    if camp_m is not None:
+        try:
+            plot_harmonics = [1]
+            if "2X" in harm_sel:
+                plot_harmonics.append(2)
+            if abs(gear_ratio - 1) > 0.01 and gear_ratio not in plot_harmonics:
+                plot_harmonics.append(round(gear_ratio, 4))
+
+            fig = camp_m.plot(
+                frequency_units="Hz",
+                harmonics=plot_harmonics)
+
+            # Determiner la plage Y optimale (modes propres)
+            y_max_auto = 600
+            try:
+                if hasattr(camp_m, 'wn') and camp_m.wn is not None:
+                    max_fn = float(np.max(camp_m.wn)) / (2 * np.pi)
+                    y_max_auto = max(600, max_fn * 1.15)
+            except Exception:
+                pass
+
+            fig.update_yaxes(range=[0, min(y_max_auto, 800)])
+
+            # Ajouter fe comme ligne HORIZONTALE
+            if "fe" in harm_sel and fe < y_max_auto * 1.5:
+                fig.add_hline(
+                    y=fe,
+                    line_dash="longdash",
+                    line_color="#7B1FA2",
+                    line_width=2.5,
+                    annotation_text=" fe = {:.0f} Hz (N1 = {:.0f} RPM)".format(fe, rpm1),
+                    annotation_position="top left",
+                    annotation_font=dict(color="#7B1FA2", size=11)
+                )
+
+            # Lignes verticales vitesses nominales
+            fig.add_vline(
+                x=rpm1,
+                line_dash="dash",
+                line_color="#1F5C8B",
+                line_width=2,
+                annotation_text=" N1 = {:.0f} RPM".format(rpm1),
+                annotation_font=dict(color="#1F5C8B", size=11)
+            )
+
+            if rpm2 > 0 and rpm2 <= vmax:
+                fig.add_vline(
+                    x=rpm2,
+                    line_dash="dash",
+                    line_color="#C55A11",
+                    line_width=2,
+                    annotation_text=" N2 = {:.0f} RPM".format(rpm2),
+                    annotation_font=dict(color="#C55A11", size=11)
+                )
+
+            fig.update_layout(
+                height=550,
+                font=dict(size=11),
+                title=dict(
+                    text="Diagramme de Campbell - MultiRotor couple",
+                    font=dict(size=14)
+                ),
+                xaxis_title="Vitesse de rotation R1 (RPM)",
+                yaxis_title="Frequence naturelle (Hz)",
+                plot_bgcolor="white",
+                xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
+                yaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1,
+                    font=dict(size=10)
+                )
+            )
+            st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
+
+        except Exception as e:
+            import traceback
+            st.warning("Campbell plot erreur : {}".format(e))
+            with st.expander("Details techniques", expanded=False):
+                st.code(traceback.format_exc())
+
+    # -- Fallback : Campbell individuels --
+    else:
+        st.warning("Campbell individuel (MultiRotor non couple)")
+        CR1 = ["#1F5C8B", "#0288D1", "#00796B", "#388E3C", "#1565C0", "#006064"]
+        CR2 = ["#C55A11", "#E64A19", "#C62828", "#AD1457", "#6A1B9A", "#00695C"]
+
+        fig = go.Figure()
+
+        def _add_camp(camp, colors, prefix):
+            if hasattr(camp, "speed_range") and camp.speed_range is not None:
+                sr = np.array(camp.speed_range)
+            else:
+                sr = np.linspace(0, vmax * np.pi / 30, 25)
+            spd = sr * 30 / np.pi if sr.max() < 1000 else sr
+
+            fn_mat = None
+            if hasattr(camp, "wd") and camp.wd is not None:
+                fn_mat = np.array(camp.wd) / (2 * np.pi)
+            elif hasattr(camp, "wn") and camp.wn is not None:
+                fn_mat = np.array(camp.wn) / (2 * np.pi)
+            if fn_mat is None:
+                return
+
+            for i in range(min(6, fn_mat.shape[1])):
+                fn_i = fn_mat[:, i]
+                lbl  = "{} M{}".format(prefix, i + 1)
+                fig.add_trace(go.Scatter(
+                    x=spd, y=fn_i, name=lbl,
+                    line=dict(color=colors[i % len(colors)], width=2),
+                    hovertemplate="%{x:.0f} RPM / %{y:.2f} Hz<extra>" + lbl + "</extra>"))
+
+        if camp1:
+            _add_camp(camp1, CR1, "R1")
+        if camp2:
+            _add_camp(camp2, CR2, "R2")
+
+        xl = np.array([0, vmax])
+        fig.add_trace(go.Scatter(x=xl, y=xl / 60, name="1X R1",
+                                 line=dict(color="#E53935", width=1.5, dash="dot")))
+        fig.add_trace(go.Scatter(x=xl, y=xl / 60 * z1 / z2, name="1X R2",
+                                 line=dict(color="#FB8C00", width=1.5, dash="dot")))
+        if "fe" in harm_sel and fe < 800:
+            fig.add_hline(y=fe, line_dash="longdash", line_color="#7B1FA2",
+                          annotation_text="fe={:.0f}Hz".format(fe),
+                          annotation_font=dict(color="#7B1FA2"))
+
+        fig.add_vline(x=rpm1, line_dash="dash", line_color="#1F5C8B",
+                      annotation_text=" N1={:.0f}".format(rpm1))
+        fig.add_vline(x=rpm2, line_dash="dash", line_color="#C55A11",
+                      annotation_text=" N2={:.0f}".format(rpm2))
+
+        fig.update_layout(height=480,
+                          title="Campbell R1+R2 (independants)",
+                          xaxis_title="Vitesse R1 (RPM)",
+                          yaxis_title="Frequence (Hz)",
+                          yaxis=dict(range=[0, 600]),
+                          plot_bgcolor="white",
+                          xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
+                          yaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
+                          legend=dict(orientation="h", yanchor="bottom",
+                                      y=1.02, xanchor="right", x=1,
+                                      font=dict(size=10)))
+        st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
+
+    # Tableau recapitulatif
+    st.markdown("---")
     c1, c2 = st.columns(2)
     with c1:
-        if m1:
-            fn = m1.wn[:6] / (2 * np.pi)
-            for i, f in enumerate(fn): st.caption("M{}: {:.2f} Hz".format(i+1, f))
-    with c2:
-        if m2:
-            fn = m2.wn[:6] / (2 * np.pi)
-            for i, f in enumerate(fn): st.caption("M{}: {:.2f} Hz".format(i+1, f))
+        st.markdown("**Frequences caracteristiques :**")
+        df_f = pd.DataFrame({
+            "Grandeur": ["1X (R1)", "2X (R1)", "1X (R2)", "fe", "2fe", "3fe"],
+            "Formule": ["N1/60", "2xN1/60", "N1xz1/(60xz2)", "N1xz1/60", "2xfe", "3xfe"],
+            "Valeur": [
+                "{:.2f} Hz".format(rpm1/60),
+                "{:.2f} Hz".format(2*rpm1/60),
+                "{:.2f} Hz".format(rpm1*z1/(60*z2) if z2 > 0 else 0),
+                "{:.2f} Hz".format(fe),
+                "{:.2f} Hz".format(2*fe),
+                "{:.2f} Hz".format(3*fe)]
+        })
+        st.dataframe(df_f, use_container_width=True, hide_index=True)
 
+    with c2:
+        st.markdown("**Parametres d'engrenage :**")
+        df_g = pd.DataFrame({
+            "Parametre": ["z1 (pignon)", "z2 (roue)", "Rapport i", "N1 nominal", "N2 nominal"],
+            "Valeur": [
+                str(z1),
+                str(z2),
+                "{}/{} = {:.4f}".format(z1, z2, z1/z2 if z2 > 0 else 0),
+                "{:.0f} RPM".format(rpm1),
+                "{:.0f} RPM".format(rpm2)]
+        })
+        st.dataframe(df_g, use_container_width=True, hide_index=True)
+
+# =============================================================================
+# AFFICHAGE MODAL (DETAILLE)
+# =============================================================================
+def _display_modal():
+    modal_multi = st.session_state.get("m8_modal_multi")
+
+    if modal_multi is not None:
+        st.markdown("**Modes du systeme MultiRotor couple**")
+        fn = modal_multi.wn / (2 * np.pi)
+        ld = getattr(modal_multi, "log_dec", np.zeros(len(fn)))
+        n  = min(12, len(fn))
+        df = pd.DataFrame({
+            "Mode":    list(range(1, n + 1)),
+            "fn (Hz)": ["{:.3f}".format(fn[i]) for i in range(n)],
+            "Log Dec": ["{:.4f}".format(ld[i]) for i in range(n)],
+            "Statut":  ["INST" if ld[i] <= 0 else "Marg" if ld[i] < 0.1
+                        else "OK" for i in range(n)]
+        })
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        data = st.session_state.get("m8_json_data", {})
+        z1   = _get_gear_params(data.get("rotor1", {}), "n_teeth")
+        rpm1 = float(data.get("rotor1", {}).get("speed_rpm", 1000))
+        fe   = rpm1 / 60 * z1
+        lbl  = ["M{}".format(i + 1) for i in range(n)]
+        fig  = go.Figure()
+        fig.add_trace(go.Bar(x=lbl, y=list(fn[:n]), name="Modes couples",
+                             marker_color="#1F5C8B"))
+        if fe > 0:
+            fig.add_hline(y=fe, line_dash="dot", line_color="#7B1FA2",
+                          annotation_text="fe={:.1f}Hz".format(fe))
+        fig.update_layout(height=320, title="fn systeme couple",
+                          plot_bgcolor="white",
+                          yaxis=dict(title="fn (Hz)",
+                                     showgrid=True, gridcolor="#F0F4FF"))
+        st.plotly_chart(fig, use_container_width=True, key="m8_modal_multi_bar")
+        return
+
+    m1 = st.session_state.get("m8_modal1")
+    m2 = st.session_state.get("m8_modal2")
+    if m1 is None and m2 is None:
+        st.info("Lancez les calculs.")
+        return
+
+    def _df(modal):
+        fn = modal.wn / (2 * np.pi)
+        ld = getattr(modal, "log_dec", np.zeros(len(fn)))
+        n  = min(8, len(fn))
+        return pd.DataFrame({
+            "Mode":    list(range(1, n + 1)),
+            "fn (Hz)": ["{:.3f}".format(fn[i]) for i in range(n)],
+            "Log Dec": ["{:.4f}".format(ld[i]) for i in range(n)],
+            "Statut":  ["INST" if ld[i] <= 0 else "Marg" if ld[i] < 0.1
+                        else "OK" for i in range(n)]
+        })
+
+    r1   = st.session_state.get("m8_rotor1")
+    r2   = st.session_state.get("m8_rotor2")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Rotor 1** - {:.2f} kg".format(r1.m if r1 else 0))
+        if m1:
+            st.dataframe(_df(m1), use_container_width=True, hide_index=True)
+            n1   = min(6, len(m1.wn))
+            sel1 = st.selectbox("Mode R1 :", list(range(n1)),
+                                format_func=lambda x: "M{} {:.2f}Hz".format(
+                                    x + 1, m1.wn[x] / (2 * np.pi)),
+                                key="m8_ms1")
+            for meth in ["plot_mode_3d", "plot_mode_shape"]:
+                if hasattr(m1, meth):
+                    try:
+                        fig = getattr(m1, meth)(mode=sel1)
+                        fig.update_layout(height=280)
+                        st.plotly_chart(fig, use_container_width=True, key="m8_mf1")
+                        break
+                    except Exception:
+                        continue
+
+    with col2:
+        st.markdown("**Rotor 2** - {:.2f} kg".format(r2.m if r2 else 0))
+        if m2:
+            st.dataframe(_df(m2), use_container_width=True, hide_index=True)
+            n2   = min(6, len(m2.wn))
+            sel2 = st.selectbox("Mode R2 :", list(range(n2)),
+                                format_func=lambda x: "M{} {:.2f}Hz".format(
+                                    x + 1, m2.wn[x] / (2 * np.pi)),
+                                key="m8_ms2")
+            for meth in ["plot_mode_3d", "plot_mode_shape"]:
+                if hasattr(m2, meth):
+                    try:
+                        fig = getattr(m2, meth)(mode=sel2)
+                        fig.update_layout(height=280)
+                        st.plotly_chart(fig, use_container_width=True, key="m8_mf2")
+                        break
+                    except Exception:
+                        continue
+
+    if m1 and m2:
+        fn1  = m1.wn[:6] / (2 * np.pi)
+        fn2  = m2.wn[:6] / (2 * np.pi)
+        n    = min(len(fn1), len(fn2))
+        data = st.session_state.get("m8_json_data", {})
+        z1   = _get_gear_params(data.get("rotor1", {}), "n_teeth")
+        rpm1 = float(data.get("rotor1", {}).get("speed_rpm", 1000))
+        fe   = rpm1 / 60 * z1
+        lbl  = ["M{}".format(i + 1) for i in range(n)]
+        fig  = go.Figure()
+        fig.add_trace(go.Bar(x=lbl, y=fn1[:n], name="R1", marker_color="#1F5C8B"))
+        fig.add_trace(go.Bar(x=lbl, y=fn2[:n], name="R2", marker_color="#C55A11"))
+        if fe > 0:
+            fig.add_hline(y=fe, line_dash="dot", line_color="#7B1FA2",
+                          annotation_text="fe={:.1f}Hz".format(fe))
+        fig.update_layout(height=320, barmode="group",
+                          title="fn R1 vs R2",
+                          plot_bgcolor="white",
+                          yaxis=dict(title="fn (Hz)",
+                                     showgrid=True, gridcolor="#F0F4FF"))
+        st.plotly_chart(fig, use_container_width=True, key="m8_modal_bar")
+
+# =============================================================================
+# AFFICHAGE REPONSE BALOURD (DETAILLE)
+# =============================================================================
 def _display_unbalance():
     res = st.session_state.get("m8_unbal_res")
-    if res is None: return st.info("Lancez les calculs.")
-    st.success("Reponse au balourd calculee.")
+    if res is None:
+        st.info("Lancez les calculs.")
+        return
 
+    node = int(st.session_state.get("m8_unbal_node", 2))
+
+    freqs_hz = None
+    if hasattr(res, "speed_range") and res.speed_range is not None:
+        sr = np.array(res.speed_range)
+        freqs_hz = sr / (2 * np.pi) if sr.max() < 5000 else sr / 60
+    if freqs_hz is None:
+        freqs_hz = np.linspace(0, 100, 300)
+
+    amps = None
+    try:
+        from ross import Probe
+        probe = Probe(node, 0)
+        amps  = np.array(res.data_magnitude(probe=probe)).flatten()
+    except Exception:
+        pass
+
+    if amps is None:
+        for attr in ("forced_resp", "response"):
+            if hasattr(res, attr):
+                arr = np.abs(np.array(getattr(res, attr)))
+                if arr.ndim == 2:
+                    dof  = min(node * 4, arr.shape[0] - 1)
+                    amps = arr[dof, :]
+                else:
+                    amps = arr
+                break
+
+    if amps is None:
+        st.warning("Donnees de reponse indisponibles.")
+        return
+
+    n = min(len(amps), len(freqs_hz))
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=freqs_hz[:n],
+        y=np.array(amps[:n]) * 1e6,
+        line=dict(color="#1F5C8B", width=2),
+        fill="tozeroy",
+        fillcolor="rgba(31,92,139,0.08)",
+        hovertemplate="f=%{x:.1f}Hz | A=%{y:.4f}um<extra></extra>"))
+
+    m1 = st.session_state.get("m8_modal1")
+    if m1:
+        for i, wn in enumerate(m1.wn[:4]):
+            fn = wn / (2 * np.pi)
+            fig.add_vline(x=fn, line_dash="dot", line_color="#22863A",
+                          annotation_text="M{}".format(i + 1),
+                          annotation_font=dict(color="#22863A", size=10))
+
+    fig.update_layout(
+        height=400,
+        title="Balourd - N{} ({})".format(node, st.session_state.get("m8_unb_rotor", "R1")),
+        xaxis_title="Frequence (Hz)",
+        yaxis_title="Amplitude (um)",
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
+        yaxis=dict(showgrid=True, gridcolor="#F0F4FF"))
+    st.plotly_chart(fig, use_container_width=True, key="m8_unb_fig")
+
+# =============================================================================
+# BENCHMARK ROSS PART 4 (DETAILLE)
+# =============================================================================
 def _display_benchmark():
-    st.info("Benchmark ROSS Tutorial Part 4 - voir onglet Diagnostic pour les ecarts.")
+    st.markdown("### Validation - ROSS Tutorial Part 4")
+    st.markdown("""
+    <div class="rl-card-info">
+      <strong>Benchmark :</strong> Systeme generateur-turbine couple.
+      Source : ross.readthedocs.io/tutorial_part_4.<br>
+      <small>Timbo R. et al. (2020). JOSS, 5(48), 2120.</small>
+    </div>
+    """, unsafe_allow_html=True)
 
+    modal_multi = st.session_state.get("m8_modal_multi")
+    m1          = st.session_state.get("m8_modal1")
+    m2          = st.session_state.get("m8_modal2")
+
+    ref_couple = [109.0, 116.0, 146.0, 148.0, 276.0, 288.0, 447.0, 519.0]
+
+    if modal_multi is not None:
+        fn_calc = list(modal_multi.wn[:8] / (2 * np.pi))
+        rows = []
+        for i in range(min(8, len(fn_calc), len(ref_couple))):
+            e = abs(fn_calc[i] - ref_couple[i]) / ref_couple[i] * 100
+            rows.append({
+                "Mode":          i + 1,
+                "fn calc (Hz)":  "{:.3f}".format(fn_calc[i]),
+                "fn ref (Hz)":   "{:.3f}".format(ref_couple[i]),
+                "Ecart (%)":     "{:.1f}".format(e)
+            })
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        errs = [float(r["Ecart (%)"]) for r in rows]
+        me   = np.mean(errs) if errs else 0
+
+        n   = len(rows)
+        lbl = ["M{}".format(i + 1) for i in range(n)]
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=lbl, y=fn_calc[:n], name="Calcule",
+                             marker_color="#1F5C8B"))
+        fig.add_trace(go.Bar(x=lbl, y=ref_couple[:n], name="Reference ROSS Part 4",
+                             marker_color="#90CAF9"))
+        fig.update_layout(height=340, barmode="group",
+                          title="Calcule vs Reference ROSS Part 4",
+                          plot_bgcolor="white",
+                          yaxis=dict(title="fn (Hz)",
+                                     showgrid=True, gridcolor="#F0F4FF"))
+        st.plotly_chart(fig, use_container_width=True, key="m8_bench_fig")
+
+        if me < 5:
+            st.markdown(
+                '<div class="rl-card-ok"><strong>Validation OK</strong> - Ecart moyen : {:.1f}%</div>'.format(me), 
+                unsafe_allow_html=True)
+        else:
+            st.markdown(
+                '<div class="rl-card-warn"><strong>Ecart moyen : {:.1f}%</strong></div>'.format(me), 
+                unsafe_allow_html=True)
+
+    elif m1 is not None and m2 is not None:
+        st.warning("MultiRotor non couple - comparaison sur modes individuels")
+        fn1 = list(m1.wn[:4] / (2 * np.pi))
+        fn2 = list(m2.wn[:4] / (2 * np.pi))
+        ref_r1 = ref_couple[:4]
+        ref_r2 = ref_couple[4:8]
+        rows = []
+        for i in range(min(4, len(fn1), len(fn2))):
+            e1 = abs(fn1[i] - ref_r1[i]) / ref_r1[i] * 100
+            e2 = abs(fn2[i] - ref_r2[i]) / ref_r2[i] * 100
+            rows.append({
+                "Mode":         i + 1,
+                "fn R1 calc":   "{:.3f}".format(fn1[i]),
+                "fn R1 ref":    "{:.3f}".format(ref_r1[i]),
+                "Ecart R1 (%)": "{:.1f}".format(e1),
+                "fn R2 calc":   "{:.3f}".format(fn2[i]),
+                "fn R2 ref":    "{:.3f}".format(ref_r2[i]),
+                "Ecart R2 (%)": "{:.1f}".format(e2),
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("Chargez le modele de reference et lancez les calculs.")
+
+    st.markdown("---")
+    _show_ref_params()
+
+def _show_ref_params():
+    st.markdown("#### Code de reference ROSS Tutorial Part 4")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Rotor 1 (Generateur)**")
+        st.code(
+            "L1=[0.3,0.092,0.2,0.2,0.092,0.3] m\n"
+            "r1=[0.123,0.15,0.15,0.15,0.15,0.123] m\n"
+            "D1: n=0, m=66.63kg, Ip=0.735 kg.m2\n"
+            "D2: n=6, m=69.83kg, Ip=0.884 kg.m2\n"
+            "G1: n=3, z=37, d_base=0.19m, pr=22.5deg\n"
+            "B1: n=2, Kxx=5.5e8, Kyy=6.7e8 N/m\n"
+            "B2: n=4, Kxx=5.5e8, Kyy=6.7e8 N/m\n"
+            "N1 = 1200 RPM",
+            language="python")
+    with col2:
+        st.markdown("**Rotor 2 (Turbine)**")
+        st.code(
+            "L2=[0.08,0.2,0.2,0.64] m\n"
+            "r2=[0.321,0.321,0.261,0.261] m\n"
+            "G2: n=1, z=159, d_base=0.826m, pr=22.5deg\n"
+            "B3: n=0, Kxx=3.2e9, Kyy=4.6e9 N/m\n"
+            "B4: n=4, Kxx=3.2e9, Kyy=4.6e9 N/m\n"
+            "N2 = 279 RPM\n"
+            "i = 37/159 = 0.2327\n"
+            "fe = 1200/60*37 = 740 Hz",
+            language="python")
+
+# =============================================================================
+# THEORIE (DETAILLE)
+# =============================================================================
 def _display_theory():
-    st.markdown("### Theorie des systemes MultiRotors\nEquation du mouvement global incluant la raideur de la ligne d action des dents.")
+    st.markdown("### Theorie des systemes MultiRotors")
+    st.markdown("""
+**Equation du mouvement global :**
 
+    [M_global]{q_ddot} + ([C]+[G]){q_dot} + [K_global]{q} = {F(t)}
+
+[K_global] inclut la raideur de la ligne d action des dents.
+
+**Frequences caracteristiques :**
+
+| Frequence | Formule | Description |
+|-----------|---------|-------------|
+| 1X R1 | N1/60 | Synchrone R1 |
+| 1X R2 | N1xz1/(60xz2) | Synchrone R2 |
+| fe | N1xz1/60 | Engrenement |
+| 2fe, 3fe | Harmoniques | Defaut profil |
+| fe +/- fn | Sidelobes | Modulation |
+
+**Modes du systeme couple :**
+- Modes lateraux R1 et R2 (flexion de chaque arbre)
+- Modes torsionnels (torsion en opposition)
+- Modes couples lateral-torsionnel
+    """)
+
+    df_types = pd.DataFrame({
+        "Type":         ["Droit", "Helicoidal", "Conique", "Epicycloidal"],
+        "Angle helice": ["0", "15-45 deg", "Variable", "0"],
+        "Rapport max":  ["1:10", "1:8", "1:5", "1:12"],
+        "Force axiale": ["Non", "Oui", "Oui", "Non"],
+        "Stabilite":    ["Moyenne", "Bonne", "Bonne", "Excellente"]
+    })
+    st.dataframe(df_types, use_container_width=True, hide_index=True)
+
+# =============================================================================
+# DIAGNOSTIC (DETAILLE)
+# =============================================================================
 def _display_diagnostic():
     st.markdown("### Diagnostic du systeme MultiRotor")
+    
     r1 = st.session_state.get("m8_rotor1")
     r2 = st.session_state.get("m8_rotor2")
     multi = st.session_state.get("m8_multi")
+    modal_multi = st.session_state.get("m8_modal_multi")
+    m1 = st.session_state.get("m8_modal1")
+    m2 = st.session_state.get("m8_modal2")
+    camp = st.session_state.get("m8_camp")
     error = st.session_state.get("m8_error")
     warn = st.session_state.get("m8_multi_warn")
+    
+    st.markdown("#### 1. Etat du systeme")
     c1, c2, c3 = st.columns(3)
     with c1:
-        txt = "OK" if r1 else "NON"
-        col = "green" if r1 else "red"
-        st.markdown('<span style="color:{}"><b>Rotor 1: {}</b></span>'.format(col, txt), unsafe_allow_html=True)
+        status_r1 = "OK" if r1 is not None else "NON INITIALISE"
+        color = "green" if r1 is not None else "red"
+        bg = "#e8f5e9" if r1 else "#ffebee"
+        st.markdown('<div style="padding:10px;background:{};border-radius:5px;"><strong>Rotor 1:</strong> <span style="color:{}">{}</span></div>'.format(bg, color, status_r1), unsafe_allow_html=True)
     with c2:
-        txt = "OK" if r2 else "NON"
-        col = "green" if r2 else "red"
-        st.markdown('<span style="color:{}"><b>Rotor 2: {}</b></span>'.format(col, txt), unsafe_allow_html=True)
+        status_r2 = "OK" if r2 is not None else "NON INITIALISE"
+        color = "green" if r2 is not None else "red"
+        bg = "#e8f5e9" if r2 else "#ffebee"
+        st.markdown('<div style="padding:10px;background:{};border-radius:5px;"><strong>Rotor 2:</strong> <span style="color:{}">{}</span></div>'.format(bg, color, status_r2), unsafe_allow_html=True)
     with c3:
-        txt = "COUPLE" if multi else "NON COUPLE"
-        col = "green" if multi else "orange"
-        st.markdown('<span style="color:{}"><b>MultiRotor: {}</b></span>'.format(col, txt), unsafe_allow_html=True)
+        status_m = "COUPLE" if multi is not None else "NON COUPLE"
+        color = "green" if multi is not None else "orange"
+        bg = "#e8f5e9" if multi else "#fff3e0"
+        st.markdown('<div style="padding:10px;background:{};border-radius:5px;"><strong>MultiRotor:</strong> <span style="color:{}">{}</span></div>'.format(bg, color, status_m), unsafe_allow_html=True)
+    
+    st.markdown("#### 2. Erreurs et avertissements")
     if error:
-        st.error("Erreur : {}".format(error))
+        st.error("**Erreur principale:**")
+        st.code(str(error), language="python")
+    else:
+        st.success("Aucune erreur principale detectee.")
     if warn:
-        with st.expander("Details erreur MultiRotor"):
-            st.code(str(warn))
-    if multi:
-        st.success("Systeme operationnel. Voir Campbell couple pour les resultats.")
+        with st.expander("Details de l erreur MultiRotor", expanded=False):
+            st.code(str(warn), language="python")
+    
+    st.markdown("#### 3. Verifications de coherence")
+    checks = []
+    if r1 is not None:
+        checks.append(("R1 assemble", True, "{} noeuds, {:.2f} kg".format(len(r1.nodes), r1.m)))
+    else:
+        checks.append(("R1 assemble", False, "Non defini"))
+    if r2 is not None:
+        checks.append(("R2 assemble", True, "{} noeuds, {:.2f} kg".format(len(r2.nodes), r2.m)))
+    else:
+        checks.append(("R2 assemble", False, "Non defini"))
+    if multi is not None:
+        checks.append(("MultiRotor couple", True, "OK"))
+    else:
+        checks.append(("MultiRotor couple", False, "Voir erreurs"))
+    if modal_multi is not None:
+        checks.append(("Modal couple", True, "{} modes".format(len(modal_multi.wn))))
+    else:
+        checks.append(("Modal couple", False, "Non calcule"))
+    if camp is not None:
+        checks.append(("Campbell", True, "Calcule"))
+    else:
+        checks.append(("Campbell", False, "Non calcule"))
 
+    for name, ok, detail in checks:
+        icon = "OK" if ok else "X"
+        st.caption("[{}] {} : {}".format(icon, name, detail))
+
+    st.markdown("#### 4. Informations de debug")
+    with st.expander("Variables session_state", expanded=False):
+        debug_keys = [k for k in st.session_state.keys() if k.startswith("m8_")]
+        for key in sorted(debug_keys):
+            val = st.session_state[key]
+            type_name = type(val).__name__
+            st.markdown("`{}`: `{}`".format(key, type_name))
+
+# =============================================================================
+# HELPER LOG
+# =============================================================================
 def _log(message, level="info"):
     try:
         from app import add_log
         add_log(message, level)
-    except Exception: pass
+    except Exception:
+        pass
