@@ -655,22 +655,17 @@ def _display_campbell():
     z2   = _get_gear_params(r2d, "n_teeth")
     rpm1 = float(r1d.get("speed_rpm", 1000))
     rpm2 = rpm1 * z1 / z2 if z2 > 0 else 0
-    fe   = rpm1 / 60 * z1  # fe à la vitesse nominale = 740 Hz
+    fe   = rpm1 / 60 * z1
     vmax = float(st.session_state.get("m8_camp_vmax", 4000))
     gear_ratio = z1 / z2 if z2 > 0 else 0.2327
 
-    # ── Lire la sélection d'harmoniques depuis l'UI ───────────────────────
     harm_sel = st.session_state.get("m8_harmonics", "1X + 2X + fe")
 
-    # ── Campbell couple via API native ROSS ───────────────────────────────
     if camp_m is not None:
         try:
-            # Construire les harmoniques pour les lignes obliques
-            # 1X = synchronne R1, gear_ratio = synchronne R2
             plot_harmonics = [1]
             if "2X" in harm_sel:
                 plot_harmonics.append(2)
-            # Toujours ajouter le rapport d'engrenage pour voir 1X R2
             if abs(gear_ratio - 1) > 0.01 and gear_ratio not in plot_harmonics:
                 plot_harmonics.append(round(gear_ratio, 4))
 
@@ -678,8 +673,7 @@ def _display_campbell():
                 frequency_units="Hz",
                 harmonics=plot_harmonics)
 
-            # ── Déterminer la plage Y optimale (modes propres) ────────────
-            y_max_auto = 600  # Plage par défaut pour Tutorial Part 4
+            y_max_auto = 600
             try:
                 if hasattr(camp_m, 'wn') and camp_m.wn is not None:
                     max_fn = float(np.max(camp_m.wn)) / (2 * np.pi)
@@ -687,10 +681,8 @@ def _display_campbell():
             except Exception:
                 pass
 
-            # Limiter l'axe Y pour garder les modes visibles
             fig.update_yaxes(range=[0, min(y_max_auto, 800)])
 
-            # ── Ajouter fe comme ligne HORIZONTALE (constant à N1 nominal) ─
             if "fe" in harm_sel and fe < y_max_auto * 1.5:
                 fig.add_hline(
                     y=fe,
@@ -702,7 +694,6 @@ def _display_campbell():
                     annotation_font=dict(color="#7B1FA2", size=11)
                 )
 
-            # ── Ajouter 2fe et 3fe si dans la plage visible ───────────────
             for n_harm, label, color in [(2, "2fe", "#CE93D8"), (3, "3fe", "#E1BEE7")]:
                 freq_harm = n_harm * fe
                 if "fe" in harm_sel and freq_harm < y_max_auto * 1.1:
@@ -716,7 +707,6 @@ def _display_campbell():
                         annotation_font=dict(color=color, size=9)
                     )
 
-            # ── Lignes verticales : vitesses nominales ────────────────────
             fig.add_vline(
                 x=rpm1,
                 line_dash="dash",
@@ -736,16 +726,15 @@ def _display_campbell():
                     annotation_font=dict(color="#C55A11", size=11)
                 )
 
-            # ── Mise en page finale ───────────────────────────────────────
             fig.update_layout(
                 height=550,
                 font=dict(size=11),
                 title=dict(
-                    text="Diagramme de Campbell — MultiRotor couple (ROSS Tutorial Part 4)",
+                    text="Diagramme de Campbell - MultiRotor couple",
                     font=dict(size=14)
                 ),
                 xaxis_title="Vitesse de rotation R1 (RPM)",
-                yaxis_title="Fréquence naturelle (Hz)",
+                yaxis_title="Frequence naturelle (Hz)",
                 plot_bgcolor="white",
                 xaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
                 yaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
@@ -760,17 +749,14 @@ def _display_campbell():
             )
             st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
 
-            # ── Note explicative si fe hors plage ─────────────────────────
             if "fe" in harm_sel and fe > y_max_auto:
-                st.info("""
-                **Note :** La fréquence d'engrènement **fe = {:.0f} Hz** 
-                (à N1 = {:.0f} RPM) dépasse la plage d'affichage des modes propres.
-                
-                Elle est calculée ainsi : `fe = N1 × z1 / 60 = {:.0f} × {} / 60 = {:.0f} Hz`
-                
-                Pour visualiser fe, augmentez **Vitesse max** à au moins **{:.0f} RPM** 
-                ou réduisez le **Nombre de modes**.
-                """.format(fe, rpm1, rpm1, z1, fe, fe * 60 / z1))
+                st.info(
+                    "**Note :** La frequence d'engrenement **fe = {:.0f} Hz** "
+                    "(a N1 = {:.0f} RPM) depasse la plage d'affichage.<br><br>"
+                    "Formule : fe = N1 x z1 / 60 = {:.0f} x {} / 60 = {:.0f} Hz".format(
+                        fe, rpm1, rpm1, z1, fe
+                    )
+                )
 
         except Exception as e:
             import traceback
@@ -778,7 +764,6 @@ def _display_campbell():
             with st.expander("Details techniques", expanded=False):
                 st.code(traceback.format_exc())
 
-    # ── Fallback : Campbell individuels ───────────────────────────────────
     else:
         st.warning("Campbell individuel (MultiRotor non couple)")
         CR1 = ["#1F5C8B", "#0288D1", "#00796B", "#388E3C", "#1565C0", "#006064"]
@@ -820,7 +805,6 @@ def _display_campbell():
         fig.add_trace(go.Scatter(x=xl, y=xl / 60 * z1 / z2, name="1X R2",
                                  line=dict(color="#FB8C00", width=1.5, dash="dot")))
         
-        # fe horizontal pour le fallback aussi
         if "fe" in harm_sel and fe < 800:
             fig.add_hline(y=fe, line_dash="longdash", line_color="#7B1FA2",
                           annotation_text="fe={:.0f}Hz".format(fe),
@@ -832,7 +816,7 @@ def _display_campbell():
                       annotation_text=" N2={:.0f}".format(rpm2))
 
         fig.update_layout(height=480,
-                          title="Campbell R1+R2 (independants — MultiRotor non couple)",
+                          title="Campbell R1+R2 (independants)",
                           xaxis_title="Vitesse R1 (RPM)",
                           yaxis_title="Frequence (Hz)",
                           yaxis=dict(range=[0, 600]),
@@ -844,14 +828,13 @@ def _display_campbell():
                                       font=dict(size=10)))
         st.plotly_chart(fig, use_container_width=True, key="m8_camp_fig")
 
-    # ── Tableau récapitulatif ─────────────────────────────────────────────
     st.markdown("---")
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("**Fréquences caractéristiques :**")
+        st.markdown("**Frequences caracteristiques :**")
         df_f = pd.DataFrame({
             "Grandeur": ["1X (R1)", "2X (R1)", "1X (R2)", "fe", "2fe", "3fe"],
-            "Formule": ["N1/60", "2×N1/60", "N1×z1/(60×z2)", "N1×z1/60", "2×fe", "3×fe"],
+            "Formule": ["N1/60", "2xN1/60", "N1xz1/(60xz2)", "N1xz1/60", "2xfe", "3xfe"],
             "Valeur": [
                 "{:.2f} Hz".format(rpm1/60),
                 "{:.2f} Hz".format(2*rpm1/60),
@@ -863,9 +846,9 @@ def _display_campbell():
         st.dataframe(df_f, use_container_width=True, hide_index=True)
     
     with c2:
-        st.markdown("**Paramètres d'engrenage :**")
+        st.markdown("**Parametres d'engrenage :**")
         df_g = pd.DataFrame({
-            "Paramètre": ["z1 (pignon)", "z2 (roue)", "Rapport i", "N1 nominal", "N2 nominal"],
+            "Parametre": ["z1 (pignon)", "z2 (roue)", "Rapport i", "N1 nominal", "N2 nominal"],
             "Valeur": [
                 str(z1),
                 str(z2),
