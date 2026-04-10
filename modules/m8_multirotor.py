@@ -249,8 +249,10 @@ def _render_tab_run():
               type="primary", key="m8_run_all",
               use_container_width=True, on_click=_run_all)
 
-    if st.session_state.get("m8_error"):
-        st.error(st.session_state["m8_error"])
+    if st.session_state.get("m8_multi_warn"):
+        st.error("⚠️ Erreur MultiRotor :")
+        with st.expander("Voir les détails techniques", expanded=True):
+            st.code(st.session_state["m8_multi_warn"], language="python")
 
     checks = [
         ("m8_rotor1",    "Rotor 1 assemble"),
@@ -332,95 +334,80 @@ def _get_gear_params(rotor_data, key):
 # =============================================================================
 # CONSTRUCTION DEPUIS JSON
 # =============================================================================
-def _build_rotor_from_json(rotor_data, mat):
-    """Construit un rs.Rotor depuis un dictionnaire JSON."""
+# =============================================================================
+# CONSTRUCTION DEPUIS JSON (VERSION CORRIGÉE)
+# =============================================================================
+def _build_rotor_from_json(rotor_data, mat, rotor_name=""):
+    """
+    Construit un objet Rotor ROSS à partir d'un dictionnaire JSON.
+    Lève une erreur explicite si un GearElement ne peut être créé.
+    """
     shaft = []
+    # Construction des éléments d'arbre
     for el in rotor_data["shaft"]:
         shaft.append(rs.ShaftElement(
-            L   = float(el["L"]),
-            idl = float(el.get("idl", 0.0)),
-            odl = float(el["odl"]),
-            idr = float(el.get("idr", el.get("idl", 0.0))),
-            odr = float(el.get("odr", el["odl"])),
-            material       = mat,
-            shear_effects  = True,
-            rotary_inertia = True,
-            gyroscopic     = True,
-        ))
+            L=float(el["L"]),
+            idl=float(el.get("idl", 0.0)),
+            odl=float(el["odl"]),
+            idr=float(el.get("idr", el.get("idl", 0.0))),
+            odr=float(el.get("odr", el["odl"])),
+            material=mat,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True))
 
     disks = []
+    # Construction des disques (DiskElement)
     for d in rotor_data.get("disks", []):
         disks.append(rs.DiskElement(
             n=int(d["n"]), m=float(d["m"]),
             Id=float(d["Id"]), Ip=float(d["Ip"])))
 
-    # GearElement : tentative avec pr_angle, puis pressure_angle
+    # === CORRECTION 2 : Validation stricte des GearElements ===
+    # On crée une liste spécifique pour les engrenages
+    gear_elements = []
     for g in rotor_data.get("gear_elements", []):
-        gear_ok = False
-        pa_deg  = float(g.get("pressure_angle_deg", 22.5))
+        try:
+            gear = rs.GearElement(
+                n=int(g["n"]),
+                m=float(g["m"]),
+                Id=float(g["Id"]),
+                Ip=float(g["Ip"]),
+                width=float(g.get("width", 0.07)),
+                n_teeth=int(g["n_teeth"]),
+                base_diameter=float(g["base_diameter"]),
+                pressure_angle=rs.Q_(float(g.get("pressure_angle_deg", 22.5)), "deg"),
+                helix_angle=float(g.get("helix_angle_deg", 0.0)))
+            gear_elements.append(gear)
+            _log(f"GearElement créé pour {rotor_name} au nœud {g['n']}", "ok")
+        except Exception as e:
+            # Au lieu de remplacer par un DiskElement, on arrête avec un message clair
+            error_msg = f"ERREUR CRITIQUE - GearElement {rotor_name} nœud {g.get('n')} : {e}"
+            _log(error_msg, "err")
+            # On propage l'erreur pour arrêter le processus
+            raise ValueError(error_msg)
 
-        # Tentative 1 : pr_angle avec Q_ (API standard ROSS)
-        for pa_arg in ["pr_angle", "pressure_angle"]:
-            try:
-                gear = rs.GearElement(
-                    n             = int(g["n"]),
-                    m             = float(g["m"]),
-                    Id            = float(g["Id"]),
-                    Ip            = float(g["Ip"]),
-                    n_teeth       = int(g["n_teeth"]),
-                    base_diameter = float(g["base_diameter"]),
-                    **{pa_arg: rs.Q_(pa_deg, "deg")},
-                    helix_angle   = float(g.get("helix_angle_deg", 0.0)),
-                )
-                disks.append(gear)
-                gear_ok = True
-                break
-            except TypeError:
-                continue
-            except Exception as e:
-                _log("GearElement ({}) : {}".format(pa_arg, e), "warn")
-                continue
-
-        # Tentative 2 : angle en radians
-        if not gear_ok:
-            try:
-                gear = rs.GearElement(
-                    n             = int(g["n"]),
-                    m             = float(g["m"]),
-                    Id            = float(g["Id"]),
-                    Ip            = float(g["Ip"]),
-                    n_teeth       = int(g["n_teeth"]),
-                    base_diameter = float(g["base_diameter"]),
-                    pressure_angle= np.radians(pa_deg),
-                )
-                disks.append(gear)
-                gear_ok = True
-            except Exception as e:
-                _log("GearElement radians : {}".format(e), "warn")
-
-        if not gear_ok:
-            _log("GearElement noeud {} non cree — "
-                 "DiskElement utilise a la place".format(g["n"]), "warn")
-            disks.append(rs.DiskElement(
-                n=int(g["n"]), m=float(g["m"]),
-                Id=float(g["Id"]), Ip=float(g["Ip"])))
+    # On combine les disques et les engrenages pour créer le rotor
+    all_disks = disks + gear_elements
 
     bears = []
     for b in rotor_data["bearings"]:
         bears.append(rs.BearingElement(
-            n   = int(b["n"]),
-            kxx = float(b["kxx"]),
-            kyy = float(b.get("kyy", b["kxx"])),
-            kxy = float(b.get("kxy", 0.0)),
-            kyx = float(b.get("kyx", 0.0)),
-            cxx = float(b.get("cxx", 500.0)),
-            cyy = float(b.get("cyy", b.get("cxx", 500.0)))))
+            n=int(b["n"]),
+            kxx=float(b["kxx"]),
+            kyy=float(b.get("kyy", b["kxx"])),
+            kxy=float(b.get("kxy", 0.0)),
+            kyx=float(b.get("kyx", 0.0)),
+            cxx=float(b.get("cxx", 500.0)),
+            cyy=float(b.get("cyy", b.get("cxx", 500.0)))))
 
-    return rs.Rotor(shaft, disks, bears)
-
+    return rs.Rotor(shaft, all_disks, bears)
 
 # =============================================================================
 # CALCUL PRINCIPAL
+# =============================================================================
+# =============================================================================
+# CALCUL PRINCIPAL (VERSION CORRIGÉE)
 # =============================================================================
 def _run_all():
     if not st.session_state.get("m8_loaded") or \
@@ -433,81 +420,99 @@ def _run_all():
 
     data  = st.session_state["m8_json_data"]
     mat_d = data.get("material",
-                     {"name":"Steel","rho":7810,"E":211e9,"G_s":81.2e9})
-    mat   = rs.Material(
-        name=str(mat_d.get("name","Steel")).replace(" ","_"),
+                     {"name": "Steel", "rho": 7810, "E": 211e9, "G_s": 81.2e9})
+    mat = rs.Material(
+        name=str(mat_d.get("name", "Steel")).replace(" ", "_"),
         rho=float(mat_d["rho"]),
         E=float(mat_d["E"]),
         G_s=float(mat_d["G_s"]))
 
     try:
-        r1 = _build_rotor_from_json(data["rotor1"], mat)
-        r2 = _build_rotor_from_json(data["rotor2"], mat)
+        # Appel de la fonction corrigée avec un nom pour les messages d'erreur
+        r1 = _build_rotor_from_json(data["rotor1"], mat, rotor_name="Rotor 1")
+        r2 = _build_rotor_from_json(data["rotor2"], mat, rotor_name="Rotor 2")
         st.session_state["m8_rotor1"] = r1
         st.session_state["m8_rotor2"] = r2
         st.session_state["m8_error"]  = None
         _log("R1:{} noeuds {:.1f}kg | R2:{} noeuds {:.1f}kg".format(
             len(r1.nodes), r1.m, len(r2.nodes), r2.m), "ok")
 
-        # Verifier que les GearElements sont bien present dans les rotors
-        r1_has_gear = any(isinstance(el, rs.GearElement)
-                          for el in r1.disk_elements)
-        r2_has_gear = any(isinstance(el, rs.GearElement)
-                          for el in r2.disk_elements)
-        _log("GearElement R1: {} | R2: {}".format(r1_has_gear, r2_has_gear),
-             "ok" if (r1_has_gear and r2_has_gear) else "warn")
+        vmax    = float(st.session_state.get("m8_vmax", 4000))
+        npts    = int(st.session_state.get("m8_npts", 25))
+        n_modes = int(st.session_state.get("m8_n_modes", 12))
 
-        vmax    = float(st.session_state.get("m8_vmax",    4000))
-        npts    = int(st.session_state.get("m8_npts",      25))
-        n_modes = int(st.session_state.get("m8_n_modes",   12))
-        speeds  = np.linspace(0, vmax * np.pi / 30, npts)
+        # === CORRECTION 3 : Vérification de la cohérence des nœuds ===
+        # Récupérer les numéros de nœuds depuis le JSON
+        gear_node_r1 = int(data["rotor1"]["gear_elements"][0]["n"])
+        gear_node_r2 = int(data["rotor2"]["gear_elements"][0]["n"])
 
-        # Tentative MultiRotor (seulement si les deux rotors ont un GearElement)
-        multi_ok = False
-        if r1_has_gear and r2_has_gear:
-            try:
-                multi = rs.MultiRotor(rotors=[r1, r2])
-                st.session_state["m8_multi"] = multi
-                camp = multi.run_campbell(speeds, frequencies=n_modes)
-                st.session_state["m8_camp"]      = camp
-                st.session_state["m8_camp_vmax"] = vmax
-                multi_ok = True
-                _log("MultiRotor couple calcule", "ok")
-            except Exception as e_multi:
-                _log("MultiRotor: {}".format(e_multi), "warn")
-                st.session_state["m8_multi_warn"] = str(e_multi)
-        else:
-            msg = "GearElement manquant — R1:{} R2:{}".format(
-                r1_has_gear, r2_has_gear)
-            st.session_state["m8_multi_warn"] = msg
-            _log(msg, "warn")
+        # Vérifier que les nœuds existent dans les rotors construits
+        if gear_node_r1 >= len(r1.nodes):
+            st.error(f"❌ ERREUR : Le nœud pour l'engrenage du Rotor 1 est défini à {gear_node_r1}, mais ce rotor n'a que {len(r1.nodes)} nœuds (numérotés de 0 à {len(r1.nodes)-1}).")
+            return
+        if gear_node_r2 >= len(r2.nodes):
+            st.error(f"❌ ERREUR : Le nœud pour l'engrenage du Rotor 2 est défini à {gear_node_r2}, mais ce rotor n'a que {len(r2.nodes)} nœuds (numérotés de 0 à {len(r2.nodes)-1}).")
+            return
 
-        # Fallback : Campbell individuels si MultiRotor a echoue
-        if not multi_ok:
-            z1    = _get_gear_params(data["rotor1"], "n_teeth")
-            z2    = _get_gear_params(data["rotor2"], "n_teeth")
-            ratio = z1/z2 if z2 > 0 else 1.0
+        # ── MultiRotor couple ─────────────────────────────────────────────
+        try:
+            multi = rs.MultiRotor(
+                r1,
+                r2,
+                coupled_nodes=(gear_node_r1, gear_node_r2),
+                gear_mesh_stiffness=1e8,
+                orientation_angle=0,
+                position="below",
+            )
+            st.session_state["m8_multi"] = multi
+
+            frequency_range = rs.Q_(np.linspace(0, vmax, npts), "RPM")
+            camp = multi.run_campbell(frequency_range, frequencies=n_modes)
+            st.session_state["m8_camp"]       = camp
+            st.session_state["m8_camp_vmax"]  = vmax
+            st.session_state["m8_gear_ratio"] = multi.mesh.gear_ratio
+            _log("MultiRotor couple et Campbell calcules", "ok")
+
+        except Exception as e_m:
+            import traceback
+            msg_complet = traceback.format_exc()
+            st.session_state["m8_error"]      = "MultiRotor ERREUR: {}".format(e_m)
+            st.session_state["m8_multi_warn"] = msg_complet
+            _log("MultiRotor ERREUR: {}".format(e_m), "err")
+
+            # Fallback : Campbell individuels
+            speeds = np.linspace(0, vmax * np.pi / 30, npts)
+            z1 = _get_gear_params(data["rotor1"], "n_teeth")
+            z2 = _get_gear_params(data["rotor2"], "n_teeth")
+            ratio = z1 / z2 if z2 > 0 else 1.0
             camp1 = r1.run_campbell(speeds, frequencies=n_modes)
-            camp2 = r2.run_campbell(
-                speeds * ratio, frequencies=n_modes)
+            camp2 = r2.run_campbell(speeds * ratio, frequencies=n_modes)
             st.session_state["m8_camp1"]     = camp1
             st.session_state["m8_camp2"]     = camp2
             st.session_state["m8_camp_vmax"] = vmax
-            st.session_state["m8_multi"]     = None
-            _log("Campbell R1+R2 calcules (independants)", "ok")
+            _log("Campbell individuels R1+R2 calcules (fallback)", "ok")
 
-        # Modales
+        # ── Analyses modales ──────────────────────────────────────────────
         st.session_state["m8_modal1"] = r1.run_modal(speed=0)
         st.session_state["m8_modal2"] = r2.run_modal(speed=0)
-        _log("Analyses modales terminees", "ok")
+        _log("Analyses modales individuelles terminees", "ok")
 
-        # Balourd
+        multi_ok = st.session_state.get("m8_multi")
+        if multi_ok is not None:
+            try:
+                st.session_state["m8_modal_multi"] = multi_ok.run_modal(speed=0)
+                _log("Modal MultiRotor couple calcule", "ok")
+            except Exception as e:
+                _log("Modal MultiRotor : {}".format(e), "warn")
+
+        # ── Reponse au balourd ────────────────────────────────────────────
         _run_unbalance_calc(r1, r2)
 
     except Exception as e:
         import traceback
-        st.session_state["m8_error"] = str(e)
-        _log("Erreur : {}".format(e), "err")
+        st.session_state["m8_error"] = traceback.format_exc()
+        _log("Erreur generale : {}".format(e), "err")
+
 
 def _run_unbalance_calc(r1, r2):
     try:
@@ -1092,3 +1097,46 @@ def _log(message, level="info"):
         add_log(message, level)
     except Exception:
         pass
+
+def _run_diagnostic():
+    """Vérifie l'état du système MultiRotor"""
+    st.markdown("### Diagnostic MultiRotor")
+    
+    # 1. Vérifier ROSS
+    if not ROSS_OK:
+        st.error("❌ ROSS non installé")
+        return
+    
+    st.success(f"✅ ROSS version : {rs.__version__}")
+    
+    # 2. Vérifier les rotors
+    r1 = st.session_state.get("m8_rotor1")
+    r2 = st.session_state.get("m8_rotor2")
+    
+    if r1 is None or r2 is None:
+        st.warning("⚠️ Rotors non construits")
+        return
+    
+    # 3. Vérifier les GearElements
+    gear1_found = any(isinstance(d, rs.GearElement) for d in r1.disk_elements)
+    gear2_found = any(isinstance(d, rs.GearElement) for d in r2.disk_elements)
+    
+    st.write(f"Rotor 1 : {len(r1.nodes)} nœuds, GearElement : {'✅' if gear1_found else '❌'}")
+    st.write(f"Rotor 2 : {len(r2.nodes)} nœuds, GearElement : {'✅' if gear2_found else '❌'}")
+    
+    # 4. Tester la création du MultiRotor
+    try:
+        test_multi = rs.MultiRotor(r1, r2, coupled_nodes=(3, 1), gear_mesh_stiffness=1e8)
+        st.success("✅ MultiRotor créé avec succès")
+        
+        # Afficher les propriétés
+        st.write(f"Rapport d'engrenage : {test_multi.mesh.gear_ratio:.4f}")
+        
+        # Tester le plot
+        fig = test_multi.plot_rotor()
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"❌ Échec création MultiRotor : {e}")
+        import traceback
+        st.code(traceback.format_exc())
