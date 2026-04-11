@@ -148,7 +148,7 @@ def _render_tab_load():
                 label_visibility="collapsed",
                 key="m8_upload")
 
-        st.markdown("") # Petit espace visuel
+        #st.markdown("") # Petit espace visuel
 
         # ── ÉTAPE 3 : Le BOUTON DE FORMULAIRE (Apparence solide garantie) ──
         submitted = st.form_submit_button(
