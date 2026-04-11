@@ -165,7 +165,7 @@ def _render_code_tab(rotor):
 # =============================================================================
 # ONGLET APERCU (Version 100% Streamlit pur, sans HTML cassé)
 # =============================================================================
-def _render_preview_tab(rotor):
+def _render_preview_tab1(rotor):
     st.markdown("### Aperçu du contenu du rapport")
     
     # Récupération sécurisée des variables
@@ -214,6 +214,74 @@ def _render_preview_tab(rotor):
     if st.session_state.get("m9_inc_figs"):
         st.caption("📐 *Note : Les figures seront incluses si la librairie Kaleido est installée.*")
 
+
+#===========================================================================================
+def _render_preview_tab(rotor):
+    st.markdown("### Apercu du contenu du rapport")
+
+    try:
+        ts     = datetime.now().strftime("%d/%m/%Y %H:%M")
+        author = st.session_state.get("m9_author", "Inconnu")
+        inst   = st.session_state.get("m9_inst",   "—")
+        title  = st.session_state.get("m9_title",  "Rapport de Simulation Rotordynamique")
+
+        n_nodes = len(rotor.nodes)
+        masse   = float(rotor.m)
+        ndof    = n_nodes * 4
+
+        st.markdown("**En-tete du rapport**")
+        entete_data = [
+            ["Titre",         title],
+            ["Auteur",        author],
+            ["Etablissement", inst],
+            ["Date",          ts],
+            ["Rotor",         "{} noeuds | {:.2f} kg | {} DDL".format(n_nodes, masse, ndof)],
+        ]
+        df_entete = pd.DataFrame(entete_data, columns=["Champ", "Valeur"])
+        st.dataframe(df_entete, use_container_width=True, hide_index=True)
+
+        st.markdown("---")  # remplace st.divider() qui n'existe pas avant Streamlit 1.16
+
+        st.markdown("**Sections qui seront incluses dans le PDF**")
+
+        sections = [
+            ("Caracteristiques geometriques du rotor", True,
+             "{} noeuds, {:.2f} kg".format(n_nodes, masse)),
+            ("Analyse modale (M2)",
+             st.session_state.get("res_modal") is not None,
+             "Calcule" if st.session_state.get("res_modal") is not None else "Non calcule — lancez M2"),
+            ("Diagramme de Campbell (M3)",
+             st.session_state.get("res_campbell") is not None,
+             "Calcule" if st.session_state.get("res_campbell") is not None else "Non calcule — lancez M3"),
+            ("Conformite API 684 (M3)",
+             st.session_state.get("df_api") is not None,
+             "Disponible" if st.session_state.get("df_api") is not None else "Non calcule"),
+            ("Reponse au balourd (M4)",
+             st.session_state.get("res_unbalance") is not None,
+             "Calcule" if st.session_state.get("res_unbalance") is not None else "Non calcule — lancez M4"),
+            ("Reponse temporelle (M6)",
+             st.session_state.get("res_temporal") is not None,
+             "Calcule" if st.session_state.get("res_temporal") is not None else "Non calcule"),
+            ("Script Python reproductible",
+             bool(st.session_state.get("m9_inc_code", True)),
+             "Inclus" if st.session_state.get("m9_inc_code", True) else "Desactive"),
+            ("Figures (Campbell, geometrie 3D)",
+             bool(st.session_state.get("m9_inc_figs", True)),
+             "Incluses si Kaleido installe" if st.session_state.get("m9_inc_figs", True) else "Desactivees"),
+        ]
+
+        rows = [{"Statut": "OK" if ok else "---", "Section": name, "Detail": detail}
+                for name, ok, detail in sections]
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        n_ok = sum(1 for _, ok, _ in sections if ok)
+        st.markdown("---")
+        st.markdown("**{}/{}** sections disponibles — cliquez sur **Rapport PDF** pour generer.".format(n_ok, len(sections)))
+
+    except Exception as e:
+        st.error("Erreur dans l'apercu : {}".format(e))
+        import traceback
+        st.code(traceback.format_exc())
 # =============================================================================
 # HELPERS PHYSiques
 # =============================================================================
