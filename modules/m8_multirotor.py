@@ -570,31 +570,34 @@ def _display_geometry():
 
         st.markdown("---")
     
-    # --- AJOUT POUR REDUIRE LA TAILLE DE LA POLICE ---
-    st.markdown("""
-    <style>
-        /* On cible uniquement la zone qui porte la classe 'rl-small-metrics' */
-        .rl-small-metrics div[data-testid="stMetricLabel"] {
-            font-size: 12px;  /* Taille des titres (z1/z2, Rapport i...) */
-        }
-        .rl-small-metrics div[data-testid="stMetricValue"] {
-            font-size: 12px;  /* Taille des gros chiffres (37/159, 1200...) */
-        }
-    </style>
-    <div class="rl-small-metrics">
-    """, unsafe_allow_html=True)
-    # --------------------------------------------------
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("z1 / z2",   "{} / {}".format(z1, z2))
-    c2.metric("Rapport i",  "{:.4f}".format(z1 / z2 if z2 > 0 else 0))
-    c3.metric("N1",         "{:.0f} RPM".format(rpm1))
-    c4.metric("N2",         "{:.0f} RPM".format(rpm2))
-    c5.metric("fe",         "{:.1f} Hz".format(fe))
+        st.markdown("---")
     
-    # --- FERMETURE DE LA ZONE DE STYLE ---
-    st.markdown("</div>", unsafe_allow_html=True)
-
+    # --- AFFICHAGE PERSONNALISE AVEC TAILLE DE POLICE MAÎTRISÉE ---
+    html_metrics = f"""
+    <div style="display: flex; justify-content: space-between; font-family: sans-serif;">
+        <div style="text-align: center;">
+            <div style="font-size: 13px; color: #888; font-weight: bold;">z1 / z2</div>
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{z1} / {z2}</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 13px; color: #888; font-weight: bold;">Rapport i</div>
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{z1 / z2 if z2 > 0 else 0:.4f}</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 13px; color: #888; font-weight: bold;">N1</div>
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{rpm1:.0f} RPM</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 13px; color: #888; font-weight: bold;">N2</div>
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{rpm2:.0f} RPM</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 13px; color: #888; font-weight: bold;">fe</div>
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{fe:.1f} Hz</div>
+        </div>
+    </div>
+    """
+    st.markdown(html_metrics, unsafe_allow_html=True)
 
 # =============================================================================
 # AFFICHAGE CAMPBELL
