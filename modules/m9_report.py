@@ -162,39 +162,57 @@ def _render_code_tab(rotor):
 # =============================================================================
 # ONGLET APERCU (RECRIT POUR NE JAMAIS ETRE VIDE)
 # =============================================================================
+# =============================================================================
+# ONGLET APERCU (Version 100% Streamlit pur, sans HTML cassé)
+# =============================================================================
 def _render_preview_tab(rotor):
-    st.markdown("### Apercu du contenu du rapport")
+    st.markdown("### Aperçu du contenu du rapport")
     
-    try:
-        ts = datetime.now().strftime("%d/%m/%Y %H:%M")
-        author = st.session_state.get("m9_author", "Inconnu")
-        inst = st.session_state.get("m9_inst", "—")
+    # Récupération sécurisée des variables
+    ts = datetime.now().strftime("%d/%m/%Y %H:%M")
+    author = st.session_state.get("m9_author", "Inconnu")
+    inst = st.session_state.get("m9_inst", "—")
+    title = st.session_state.get("m9_title", "Rapport de Simulation Rotordynamique")
+    
+    # Affichage de l'entête
+    st.info("📋 **Entête du rapport**")
+    st.write(f"**Titre :** {title}")
+    st.write(f"**Auteur :** {author}  |  **Établissement :** {inst}")
+    st.write(f"**Date :** {ts}")
+    st.write(f"**Rotor :** {len(rotor.nodes)} nœuds | {rotor.m:.2f} kg | {len(rotor.nodes)*4} DDL")
+    
+    st.divider()
+    
+    # Affichage des sections cochées
+    st.info("📑 **Sections qui seront incluses dans le PDF**")
+    
+    st.markdown("✅ Caractéristiques géométriques du rotor")
+    
+    if st.session_state.get("res_modal") is not None:
+        st.markdown("✅ Analyse modale (Fréquences propres)")
+    else:
+        st.markdown("❌ Analyse modale (Non calculée)")
         
-        st.markdown("---")
-        st.subheader("📊 Entete du rapport")
-        st.markdown(f"**Titre :** {st.session_state.get('m9_title', 'Rapport')}")
-        st.markdown(f"**Auteur :** {author}  |  **Etablissement :** {inst}  |  **Date :** {ts}")
-        st.markdown(f"**Rotor :** {len(rotor.nodes)} noeuds | {rotor.m:.2f} kg | {len(rotor.nodes)*4} DDL")
+    if st.session_state.get("res_campbell") is not None:
+        st.markdown("✅ Diagramme de Campbell")
+    else:
+        st.markdown("❌ Diagramme de Campbell (Non calculé)")
         
-        st.markdown("---")
-        st.subheader("📑 Sections qui seront incluses")
+    if st.session_state.get("df_api") is not None:
+        st.markdown("✅ Conformité normative API 684")
+    else:
+        st.markdown("❌ Conformité API 684 (Non calculée)")
         
-        sections = ["✅ Caracteristiques geometriques du rotor"]
-        if st.session_state.get("res_modal"): sections.append("✅ Analyse modale")
-        if st.session_state.get("res_campbell"): sections.append("✅ Campbell & Vitesses critiques")
-        if st.session_state.get("df_api"): sections.append("✅ Conformite API 684")
-        if st.session_state.get("res_unbalance"): sections.append("✅ Reponse au balourd")
-        if st.session_state.get("m9_inc_code"): sections.append("✅ Script Python reproductible")
+    if st.session_state.get("res_unbalance") is not None:
+        st.markdown("✅ Réponse au balourd")
+    else:
+        st.markdown("❌ Réponse au balourd (Non calculée)")
         
-        for s in sections:
-            st.markdown(s)
-            
-        if st.session_state.get("m9_inc_figs"):
-            st.caption("📐 *Les figures Plotly seront jointes si la librairie Kaleido est installee.*")
-            
-    except Exception as e:
-        st.error("Impossible de generer l'aperçu : {}".format(e))
-
+    if st.session_state.get("m9_inc_code"):
+        st.markdown("✅ Script Python reproductible")
+        
+    if st.session_state.get("m9_inc_figs"):
+        st.caption("📐 *Note : Les figures seront incluses si la librairie Kaleido est installée.*")
 
 # =============================================================================
 # HELPERS PHYSiques
