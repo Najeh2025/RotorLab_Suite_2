@@ -204,7 +204,7 @@ def _render_tutorial_page(tut):
           <span style="font-size:1.3em;font-weight:700;color:{color};">
             {icon} {title}
           </span>
-          <br><span style="color:#888;font-size:0.85em;">{sub}</span>
+          <br><span style="color:#888;font-size:0.85em;">{subtitle}</span>
         </div>
         """.format(**tut), unsafe_allow_html=True)
 
