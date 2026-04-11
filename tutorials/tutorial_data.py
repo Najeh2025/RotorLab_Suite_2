@@ -3,7 +3,7 @@
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria — ISTLS, Université de Sousse
 # 6 Tutoriels interactifs avec théorie, exercices et quiz
 # =============================================================================
-
+# -*- coding: utf-8 -*-
 import streamlit as st
 import numpy as np
 import pandas as pd
