@@ -578,7 +578,7 @@ def _display_geometry():
             font-size: 12px;  /* Taille des titres (z1/z2, Rapport i...) */
         }
         .rl-small-metrics div[data-testid="stMetricValue"] {
-            font-size: 18px;  /* Taille des gros chiffres (37/159, 1200...) */
+            font-size: 12px;  /* Taille des gros chiffres (37/159, 1200...) */
         }
     </style>
     <div class="rl-small-metrics">
