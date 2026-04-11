@@ -195,27 +195,27 @@ def _render_preview_tab(rotor):
         # ── Sections incluses ───────────────────────────────────────────────
         st.markdown("**Sections qui seront incluses dans le PDF**")
 
-        # Helper : retourne toujours un bool Python pur, jamais un DataFrame
+        # Helpers : retournent toujours un bool Python pur
         def _has(key):
             return st.session_state.get(key) is not None
 
         def _checked(key, default=True):
             v = st.session_state.get(key, default)
-            return v is True  # strict : True seulement si c'est le booleen True
+            return v is True
 
         sections = [
             ("Caracteristiques geometriques du rotor", True,
              "{} noeuds, {:.2f} kg".format(n_nodes, masse)),
             ("Analyse modale (M2)",        _has("res_modal"),
-             "Calcule" if _has("res_modal")    else "Non calcule — lancez M2"),
+             "Calcule" if _has("res_modal")     else "Non calcule — lancez M2"),
             ("Diagramme de Campbell (M3)", _has("res_campbell"),
-             "Calcule" if _has("res_campbell") else "Non calcule — lancez M3"),
+             "Calcule" if _has("res_campbell")  else "Non calcule — lancez M3"),
             ("Conformite API 684 (M3)",    _has("df_api"),
-             "Disponible" if _has("df_api")    else "Non calcule"),
+             "Disponible" if _has("df_api")     else "Non calcule"),
             ("Reponse au balourd (M4)",    _has("res_unbalance"),
              "Calcule" if _has("res_unbalance") else "Non calcule — lancez M4"),
             ("Reponse temporelle (M6)",    _has("res_temporal"),
-             "Calcule" if _has("res_temporal") else "Non calcule"),
+             "Calcule" if _has("res_temporal")  else "Non calcule"),
             ("Script Python reproductible", _checked("m9_inc_code"),
              "Inclus" if _checked("m9_inc_code") else "Desactive"),
             ("Figures (Campbell, geometrie 3D)", _checked("m9_inc_figs"),
@@ -226,8 +226,7 @@ def _render_preview_tab(rotor):
         n_ok = 0
         for name, ok, detail in sections:
             rows.append({"Statut": "OK" if ok else "---",
-                         "Section": name,
-                         "Detail": detail})
+                         "Section": name, "Detail": detail})
             if ok:
                 n_ok += 1
 
@@ -236,7 +235,7 @@ def _render_preview_tab(rotor):
         st.markdown("---")
         st.markdown(
             "**{}/{}** sections disponibles — "
-            "cliquez sur **Rapport PDF** pour generer le document.".format(n_ok, len(sections))
+            "cliquez sur **Rapport PDF** pour generer.".format(n_ok, len(sections))
         )
 
     except Exception as e:
