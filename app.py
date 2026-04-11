@@ -523,8 +523,16 @@ def render_tutorial_mode():
     try:
         from tutorials.tutorial_data import render_tutorials
         render_tutorials()
+    except ImportError as e:
+        import traceback
+        st.error("**Erreur d'import :** `{}`".format(e))
+        with st.expander("Traceback complet"):
+            st.code(traceback.format_exc(), language="python")
     except Exception as e:
-        st.warning("Mode pédagogique en cours de développement. ({})".format(e))
+        import traceback
+        st.error("**Erreur mode pédagogique :** `{}`".format(e))
+        with st.expander("Traceback complet"):
+            st.code(traceback.format_exc(), language="python")
 
 
 def render_copilot_mode():
