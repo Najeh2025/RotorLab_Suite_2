@@ -185,7 +185,7 @@ def _render_tab_load():
     # ── ÉTAPE 4 : Affichage après chargement (EN DEHORS DU FORMULAIRE) ───
     # On le met en dehors du "with st.form" pour qu'il s'affiche correctement après
     if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
-        st.markdown("---")
+        #st.markdown("---")
         _show_model_summary()
         
         st.download_button(
