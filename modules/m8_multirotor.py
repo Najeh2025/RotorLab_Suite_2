@@ -962,65 +962,147 @@ def _show_ref_params():
 # THEORIE
 # =============================================================================
 def _display_theory():
-    st.markdown("### Theorie des systemes MultiRotors")
+    st.markdown("### Théorie des systèmes MultiRotors")
+    
     st.markdown("""
-**Equation du mouvement global :**
-
-```
-[M_global]{q_ddot} + ([C]+[G]){q_dot} + [K_global]{q} = {F(t)}
-```
-
-`[K_global]` inclut la raideur de la ligne d action des dents.
-
-**GearElement ROSS :**
-```python
-gear = rs.GearElement(
-    n=3, m=14.37, Id=0.068, Ip=0.136,
-    width=0.07,
-    n_teeth=37,
-    base_diameter=0.19,
-    pressure_angle=rs.Q_(22.5, "deg"),
-    helix_angle=0.0
-)
-```
-
-**MultiRotor ROSS :**
-```python
-multi = rs.MultiRotor(rotors=[rotor1, rotor2])
-freq  = rs.Q_(np.linspace(0, 5000, 51), "RPM")
-camp  = multi.run_campbell(freq, frequencies=13)
-camp.plot(frequency_units="Hz",
-          harmonics=[1, round(multi.mesh.gear_ratio, 3)]).show()
-```
-
-**Frequences caracteristiques :**
-
-| Frequence | Formule | Description |
-|-----------|---------|-------------|
-| 1X R1 | N1/60 | Synchrone R1 |
-| 1X R2 | N1*z1/(60*z2) | Synchrone R2 |
-| fe | N1*z1/60 | Engrenement |
-| 2fe, 3fe | Harmoniques | Defaut profil |
-| fe +/- fn | Sidelobes | Modulation |
-
-**Modes du systeme couple :**
-- Modes lateraux R1 et R2 (flexion de chaque arbre)
-- Modes torsionnels (torsion en opposition)
-- Modes couples lateral-torsionnel
+    L'analyse dynamique des systèmes MultiRotors couplés par engrenages est complexe 
+    car elle introduit des **termes de couplage croisé** (latéral-torsionnel) dans les 
+    matrices de raideur et d'amortissement globales.
     """)
 
-    df_types = pd.DataFrame({
-        "Type":         ["Droit", "Helicoidal", "Conique", "Epicycloidal"],
-        "Angle helice": ["0", "15-45 deg", "Variable", "0"],
-        "Rapport max":  ["1:10", "1:8", "1:5", "1:12"],
-        "Force axiale": ["Non", "Oui", "Oui", "Non"],
-        "Stabilite":    ["Moyenne", "Bonne", "Bonne", "Excellente"]
-    })
-    st.dataframe(df_types, use_container_width=True, hide_index=True)
+    # ── Séparation en 3 onglets pour aérer ───────────────────────────────
+    tab_phys, tab_code, tab_gears = st.tabs([
+        "📖 Équations & Physique", 
+        "💻 Implémentation ROSS", 
+        "⚙️ Typologie des engrenages"
+    ])
 
-# =============================================================================
-# AFFICHAGE DIAGNOSTIC
-# =============================================================================
+    # =====================================================================
+    # ONGLET 1 : PHYSIQUE & MATHÉMATIQUES
+    # =====================================================================
+    with tab_phys:
+        st.markdown("#### 1. Équation du mouvement global")
+        st.markdown("""
+        Le système couplé est régi par une équation aux dérivées partielles linéaire, 
+        projetée dans la base modale des éléments finis :
+        """)
+        
+        # Équation centrée avec LaTeX (format professionnel)
+        st.latex(r"[M]\{\ddot{q}\} + \left( [C] + \Omega[G] \right)\{\dot{q}\} + [K_{global}]\{q\} = \{F(t)\}")
+        
+        st.markdown("**Signification des matrices :**")
+        
+        # Utilisation de colonnes pour les définitions
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("""
+            * **$[M]$** : Matrice de masse globale (Inertie des disques et des arbres).
+            * **$[C]$** : Matrice d'amortissement (Paliers, matériau).
+            * **$[G]$** : Matrice gyroscopique (Effet de précession).
+            """)
+        with c2:
+            st.markdown("""
+            * **$[K_{global}]$** : Matrice de raideur incluant la **raideur de maille** de l'engrenage ($k_{mesh}$).
+            * **$\Omega$** : Vitesse de rotation (rad/s).
+            * **$\{F(t)\}$** : Forces extérieures (Balourd, poids propre).
+            """)
+
+        st.markdown("---")
+        st.markdown("#### 2. Le couplage par engrenage (Gear Mesh)")
+        st.info("""
+        Le contact entre les dents crée une raideur $k_{mesh}$ et un amortissement $c_{mesh}$ 
+        le long de la *ligne d'action*. Cela couple le déplacement latéral de l'arbre 1 
+        avec la rotation torsionnelle de l'arbre 2, et vice-versa.
+        """)
+
+        st.markdown("#### 3. Fréquences caractéristiques à surveiller")
+        st.markdown("Dans un diagramme de Campbell couplé, on surveille ces excitations :")
+        
+        # Tableau Markdown natif (plus léger et plus joli qu'un DataFrame pour du texte statique)
+        st.markdown("""
+        | Fréquence | Formule | Description physique |
+        | :--- | :--- | :--- |
+        | **$1X_{R1}$** | $N_1 / 60$ | Synchronisme arbre moteur |
+        | **$1X_{R2}$** | $N_1 \cdot z_1 / (60 \cdot z_2)$ | Synchronisme arbre récepteur |
+        | **$f_e$ (Engrènement)** | $N_1 \cdot z_1 / 60$ | Contact répété des dents |
+        | **$2f_e, 3f_e$** | Harmoniques de $f_e$ | Défauts de profil ou d'alignement |
+        | **$f_e \pm f_n$** | Modulation | Amortissement paramétrique |
+        """)
+
+    # =====================================================================
+    # ONGLET 2 : CODE ROSS
+    # =====================================================================
+    with tab_code:
+        st.markdown("#### Comment c'est codé dans ROSS ?")
+        st.markdown("""
+        ROSS simplifie la mécanique complexe en utilisant deux objets principaux : 
+        `GearElement` (pour définir la roue dentée sur un arbre) et `MultiRotor` 
+        (pour assembler les deux arbres).
+        """)
+        
+        with st.expander("Cliquer pour voir le code de référence ROSS", expanded=False):
+            st.code("""
+# 1. Définition de la roue dentée sur le Rotor 1
+gear1 = rs.GearElement(
+    n=3,                   # Nœud de positionnement sur l'arbre
+    m=14.37,               # Masse du pignon
+    Id=0.068, Ip=0.136,    # Inerties
+    width=0.07,            # Largeur de la denture
+    n_teeth=37,            # Nombre de dents (z1)
+    base_diameter=0.19,    # Diamètre de base
+    pressure_angle=22.5,   # Angle de pression
+    helix_angle=0.0        # Angle d'hélice (0 si droit)
+)
+
+# 2. Assemblage MultiRotor (API Moderne)
+multi = rs.MultiRotor(
+    rotors=[rotor1, rotor2],
+    gear_mesh_stiffness=1e8  # Raideur de contact k_mesh (N/m)
+)
+
+# 3. Calcul du Campbell couplé
+freq_range = rs.Q_(np.linspace(0, 5000, 51), "RPM")
+campbell = multi.run_campbell(freq_range, frequencies=13)
+
+# 4. Tracé avec les harmoniques d'engrènement
+campbell.plot(
+    frequency_units="Hz",
+    harmonics=[1, round(multi.mesh.gear_ratio, 3)]
+).show()
+            """, language="python")
+
+    # =====================================================================
+    # ONGLET 3 : TYPOLOGIE
+    # =====================================================================
+    with tab_gears:
+        st.markdown("#### Types de transmissions par engrenages")
+        st.markdown("""
+        Le choix du type d'engrenage modifie radicalement les termes de couplage 
+        dans la matrice $[K_{global}]$. Un engrenage hélicoïdal introduira par exemple 
+        des forces axiales qu'un engrenage droit n'a pas.
+        """)
+        
+        # Nettoyage du DataFrame pour un rendu plus propre
+        df_types = pd.DataFrame({
+            "Type d'engrenage": ["Droit (Spur)", "Hélicoïdal", "Conique", "Épicycloïdal"],
+            "Angle d'hélice": ["0°", "15° à 45°", "Variable", "0°"],
+            "Rapport max typique": ["1:10", "1:8", "1:5", "1:12"],
+            "Force axiale générée": ["Non", "Oui (Importante)", "Oui", "Non"],
+            "Stabilité dynamique": ["Moyenne", "Bonne", "Bonne", "Excellente"],
+            "Coût de fabrication": ["Faible", "Moyen", "Élevé", "Très élevé"]
+        })
+        
+        # Affichage avec largeur totale et cache de l'index
+        st.dataframe(
+            df_types, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Stabilité dynamique": st.column_config.TextColumn(
+                    help="Capacité à ne pas vibrer excessivement sous charge"
+                )
+            }
+        )
 # =============================================================================
 # AFFICHAGE DIAGNOSTIC
 # =============================================================================
