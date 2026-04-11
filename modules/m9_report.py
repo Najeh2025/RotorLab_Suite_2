@@ -214,8 +214,8 @@ def _render_preview_tab(rotor):
              "Disponible" if _has("df_api")     else "Non calcule"),
             ("Reponse au balourd (M4)",    _has("res_unbalance"),
              "Calcule" if _has("res_unbalance") else "Non calcule — lancez M4"),
-            ("Reponse temporelle (M6)",    _has("res_temporal"),
-             "Calcule" if _has("res_temporal")  else "Non calcule"),
+            ("Reponse temporelle (M6)",    _has("res_temporal") and _checked("m9_inc_temporal"),
+             "Calcule" if _has("res_temporal") else "Non calcule — lancez M6"),
             ("Script Python reproductible", _checked("m9_inc_code"),
              "Inclus" if _checked("m9_inc_code") else "Desactive"),
             ("Figures (Campbell, geometrie 3D)", _checked("m9_inc_figs"),
@@ -433,28 +433,67 @@ def _generate_pdf(rotor):
         except Exception:
             pass
 
-    # ── SECTION 6 : CODE PYTHON (CORRIGÉ : TEXTE BLANC GARANTI) ─────────
+    # ── SECTION 6 : REPONSE TEMPORELLE ──────────────────────────────────
+    res_temp = st.session_state.get("res_temporal")
+    if st.session_state.get("m9_inc_temporal") and res_temp is not None:
+        elements.append(PageBreak())
+        elements.append(Paragraph("6. Reponse temporelle", style_h1))
+        elements.append(Paragraph(
+            "Une simulation de reponse temporelle a ete effectuee. "
+            "Consultez l\'onglet \'Reponse temporelle\' dans l\'application pour les graphiques detailles.",
+            style_body))
+        try:
+            if hasattr(res_temp, 'time_response'):
+                elements.append(Paragraph("<i>Reponse temporelle calculee avec succes.</i>", style_body))
+            elif hasattr(res_temp, 't'):
+                n_pts = len(res_temp.t) if hasattr(res_temp.t, '__len__') else '?'
+                elements.append(Paragraph(
+                    "<i>Simulation temporelle : {} points de calcul.</i>".format(n_pts), style_body))
+        except Exception:
+            pass
+
+    # ── SECTION 7 : CODE PYTHON ───────────────────────────────────────────
     if st.session_state.get("m9_inc_code"):
         elements.append(PageBreak())
-        elements.append(Paragraph("6. Script Python reproductible", style_h1))
-        
-        script_lines = _generate_python_script(rotor).split("\n")
-        code_data = []
-        
-        for line in script_lines[:50]: # Limité à 50 lignes pour la mise en page
-            # ESCAPE DES CARACTÈRES SPÉCIAUX HTML (< et >) pour ne pas casser ReportLab !
-            safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            # On enveloppe dans un Paragraph pour forcer la couleur
-            code_data.append([Paragraph(safe_line, style_code)])
-            
-        code_table = Table(code_data, colWidths=[16*cm])
-        code_table.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#1E1E2E")), # Fond sombre
-            ("LEFTPADDING", (0,0), (-1,-1), 8),
-            ("TOPPADDING", (0,0), (-1,-1), 2),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-        ]))
-        elements.append(code_table)
+        elements.append(Paragraph("7. Script Python reproductible", style_h1))
+
+        # Nettoyage du script : remplace les caracteres unicode par ASCII
+        raw_script = _generate_python_script(rotor)
+        clean_script = (raw_script
+            .replace("\u2500", "-")   # ─
+            .replace("\u2502", "|")   # │
+            .replace("\u250c", "+")   # ┌
+            .replace("\u2514", "+")   # └
+            .replace("\u25a0", "*")   # ■
+        )
+        # Remplacement des separateurs unicode restants
+        import re
+        clean_script = re.sub(r'[^\x00-\x7F]', '-', clean_script)
+
+        for chunk_start in range(0, len(clean_script.split("\n")), 60):
+            lines_chunk = clean_script.split("\n")[chunk_start:chunk_start+60]
+            code_data = []
+            for line in lines_chunk:
+                # Tronquer les lignes trop longues (>90 cars)
+                if len(line) > 90:
+                    line = line[:87] + "..."
+                safe = (line
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;"))
+                code_data.append([Paragraph(safe, style_code)])
+            if not code_data:
+                continue
+            code_table = Table(code_data, colWidths=[16*cm])
+            code_table.setStyle(TableStyle([
+                ("BACKGROUND",    (0,0), (-1,-1), colors.HexColor("#1E1E2E")),
+                ("LEFTPADDING",   (0,0), (-1,-1), 8),
+                ("TOPPADDING",    (0,0), (-1,-1), 1),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 1),
+            ]))
+            elements.append(code_table)
+            if chunk_start + 60 < len(clean_script.split("\n")):
+                elements.append(PageBreak())
 
     # ── PIED DE PAGE ──────────────────────────────────────────────────────
     elements.append(Spacer(1, 1*cm))
@@ -639,7 +678,7 @@ def _generate_python_script(rotor):
     if modal is not None:
         fn_vals = list(modal.wn[:6] / (2*np.pi))
         analysis_sections.append("""
-# ── Analyse modale ──────────────────────────────────────────────────────
+# -- Analyse modale --------------------------------------------------------
 modal = rotor.run_modal(speed=0)
 print("Frequences propres (Hz):", (modal.wn / (2*np.pi))[:6].round(3))
 print("Log Dec:", modal.log_dec[:6].round(4))
@@ -649,7 +688,7 @@ print("Log Dec:", modal.log_dec[:6].round(4))
     if st.session_state.get("res_campbell") is not None:
         vmax = float(st.session_state.get("m3_camp_vmax", 10000))
         analysis_sections.append("""
-# ── Diagramme de Campbell ────────────────────────────────────────────────
+# -- Diagramme de Campbell -------------------------------------------------
 speeds = np.linspace(0, {:.0f}*np.pi/30, 100)
 camp   = rotor.run_campbell(speeds, frequencies=12)
 camp.plot()
@@ -657,7 +696,7 @@ camp.plot()
 
     if st.session_state.get("res_unbalance") is not None:
         analysis_sections.append("""
-# ── Reponse au balourd ───────────────────────────────────────────────────
+# -- Reponse au balourd ----------------------------------------------------
 resp = rotor.run_unbalance_response(
     node=[2], unbalance_magnitude=[0.001],
     unbalance_phase=[0.0],
@@ -685,7 +724,7 @@ resp = rotor.run_unbalance_response(
 import ross as rs
 import numpy as np
 
-# ── Materiau : {mat_name} ──────────────────────────────────────────────────
+# -- Materiau : {mat_name} ---------------------------------------------------
 mat = rs.Material(
     name="Steel",
     rho={rho},
@@ -693,16 +732,16 @@ mat = rs.Material(
     G_s={G:.3e}
 )
 
-# ── Arbre ─────────────────────────────────────────────────────────────────
+# -- Arbre -------------------------------------------------------------------
 {shaft_lines}
 
-# ── Disques ───────────────────────────────────────────────────────────────
+# -- Disques -----------------------------------------------------------------
 {disk_lines}
 
-# ── Paliers ───────────────────────────────────────────────────────────────
+# -- Paliers -----------------------------------------------------------------
 {bear_lines}
 
-# ── Assemblage ────────────────────────────────────────────────────────────
+# -- Assemblage --------------------------------------------------------------
 rotor = rs.Rotor(shaft, disks, bearings)
 print("Masse     : {{:.2f}} kg".format(rotor.m))
 print("Noeuds    : {{}}".format(rotor.nodes))
