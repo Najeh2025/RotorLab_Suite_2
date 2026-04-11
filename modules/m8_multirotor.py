@@ -183,24 +183,17 @@ def _render_tab_load():
 
     # ── ÉTAPE 4 : Affichage après chargement (EN DEHORS DU FORMULAIRE) ───
     # ── ÉTAPE 4 : Affichage après chargement (EN DEHORS DU FORMULAIRE) ───
+    # On le met en dehors du "with st.form" pour qu'il s'affiche correctement après
     if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
+        st.markdown("---")
+        _show_model_summary()
         
-        # On utilise un conteneur HTML pour coller les éléments ensemble et retirer le séparateur
-        st.markdown('<div class="no-spacing-container">', unsafe_allow_html=True) 
-    
-            _show_model_summary() # Cette fonction doit maintenant apparaître directement après la fermeture de la div ci-dessus si possible, sinon elle prendra ses propres marges
-            
-            # Si _show_model_summary() est une série d'éléments Streamlit, on peut encapsuler l'ensemble du contenu résiduel dans le conteneur pour plus de contrôle.
-    
-            st.download_button(
-                "Télécharger le JSON en cours",
-                data=json.dumps(st.session_state["m8_json_data"], indent=2),
-                file_name="multirotor_model.json",
-                mime="application/json",
-                key="m8_dl_current")
-    
-        st.markdown('</div>', unsafe_allow_html=True) # Fermeture du conteneur
-
+        st.download_button(
+            "Télécharger le JSON en cours",
+            data=json.dumps(st.session_state["m8_json_data"], indent=2),
+            file_name="multirotor_model.json",
+            mime="application/json",
+            key="m8_dl_current")
 
 #------------------------------------------------------------------------------
 def _show_model_summary():
