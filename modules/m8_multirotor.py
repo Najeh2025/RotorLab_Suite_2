@@ -148,7 +148,7 @@ def _render_tab_load():
                 label_visibility="collapsed",
                 key="m8_upload")
 
-        #st.markdown("") # Petit espace visuel
+        st.markdown("") # Petit espace visuel
 
         # ── ÉTAPE 3 : Le BOUTON DE FORMULAIRE (Apparence solide garantie) ──
         submitted = st.form_submit_button(
@@ -182,17 +182,27 @@ def _render_tab_load():
                     st.warning("Veuillez d'abord sélectionner un fichier.")
 
     # ── ÉTAPE 4 : Affichage après chargement (EN DEHORS DU FORMULAIRE) ───
-    # On le met en dehors du "with st.form" pour qu'il s'affiche correctement après
+    # ── ÉTAPE 4 : Affichage après chargement (EN DEHORS DU FORMULAIRE) ───
     if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
-        st.markdown("---")
-        _show_model_summary()
         
-        st.download_button(
-            "Télécharger le JSON en cours",
-            data=json.dumps(st.session_state["m8_json_data"], indent=2),
-            file_name="multirotor_model.json",
-            mime="application/json",
-            key="m8_dl_current")
+        # On utilise un conteneur HTML pour coller les éléments ensemble et retirer le séparateur
+        st.markdown('<div class="no-spacing-container">', unsafe_allow_html=True) 
+    
+            _show_model_summary() # Cette fonction doit maintenant apparaître directement après la fermeture de la div ci-dessus si possible, sinon elle prendra ses propres marges
+            
+            # Si _show_model_summary() est une série d'éléments Streamlit, on peut encapsuler l'ensemble du contenu résiduel dans le conteneur pour plus de contrôle.
+    
+            st.download_button(
+                "Télécharger le JSON en cours",
+                data=json.dumps(st.session_state["m8_json_data"], indent=2),
+                file_name="multirotor_model.json",
+                mime="application/json",
+                key="m8_dl_current")
+    
+        st.markdown('</div>', unsafe_allow_html=True) # Fermeture du conteneur
+
+
+#------------------------------------------------------------------------------
 def _show_model_summary():
     data = st.session_state["m8_json_data"]
     r1d  = data.get("rotor1", {})
