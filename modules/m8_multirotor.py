@@ -568,13 +568,32 @@ def _display_geometry():
             except Exception as e:
                 st.warning("R2 : {}".format(e))
 
-    st.markdown("---")
+        st.markdown("---")
+    
+    # --- AJOUT POUR REDUIRE LA TAILLE DE LA POLICE ---
+    st.markdown("""
+    <style>
+        /* On cible uniquement la zone qui porte la classe 'rl-small-metrics' */
+        .rl-small-metrics div[data-testid="stMetricLabel"] {
+            font-size: 12px;  /* Taille des titres (z1/z2, Rapport i...) */
+        }
+        .rl-small-metrics div[data-testid="stMetricValue"] {
+            font-size: 18px;  /* Taille des gros chiffres (37/159, 1200...) */
+        }
+    </style>
+    <div class="rl-small-metrics">
+    """, unsafe_allow_html=True)
+    # --------------------------------------------------
+
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("z1 / z2",   "{} / {}".format(z1, z2))
     c2.metric("Rapport i",  "{:.4f}".format(z1 / z2 if z2 > 0 else 0))
     c3.metric("N1",         "{:.0f} RPM".format(rpm1))
     c4.metric("N2",         "{:.0f} RPM".format(rpm2))
     c5.metric("fe",         "{:.1f} Hz".format(fe))
+    
+    # --- FERMETURE DE LA ZONE DE STYLE ---
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # =============================================================================
