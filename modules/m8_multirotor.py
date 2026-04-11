@@ -231,7 +231,7 @@ def _render_tab_params():
     c1, c2 = st.columns(2)
     with c1:
         st.radio("Rotor cible", ["Rotor 1", "Rotor 2"],
-                 key="m8_unb_rotor", horizontal=True)
+                 key="m8_unb_rotor", horizontal=False)
         st.number_input("Noeud de mesure", min_value=0, value=0, step=1,
                         key="m8_unb_node_ui",
                         help="Indice du noeud (0 = premier noeud)")
