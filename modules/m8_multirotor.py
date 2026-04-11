@@ -109,28 +109,36 @@ def _render_settings():
 
 
 def _render_tab_load():
-    # ── AJOUT DU STYLE "PRO" POUR LES BOUTONS ────────────────────────────
+    # ── STYLE "PRO" POUR LES BOUTONS (Version Bouton Solide) ─────────────
     st.markdown("""
     <style>
-        /* 1. Style pour le bouton principal "Charger modèle" */
+        /* 1. Bouton principal "Charger modèle" (Apparence solide et visible) */
         div[data-testid="stBaseButton-primary"] button {
-            border-radius: 8px !important;        /* Coins arrondis */
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* Ombre élégante */
-            font-weight: bold;
-            transition: all 0.2s ease;
+            background-color: #1F5C8B !important; /* Fond bleu marin pro */
+            color: white !important;               /* Texte en blanc */
+            border: none !important;               /* On enlève les bordures */
+            border-radius: 8px !important;         /* Coins arrondis */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15); /* Ombre élégante */
+            font-weight: bold !important;
         }
         
-        /* 2. Style pour le bouton "Télécharger" (Aspect discret/Pro) */
+        /* Ce qui se passe quand on passe la souris dessus */
+        div[data-testid="stBaseButton-primary"] button:hover {
+            background-color: #164b70 !important; /* Bleu un peu plus foncé */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 2. Bouton "Télécharger" (Aspect discret fantôme) */
         .stDownloadButton > button {
-            background-color: transparent !important; /* Fond transparent */
-            color: #1F5C8B !important;                /* Texte bleu marin */
-            border: 1px dashed #1F5C8B !important;    /* Bordure pointillée */
+            background-color: transparent !important; 
+            color: #1F5C8B !important;                
+            border: 1px dashed #1F5C8B !important;    
             border-radius: 5px !important;
-            font-weight: 500;
+            font-weight: 500 !important;
         }
         .stDownloadButton > button:hover {
-            background-color: #f0f4f8 !important;    /* Léger fond au survol */
-            border: 1px solid #1F5C8B !important;    /* Bordure pleine au survol */
+            background-color: #f0f4f8 !important;    
+            border: 1px solid #1F5C8B !important;    
         }
     </style>
     """, unsafe_allow_html=True)
@@ -171,7 +179,6 @@ def _render_tab_load():
             label_visibility="collapsed",
             key="m8_upload")
 
-    # Un petit espace respiratoire avant le bouton d'action
     st.markdown("") 
 
     # ── ÉTAPE 3 : Le bouton d'action UNIQUE ──────────────────────────────
@@ -213,7 +220,6 @@ def _render_tab_load():
             file_name="multirotor_model.json",
             mime="application/json",
             key="m8_dl_current")
-
 def _show_model_summary():
     data = st.session_state["m8_json_data"]
     r1d  = data.get("rotor1", {})
