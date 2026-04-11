@@ -109,6 +109,33 @@ def _render_settings():
 
 
 def _render_tab_load():
+    # ── AJOUT DU STYLE "PRO" POUR LES BOUTONS ────────────────────────────
+    st.markdown("""
+    <style>
+        /* 1. Style pour le bouton principal "Charger modèle" */
+        div[data-testid="stBaseButton-primary"] button {
+            border-radius: 8px !important;        /* Coins arrondis */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* Ombre élégante */
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        
+        /* 2. Style pour le bouton "Télécharger" (Aspect discret/Pro) */
+        .stDownloadButton > button {
+            background-color: transparent !important; /* Fond transparent */
+            color: #1F5C8B !important;                /* Texte bleu marin */
+            border: 1px dashed #1F5C8B !important;    /* Bordure pointillée */
+            border-radius: 5px !important;
+            font-weight: 500;
+        }
+        .stDownloadButton > button:hover {
+            background-color: #f0f4f8 !important;    /* Léger fond au survol */
+            border: 1px solid #1F5C8B !important;    /* Bordure pleine au survol */
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    # ──────────────────────────────────────────────────────────────────────
+
     st.markdown('<div class="rl-section-header">Source du modèle</div>',
                 unsafe_allow_html=True)
 
@@ -144,16 +171,15 @@ def _render_tab_load():
             label_visibility="collapsed",
             key="m8_upload")
 
-    st.markdown("") # Petit espace visuel
+    # Un petit espace respiratoire avant le bouton d'action
+    st.markdown("") 
 
     # ── ÉTAPE 3 : Le bouton d'action UNIQUE ──────────────────────────────
-    # On désactive le bouton si c'est un fichier JSON mais qu'aucun fichier n'est sélectionné
     bouton_desactive = (source == "Charger un modèle (fichier json)" and fichier_uploade is None)
     
     if st.button("Charger modèle", type="primary", key="m8_load_action", 
                  use_container_width=True, disabled=bouton_desactive):
         
-        # --- Logique si c'est le modèle de référence ---
         if source == "Modèle de référence (ROSS Tutorial Part 4)":
             st.session_state["m8_json_data"]   = REFERENCE_JSON
             st.session_state["m8_loaded"]      = True
@@ -161,7 +187,6 @@ def _render_tab_load():
             _clear_results()
             _log("Modèle référence ROSS Part 4 chargé", "ok")
             
-        # --- Logique si c'est un fichier uploadé ---
         else:
             if fichier_uploade is not None:
                 try:
@@ -177,12 +202,11 @@ def _render_tab_load():
             else:
                 st.warning("Veuillez d'abord sélectionner un fichier.")
 
-    # ── ÉTAPE 4 : Affichage après chargement (Résumé + Download) ─────────
+    # ── ÉTAPE 4 : Affichage après chargement ─────────────────────────────
     if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
-        st.markdown("---") # Séparateur visuel propre
+        st.markdown("---")
         _show_model_summary()
         
-        # Le bouton de téléchargement n'apparaît qu'une fois le modèle chargé
         st.download_button(
             "Télécharger le JSON en cours",
             data=json.dumps(st.session_state["m8_json_data"], indent=2),
