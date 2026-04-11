@@ -110,22 +110,27 @@ def _render_settings():
 
 def _render_tab_load():
     # ── STYLE "PRO" POUR LES BOUTONS (Version Bouton Solide) ─────────────
+    # ── STYLE "PRO" (On cible le bouton standard pour contourner Streamlit) ──
     st.markdown("""
     <style>
-        /* 1. Bouton principal "Charger modèle" (Apparence solide et visible) */
-        div[data-testid="stBaseButton-primary"] button {
-            background-color: #1F5C8B !important; /* Fond bleu marin pro */
-            color: white !important;               /* Texte en blanc */
-            border: none !important;               /* On enlève les bordures */
-            border-radius: 8px !important;         /* Coins arrondis */
-            box-shadow: 0 4px 6px rgba(0,0,0,0.15); /* Ombre élégante */
+        /* 1. Le bouton "Charger modèle" (Apparence forcée) */
+        div[data-testid="stBaseButton-secondary"] button {
+            background-color: #1F5C8B !important;  /* Force le fond bleu */
+            color: white !important;                /* Force le texte blanc */
+            border: none !important;                
+            border-radius: 8px !important;          
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important; 
             font-weight: bold !important;
         }
         
-        /* Ce qui se passe quand on passe la souris dessus */
-        div[data-testid="stBaseButton-primary"] button:hover {
-            background-color: #164b70 !important; /* Bleu un peu plus foncé */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        div[data-testid="stBaseButton-secondary"] button:hover {
+            background-color: #164b70 !important;  /* Bleu plus foncé au survol */
+        }
+
+        /* Apparence quand le bouton est grisé (si aucun JSON sélectionné) */
+        div[data-testid="stBaseButton-secondary"] button:disabled {
+            background-color: #a0b4c8 !important;  /* Gris bleuté */
+            color: white !important;
         }
 
         /* 2. Bouton "Télécharger" (Aspect discret fantôme) */
@@ -184,7 +189,7 @@ def _render_tab_load():
     # ── ÉTAPE 3 : Le bouton d'action UNIQUE ──────────────────────────────
     bouton_desactive = (source == "Charger un modèle (fichier json)" and fichier_uploade is None)
     
-    if st.button("Charger modèle", type="primary", key="m8_load_action", 
+    if st.button("Charger modèle", key="m8_load_action", 
                  use_container_width=True, disabled=bouton_desactive):
         
         if source == "Modèle de référence (ROSS Tutorial Part 4)":
