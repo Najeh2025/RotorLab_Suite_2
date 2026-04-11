@@ -77,7 +77,6 @@ def _render_settings(rotor):
         '<div class="rl-section-header">Contenu du rapport</div>',
         unsafe_allow_html=True)
 
-    # Detection automatique des modules calcules
     has_modal    = st.session_state.get("res_modal")    is not None
     has_campbell = st.session_state.get("res_campbell") is not None
     has_api      = st.session_state.get("df_api")       is not None
@@ -249,24 +248,19 @@ def _render_excel_tab():
             with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
                 wb = writer.book
 
-                # Formats
                 fmt_header = wb.add_format({
                     "bold": True, "font_color": "white",
-                    "bg_color": "#1F5C8B", "border": 1,
-                    "align": "center"
+                    "bg_color": "#1F5C8B", "border": 1, "align": "center"
                 })
                 fmt_green_header = wb.add_format({
                     "bold": True, "font_color": "white",
-                    "bg_color": "#22863A", "border": 1,
-                    "align": "center"
+                    "bg_color": "#22863A", "border": 1, "align": "center"
                 })
                 fmt_red_header = wb.add_format({
                     "bold": True, "font_color": "white",
-                    "bg_color": "#8B1F1F", "border": 1,
-                    "align": "center"
+                    "bg_color": "#8B1F1F", "border": 1, "align": "center"
                 })
-                fmt_alt = wb.add_format({
-                    "bg_color": "#F2F5F9", "border": 1})
+                fmt_alt = wb.add_format({"bg_color": "#F2F5F9", "border": 1})
                 fmt_normal = wb.add_format({"border": 1})
 
                 def _write_df(df, sheet_name, header_fmt):
@@ -283,38 +277,30 @@ def _render_excel_tab():
                     ws.set_column(0, len(df.columns)-1, 16)
 
                 if inc_model:
-                    _write_df(st.session_state["df_shaft"],
-                              "Arbre", fmt_header)
-                    _write_df(st.session_state["df_disk"],
-                              "Disques", fmt_header)
-                    _write_df(st.session_state["df_bear"],
-                              "Paliers", fmt_header)
+                    _write_df(st.session_state["df_shaft"], "Arbre", fmt_header)
+                    _write_df(st.session_state["df_disk"], "Disques", fmt_header)
+                    _write_df(st.session_state["df_bear"], "Paliers", fmt_header)
 
                 if inc_modal and st.session_state.get("df_modal") is not None:
-                    _write_df(st.session_state["df_modal"],
-                              "Modal", fmt_header)
+                    _write_df(st.session_state["df_modal"], "Modal", fmt_header)
 
                 if inc_camp and st.session_state.get("df_campbell") is not None:
-                    _write_df(st.session_state["df_campbell"],
-                              "Campbell", fmt_green_header)
+                    _write_df(st.session_state["df_campbell"], "Campbell", fmt_green_header)
 
                 if inc_api and st.session_state.get("df_api") is not None:
-                    _write_df(st.session_state["df_api"],
-                              "API_684", fmt_red_header)
+                    _write_df(st.session_state["df_api"], "API_684", fmt_red_header)
 
             ts = datetime.now().strftime("%Y%m%d_%H%M")
             st.download_button(
                 "Telecharger le fichier Excel",
                 data=buf.getvalue(),
                 file_name="RotorLab_Data_{}.xlsx".format(ts),
-                mime="application/vnd.openxmlformats-officedocument"
-                     ".spreadsheetml.sheet",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="m9_dl_xl"
             )
             st.success("Excel genere avec succes !")
         except ModuleNotFoundError:
-            st.error("xlsxwriter manquant. "
-                     "Ajoutez `xlsxwriter>=3.0.0` dans requirements.txt.")
+            st.error("xlsxwriter manquant. Ajoutez `xlsxwriter>=3.0.0` dans requirements.txt.")
         except Exception as e:
             st.error("Erreur Excel : {}".format(e))
 
@@ -398,22 +384,10 @@ def _render_preview_tab(rotor):
     </div>
 
     <table style="width:100%; font-size:0.85em; margin-bottom:14px;">
-      <tr>
-        <td style="color:#888; width:140px;">Auteur</td>
-        <td><strong>{author}</strong></td>
-      </tr>
-      <tr>
-        <td style="color:#888;">Etablissement</td>
-        <td>{inst}</td>
-      </tr>
-      <tr>
-        <td style="color:#888;">Date</td>
-        <td>{ts}</td>
-      </tr>
-      <tr>
-        <td style="color:#888;">Rotor</td>
-        <td>{nodes} noeuds | {mass:.2f} kg | {ndof} DDL</td>
-      </tr>
+      <tr><td style="color:#888; width:140px;">Auteur</td><td><strong>{author}</strong></td></tr>
+      <tr><td style="color:#888;">Etablissement</td><td>{inst}</td></tr>
+      <tr><td style="color:#888;">Date</td><td>{ts}</td></tr>
+      <tr><td style="color:#888;">Rotor</td><td>{nodes} noeuds | {mass:.2f} kg | {ndof} DDL</td></tr>
     </table>
 
     <hr style="border:1px solid #EEE; margin:12px 0;">
@@ -423,8 +397,7 @@ def _render_preview_tab(rotor):
     </ul>
     </div>
     """.format(
-        author=st.session_state.get("m9_author",
-                                     "Pr. Najeh Ben Guedria"),
+        author=st.session_state.get("m9_author", "Pr. Najeh Ben Guedria"),
         inst=st.session_state.get("m9_inst", "ISTLS — Universite de Sousse"),
         ts=ts,
         nodes=len(rotor.nodes),
@@ -452,6 +425,46 @@ def _get_sections_html():
 
 
 # =============================================================================
+# NOUVEAUX HELPERS : SECURISATION PHYSIQUE
+# =============================================================================
+def _check_zero_damping():
+    """Verifie si tous les paliers ont un amortissement nul."""
+    df_bear = st.session_state.get("df_bear")
+    if df_bear is not None and not df_bear.empty:
+        # Cherche les colonnes d'amortissement (insensible à la casse)
+        c_cols = [c for c in df_bear.columns if "cxx" in c.lower() or "cyy" in c.lower()]
+        if c_cols and all((df_bear[c] == 0).all() for c in c_cols):
+            return True
+    return False
+
+def _sanitize_modal_df(df):
+    """Corrige l'affichage 'INSTABLE' quand le Log Dec est numeriquement a 0."""
+    if df is None or df.empty:
+        return df
+    df = df.copy()
+    
+    log_dec_col = None
+    stab_col = None
+    
+    for c in df.columns:
+        if "log" in c.lower() and "dec" in c.lower():
+            log_dec_col = c
+        if "stab" in c.lower():
+            stab_col = c
+            
+    if log_dec_col and stab_col:
+        for i in range(len(df)):
+            try:
+                ld = float(str(df.loc[i, log_dec_col]).replace(",", "."))
+                # Tolerance numerique : si Log Dec est proche de 0, ce n'est pas instable
+                if abs(ld) < 0.01:
+                    df.loc[i, stab_col] = "Non amorti"
+            except ValueError:
+                pass
+    return df
+
+
+# =============================================================================
 # GENERATION PDF (ReportLab)
 # =============================================================================
 def _generate_pdf(rotor):
@@ -465,18 +478,14 @@ def _generate_pdf(rotor):
 
     # Styles personnalises
     style_title = ParagraphStyle(
-        "CustomTitle",
-        parent=styles["Title"],
+        "CustomTitle", parent=styles["Title"],
         fontSize=22, textColor=colors.HexColor("#1F5C8B"),
         spaceAfter=6, alignment=TA_CENTER
     )
     style_h1 = ParagraphStyle(
         "H1", parent=styles["Heading1"],
         fontSize=14, textColor=colors.HexColor("#1F5C8B"),
-        spaceBefore=14, spaceAfter=6,
-        borderPad=4, borderColor=colors.HexColor("#1F5C8B"),
-        borderWidth=0, borderRadius=0,
-        leftIndent=0
+        spaceBefore=14, spaceAfter=6
     )
     style_h2 = ParagraphStyle(
         "H2", parent=styles["Heading2"],
@@ -485,8 +494,13 @@ def _generate_pdf(rotor):
     )
     style_body = ParagraphStyle(
         "Body", parent=styles["Normal"],
-        fontSize=10, leading=14,
-        alignment=TA_JUSTIFY, spaceAfter=4
+        fontSize=10, leading=14, alignment=TA_JUSTIFY, spaceAfter=4
+    )
+    style_warning = ParagraphStyle(
+        "Warning", parent=styles["Normal"],
+        fontSize=9, leading=12, textColor=colors.HexColor("#8B5E00"),
+        backColor=colors.HexColor("#FFF3CD"),
+        borderPadding=6, spaceAfter=8
     )
     style_caption = ParagraphStyle(
         "Caption", parent=styles["Normal"],
@@ -498,8 +512,7 @@ def _generate_pdf(rotor):
     ts_str   = datetime.now().strftime("%d/%m/%Y %H:%M")
     author   = st.session_state.get("m9_author", "Pr. Najeh Ben Guedria")
     inst     = st.session_state.get("m9_inst", "ISTLS — Universite de Sousse")
-    title    = st.session_state.get("m9_title",
-                                     "Rapport de Simulation Rotordynamique")
+    title    = st.session_state.get("m9_title", "Rapport de Simulation Rotordynamique")
 
     # ── PAGE DE COUVERTURE ────────────────────────────────────────────────
     elements.append(Spacer(1, 2*cm))
@@ -507,18 +520,14 @@ def _generate_pdf(rotor):
     elements.append(Spacer(1, 0.3*cm))
     elements.append(Paragraph(title, style_h1))
     elements.append(Spacer(1, 1*cm))
-    elements.append(HRFlowable(
-        width="100%", thickness=2,
-        color=colors.HexColor("#1F5C8B")))
+    elements.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor("#1F5C8B")))
     elements.append(Spacer(1, 0.5*cm))
 
-    # Tableau infos
     cover_data = [
         ["Auteur",       author],
         ["Etablissement",inst],
         ["Date",         ts_str],
-        ["Rotor",        "{} noeuds | {:.2f} kg | {} DDL".format(
-            len(rotor.nodes), rotor.m, len(rotor.nodes)*4)],
+        ["Rotor",        "{} noeuds | {:.2f} kg | {} DDL".format(len(rotor.nodes), rotor.m, len(rotor.nodes)*4)],
         ["Logiciel",     "RotorLab Suite 2.0 — base sur ROSS"],
     ]
     cover_table = Table(cover_data, colWidths=[4*cm, 12*cm])
@@ -526,8 +535,7 @@ def _generate_pdf(rotor):
         ("FONTNAME",  (0, 0), (0, -1), "Helvetica-Bold"),
         ("FONTSIZE",  (0, 0), (-1, -1), 10),
         ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#1F5C8B")),
-        ("ROWBACKGROUNDS", (0, 0), (-1, -1),
-         [colors.HexColor("#F2F5F9"), colors.white]),
+        ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.HexColor("#F2F5F9"), colors.white]),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D8E4")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",    (0, 0), (-1, -1), 6),
@@ -536,9 +544,7 @@ def _generate_pdf(rotor):
     ]))
     elements.append(cover_table)
     elements.append(Spacer(1, 1*cm))
-    elements.append(HRFlowable(
-        width="100%", thickness=1,
-        color=colors.HexColor("#D0D8E4")))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#D0D8E4")))
     elements.append(PageBreak())
 
     # ── SECTION 1 : CARACTERISTIQUES DU ROTOR ────────────────────────────
@@ -550,68 +556,71 @@ def _generate_pdf(rotor):
         ["Nombre de noeuds", str(len(rotor.nodes))],
         ["DDL total (4 DDL/noeud)", str(len(rotor.nodes)*4)],
     ]
-    # Longueur totale
     try:
         df_shaft = st.session_state.get("df_shaft")
         if df_shaft is not None:
-            L_tot = sum(float(r.get("L (m)", 0))
-                        for r in df_shaft.to_dict("records"))
-            rotor_info.append(["Longueur totale",
-                                "{:.4f} m".format(L_tot)])
+            L_tot = sum(float(r.get("L (m)", 0)) for r in df_shaft.to_dict("records"))
+            rotor_info.append(["Longueur totale", "{:.4f} m".format(L_tot)])
     except Exception:
         pass
 
-    rotor_info.append(["Materiau",
-                        st.session_state.get("mat_name", "—")])
-
-    t_rotor = _make_table_blue(rotor_info)
-    elements.append(t_rotor)
+    rotor_info.append(["Materiau", st.session_state.get("mat_name", "—")])
+    elements.append(_make_table_blue(rotor_info))
     elements.append(Spacer(1, 0.5*cm))
 
-    # Image rotor 3D
-    if st.session_state.get("m9_inc_figs") and \
-            st.session_state.get("img_rotor"):
+    # Image rotor 3D avec fallback
+    if st.session_state.get("m9_inc_figs") and st.session_state.get("img_rotor"):
         try:
             img_io = io.BytesIO(st.session_state["img_rotor"])
             img    = RLImage(img_io, width=14*cm, height=7*cm)
             elements.append(img)
-            elements.append(Paragraph(
-                "Figure 1 — Geometrie 3D du rotor", style_caption))
+            elements.append(Paragraph("Figure 1 — Geometrie 3D du rotor", style_caption))
             elements.append(Spacer(1, 0.3*cm))
         except Exception:
-            pass
+            elements.append(Paragraph("<i>Figure 1 non disponible (Erreur de conversion)</i>", style_caption))
+    elif st.session_state.get("m9_inc_figs"):
+        elements.append(Paragraph(
+            "<i>Figure 1 non disponible. Installez 'kaleido' (pip install kaleido) pour generer les figures Plotly.</i>", 
+            style_caption))
 
-    # Tableau arbre
     df_shaft = st.session_state.get("df_shaft")
     if df_shaft is not None and not df_shaft.empty:
         elements.append(Paragraph("Elements d'arbre :", style_h2))
         shaft_data = [list(df_shaft.columns)]
         for _, row in df_shaft.iterrows():
-            shaft_data.append([str(round(v, 6)) if isinstance(v, float)
-                                else str(v) for v in row])
+            shaft_data.append([str(round(v, 6)) if isinstance(v, float) else str(v) for v in row])
         elements.append(_make_table_blue(shaft_data))
         elements.append(Spacer(1, 0.3*cm))
 
     # ── SECTION 2 : ANALYSE MODALE ────────────────────────────────────────
     df_modal = st.session_state.get("df_modal")
-    if st.session_state.get("m9_inc_modal") and df_modal is not None \
-            and not df_modal.empty:
+    if st.session_state.get("m9_inc_modal") and df_modal is not None and not df_modal.empty:
         elements.append(PageBreak())
         elements.append(Paragraph("2. Analyse modale", style_h1))
-        elements.append(Paragraph(
-            "Frequences propres et stabilite du rotor.", style_body))
+        elements.append(Paragraph("Frequences propres et stabilite du rotor.", style_body))
+        
+        # AJOUT DU WARNING SI AMORTISSEMENT NUL
+        if _check_zero_damping():
+            elements.append(Paragraph(
+                "<b>Attention :</b> Les paliers sont definis avec un amortissement nul (Cxx = Cyy = 0). "
+                "Les modes sont donc theoretiquement 'Non amortis'. Le terme 'Instable' a ete corrige "
+                "automatiquement dans ce rapport pour eviter toute fausse interpretation.", 
+                style_warning))
+                
         elements.append(Spacer(1, 0.3*cm))
 
-        modal_data = [list(df_modal.columns)]
-        for _, row in df_modal.iterrows():
+        # APPLICATION DE LA SANITISATION
+        df_modal_safe = _sanitize_modal_df(df_modal)
+        
+        modal_data = [list(df_modal_safe.columns)]
+        for _, row in df_modal_safe.iterrows():
             modal_data.append([str(v) for v in row])
         elements.append(_make_table_blue(modal_data))
         elements.append(Spacer(1, 0.3*cm))
 
     # ── SECTION 3 : CAMPBELL ─────────────────────────────────────────────
     df_camp = st.session_state.get("df_campbell")
-    if st.session_state.get("m9_inc_campbell") and \
-            df_camp is not None and not df_camp.empty:
+    if st.session_state.get("m9_inc_campbell") and df_camp is not None and not df_camp.empty:
         elements.append(Paragraph("3. Vitesses critiques (Campbell)", style_h1))
 
         camp_data = [list(df_camp.columns)]
@@ -620,24 +629,22 @@ def _generate_pdf(rotor):
         elements.append(_make_table_green(camp_data))
         elements.append(Spacer(1, 0.3*cm))
 
-        # Image Campbell
-        if st.session_state.get("m9_inc_figs") and \
-                st.session_state.get("img_campbell"):
+        if st.session_state.get("m9_inc_figs") and st.session_state.get("img_campbell"):
             try:
                 img_io = io.BytesIO(st.session_state["img_campbell"])
                 img    = RLImage(img_io, width=14*cm, height=8*cm)
                 elements.append(img)
-                elements.append(Paragraph(
-                    "Figure 2 — Diagramme de Campbell", style_caption))
+                elements.append(Paragraph("Figure 2 — Diagramme de Campbell", style_caption))
             except Exception:
-                pass
+                elements.append(Paragraph("<i>Figure 2 non disponible (Erreur de conversion)</i>", style_caption))
+        elif st.session_state.get("m9_inc_figs"):
+            elements.append(Paragraph("<i>Figure 2 non disponible (Kaleido requis).</i>", style_caption))
         elements.append(Spacer(1, 0.3*cm))
 
     # ── SECTION 4 : API 684 ───────────────────────────────────────────────
     df_api    = st.session_state.get("df_api")
     api_params = st.session_state.get("api_params")
-    if st.session_state.get("m9_inc_api") and \
-            df_api is not None and not df_api.empty:
+    if st.session_state.get("m9_inc_api") and df_api is not None and not df_api.empty:
         elements.append(Paragraph("4. Conformite normative API 684", style_h1))
 
         if api_params:
@@ -671,51 +678,40 @@ def _generate_pdf(rotor):
             ("BACKGROUND",(0,0), (-1,-1), colors.HexColor("#1E1E2E")),
             ("TEXTCOLOR", (0,0), (-1,-1), colors.HexColor("#D4D4D4")),
             ("LEFTPADDING",(0,0),(-1,-1), 8),
-            ("TOPPADDING", (0,0),(-1,-1), 2),
-            ("BOTTOMPADDING",(0,0),(-1,-1), 2),
+            ("TOPPADDING", (0,0),(-1,-1), 3),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 3),
         ]))
         elements.append(code_table)
 
     # ── PIED DE PAGE ──────────────────────────────────────────────────────
     elements.append(Spacer(1, 1*cm))
-    elements.append(HRFlowable(
-        width="100%", thickness=1,
-        color=colors.HexColor("#D0D8E4")))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#D0D8E4")))
     elements.append(Spacer(1, 0.3*cm))
     elements.append(Paragraph(
-        "RotorLab Suite 2.0 — {} — {} — {}".format(
-            author, inst, ts_str),
+        "RotorLab Suite 2.0 — {} — {} — {}".format(author, inst, ts_str),
         style_caption))
 
     doc.build(elements)
     return buf.getvalue()
 
 
-def _make_table_blue(data):
-    return _make_colored_table(data, "#1F5C8B")
-
-def _make_table_green(data):
-    return _make_colored_table(data, "#22863A")
-
-def _make_table_red(data):
-    return _make_colored_table(data, "#8B1F1F")
+def _make_table_blue(data): return _make_colored_table(data, "#1F5C8B")
+def _make_table_green(data): return _make_colored_table(data, "#22863A")
+def _make_table_red(data): return _make_colored_table(data, "#8B1F1F")
 
 def _make_colored_table(data, header_color):
     n_cols = len(data[0])
     col_w  = 15.5 * cm / n_cols
     t = Table(data, colWidths=[col_w] * n_cols)
     t.setStyle(TableStyle([
-        ("BACKGROUND",  (0, 0), (-1, 0),
-         colors.HexColor(header_color)),
+        ("BACKGROUND",  (0, 0), (-1, 0), colors.HexColor(header_color)),
         ("TEXTCOLOR",   (0, 0), (-1, 0), colors.white),
         ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE",    (0, 0), (-1, -1), 8.5),
         ("ALIGN",       (0, 0), (-1, -1), "CENTER"),
         ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-         [colors.HexColor("#F2F5F9"), colors.white]),
-        ("GRID",        (0, 0), (-1, -1), 0.5,
-         colors.HexColor("#D0D8E4")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F2F5F9"), colors.white]),
+        ("GRID",        (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D8E4")),
         ("TOPPADDING",    (0, 0), (-1, -1), 5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]))
@@ -729,22 +725,19 @@ def _generate_html(rotor):
     ts     = datetime.now().strftime("%d/%m/%Y %H:%M")
     author = st.session_state.get("m9_author", "Pr. Najeh Ben Guedria")
     inst   = st.session_state.get("m9_inst",   "ISTLS — Universite de Sousse")
-    title  = st.session_state.get("m9_title",
-                                   "Rapport de Simulation Rotordynamique")
+    title  = st.session_state.get("m9_title",   "Rapport de Simulation Rotordynamique")
 
     def df_to_html(df, header_color="#1F5C8B"):
         rows = ""
         for _, row in df.iterrows():
             rows += "<tr>"
             for v in row:
-                rows += "<td>{}</td>".format(str(v).replace(
-                    "✅","OK").replace("❌","NON").replace("⚠️","WARN"))
+                rows += "<td>{}</td>".format(str(v).replace("✅","OK").replace("❌","NON").replace("⚠️","WARN"))
             rows += "</tr>"
         headers = "".join("<th>{}</th>".format(c) for c in df.columns)
         return (
-            "<table><thead style='background:{};color:white;'>"
-            "<tr>{}</tr></thead><tbody>{}</tbody></table>".format(
-                header_color, headers, rows)
+            "<table><thead style='background:{};color:white;'><tr>{}</tr></thead>"
+            "<tbody>{}</tbody></table>".format(header_color, headers, rows)
         )
 
     sections = ""
@@ -759,13 +752,15 @@ def _generate_html(rotor):
       <tr><td>DDL total</td><td>{}</td></tr>
       <tr><td>Materiau</td><td>{}</td></tr>
     </table>
-    """.format(rotor.m, len(rotor.nodes), len(rotor.nodes)*4,
-               st.session_state.get("mat_name","—"))
+    """.format(rotor.m, len(rotor.nodes), len(rotor.nodes)*4, st.session_state.get("mat_name","—"))
 
     df_modal = st.session_state.get("df_modal")
     if df_modal is not None and not df_modal.empty:
         sections += "<h2>2. Analyse modale</h2>"
-        sections += df_to_html(df_modal, "#1F5C8B")
+        if _check_zero_damping():
+            sections += "<p style='background:#FFF3CD; padding:10px; border-left: 4px solid #8B5E00;'><b>Attention :</b> Amortissement nul detecte. Les modes 'INSTABLE' ont ete corriges en 'Non amorti'.</p>"
+        df_modal_safe = _sanitize_modal_df(df_modal)
+        sections += df_to_html(df_modal_safe, "#1F5C8B")
 
     df_camp = st.session_state.get("df_campbell")
     if df_camp is not None and not df_camp.empty:
@@ -777,10 +772,8 @@ def _generate_html(rotor):
     if df_api is not None and not df_api.empty:
         sections += "<h2>4. Conformite API 684</h2>"
         if api_params:
-            sections += "<p>Vitesse operationnelle : {:.0f} RPM | " \
-                        "Score : {:.0f}%</p>".format(
-                            float(api_params.get("op_rpm",0)),
-                            float(api_params.get("score",0)))
+            sections += "<p>Vitesse operationnelle : {:.0f} RPM | Score : {:.0f}%</p>".format(
+                float(api_params.get("op_rpm",0)), float(api_params.get("score",0)))
         sections += df_to_html(df_api, "#8B1F1F")
 
     return """<!DOCTYPE html>
@@ -789,20 +782,15 @@ def _generate_html(rotor):
 <meta charset="UTF-8">
 <title>RotorLab Suite 2.0 — {title}</title>
 <style>
-  body {{ font-family:Arial,sans-serif; max-width:960px;
-          margin:30px auto; color:#333; line-height:1.5; }}
-  h1   {{ color:#1F5C8B; border-bottom:3px solid #1F5C8B;
-          padding-bottom:8px; }}
+  body {{ font-family:Arial,sans-serif; max-width:960px; margin:30px auto; color:#333; line-height:1.5; }}
+  h1   {{ color:#1F5C8B; border-bottom:3px solid #1F5C8B; padding-bottom:8px; }}
   h2   {{ color:#C55A11; margin-top:28px; }}
   table {{ width:100%; border-collapse:collapse; margin:12px 0; }}
   th   {{ padding:8px 10px; text-align:left; }}
   td   {{ padding:6px 10px; border:1px solid #ddd; font-size:0.9em; }}
   tr:nth-child(even) td {{ background:#F8F8F8; }}
-  .header {{ background:#1F5C8B; color:white;
-             padding:20px; border-radius:6px; margin-bottom:20px; }}
-  .footer {{ margin-top:40px; color:#999;
-             font-size:0.8em; border-top:1px solid #eee;
-             padding-top:10px; }}
+  .header {{ background:#1F5C8B; color:white; padding:20px; border-radius:6px; margin-bottom:20px; }}
+  .footer {{ margin-top:40px; color:#999; font-size:0.8em; border-top:1px solid #eee; padding-top:10px; }}
 </style>
 </head>
 <body>
@@ -817,11 +805,8 @@ def _generate_html(rotor):
 {sections}
 <div class="footer">
   RotorLab Suite 2.0 — base sur ROSS (Rotordynamic Open-Source Software)
-  — ross.readthedocs.io
 </div>
-</body></html>""".format(
-        title=title, author=author, inst=inst,
-        ts=ts, sections=sections)
+</body></html>""".format(title=title, author=author, inst=inst, ts=ts, sections=sections)
 
 
 # =============================================================================
@@ -831,54 +816,49 @@ def _generate_python_script(rotor):
     ts     = datetime.now().strftime("%Y-%m-%d %H:%M")
     author = st.session_state.get("m9_author", "Pr. Najeh Ben Guedria")
 
-    # Reconstruction de l'arbre
+    # Helper robuste pour trouver une clé dans un dictionnaire de ligne pandas
+    def _find_val(row, candidates, default=0.0):
+        for c in candidates:
+            if c in row.index:
+                return float(row[c])
+        return default
+
     shaft_lines = "shaft = [\n"
     df_shaft = st.session_state.get("df_shaft")
     if df_shaft is not None:
         for _, row in df_shaft.iterrows():
-            L   = float(row.get("L (m)",   0.2))
-            idl = float(row.get("id_L (m)", 0.0))
-            odl = float(row.get("od_L (m)", 0.05))
-            idr = float(row.get("id_R (m)", idl))
-            odr = float(row.get("od_R (m)", odl))
-            shaft_lines += (
-                "    rs.ShaftElement(L={}, idl={}, odl={}, "
-                "idr={}, odr={}, material=mat),\n".format(
-                    L, idl, odl, idr, odr))
+            L   = _find_val(row, ["L (m)", "L"])
+            idl = _find_val(row, ["id_L (m)", "idl_L (m)", "id_L"])
+            odl = _find_val(row, ["od_L (m)", "odl_L (m)", "od_L"])
+            idr = _find_val(row, ["id_R (m)", "idl_R (m)", "id_R"], idl)
+            odr = _find_val(row, ["od_R (m)", "odl_R (m)", "od_R"], odl)
+            shaft_lines += "    rs.ShaftElement(L={}, idl={}, odl={}, idr={}, odr={}, material=mat),\n".format(L, idl, odl, idr, odr)
     shaft_lines += "]"
 
-    # Reconstruction des disques
     disk_lines = "disks = [\n"
     df_disk = st.session_state.get("df_disk")
     if df_disk is not None:
         for _, row in df_disk.iterrows():
-            disk_lines += (
-                "    rs.DiskElement(n={}, m={:.4f}, "
-                "Id={:.6f}, Ip={:.6f}),\n".format(
-                    int(row.get("noeud", row.get("nœud", 0))),
-                    float(row.get("Masse (kg)", 0)),
-                    float(row.get("Id (kg.m²)", 0)),
-                    float(row.get("Ip (kg.m²)", 0))))
+            n   = int(_find_val(row, ["noeud", "nœud", "n", "Noeud"], 0))
+            m   = _find_val(row, ["Masse (kg)", "m", "Masse"])
+            Id  = _find_val(row, ["Id (kg.m²)", "Id (kg.m^2)", "Id"])
+            Ip  = _find_val(row, ["Ip (kg.m²)", "Ip (kg.m^2)", "Ip"])
+            disk_lines += "    rs.DiskElement(n={}, m={:.4f}, Id={:.6f}, Ip={:.6f}),\n".format(n, m, Id, Ip)
     disk_lines += "]"
 
-    # Reconstruction des paliers
     bear_lines = "bearings = [\n"
     df_bear = st.session_state.get("df_bear")
     if df_bear is not None:
         for _, row in df_bear.fillna(0).iterrows():
-            n   = int(row.get("noeud", row.get("nœud", 0)))
-            kxx = float(row.get("kxx", 1e6))
-            kyy = float(row.get("kyy", 1e6))
-            kxy = float(row.get("kxy", 0.0))
-            cxx = float(row.get("cxx", 0.0))
-            cyy = float(row.get("cyy", 0.0))
-            bear_lines += (
-                "    rs.BearingElement(n={}, kxx={:.2e}, kyy={:.2e}, "
-                "kxy={:.2e}, kyx={:.2e}, cxx={:.1f}, cyy={:.1f}),\n".format(
-                    n, kxx, kyy, kxy, -kxy, cxx, cyy))
+            n   = int(_find_val(row, ["noeud", "nœud", "n", "Noeud"], 0))
+            kxx = _find_val(row, ["kxx", "Kxx"])
+            kyy = _find_val(row, ["kyy", "Kyy"])
+            kxy = _find_val(row, ["kxy", "Kxy"])
+            cxx = _find_val(row, ["cxx", "Cxx"])
+            cyy = _find_val(row, ["cyy", "Cyy"])
+            bear_lines += "    rs.BearingElement(n={}, kxx={:.2e}, kyy={:.2e}, kxy={:.2e}, kyx={:.2e}, cxx={:.1f}, cyy={:.1f}),\n".format(n, kxx, kyy, kxy, -kxy, cxx, cyy)
     bear_lines += "]"
 
-    # Sections d'analyse
     analysis_sections = []
 
     modal = st.session_state.get("res_modal")
