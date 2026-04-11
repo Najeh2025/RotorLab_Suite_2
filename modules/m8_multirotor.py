@@ -109,75 +109,86 @@ def _render_settings():
 
 
 def _render_tab_load():
-    st.markdown('<div class="rl-section-header">Source du modele</div>',
+    st.markdown('<div class="rl-section-header">Source du modèle</div>',
                 unsafe_allow_html=True)
 
+    # ── ÉTAPE 1 : Choix de la source ─────────────────────────────────────
     source = st.radio(
         "Source :",
-        ["Modele de reference (ROSS Tutorial Part 4)", "Charger un fichier JSON"],
+        ["Modèle de référence (ROSS Tutorial Part 4)", "Charger un modèle (fichier json)"],
         key="m8_source")
 
-    if source == "Modele de reference (ROSS Tutorial Part 4)":
+    # ── ÉTAPE 2 : Champ de saisie dynamique selon le choix ───────────────
+    fichier_uploade = None
+    
+    if source == "Modèle de référence (ROSS Tutorial Part 4)":
         st.markdown("""
         <div class="rl-card-info">
           <strong>Benchmark ROSS Tutorial Part 4</strong><br>
-          <small>Generateur-turbine couple par engrenage droit 22.5 deg.<br>
-          R1 : 7 noeuds | R2 : 5 noeuds | z1=37, z2=159, i=0.2327<br>
+          <small>Générateur-turbine couplé par engrenage droit 22.5 deg.<br>
+          R1 : 7 nœuds | R2 : 5 nœuds | z1=37, z2=159, i=0.2327<br>
           N1=1200 RPM, N2=279 RPM, fe=740 Hz</small>
         </div>
         """, unsafe_allow_html=True)
-
-        if st.button("Charger le modele de reference", type="primary",
-                     key="m8_load_ref", use_container_width=True):
-            st.session_state["m8_json_data"]   = REFERENCE_JSON
-            st.session_state["m8_loaded"]      = True
-            st.session_state["m8_source_name"] = "ROSS Tutorial Part 4"
-            _clear_results()
-            _log("Modele reference ROSS Part 4 charge", "ok")
-
-        st.download_button(
-            "Telecharger le JSON de reference",
-            data=json.dumps(REFERENCE_JSON, indent=2),
-            file_name="ross_tutorial_part4.json",
-            mime="application/json",
-            key="m8_dl_ref")
-
     else:
         st.markdown("""
         <div class="rl-card-info">
-          <small>Telechargez d'abord le JSON de reference pour voir
-          la structure attendue (shaft, disks, gear_elements, bearings).</small>
+          <small>Chargez un fichier JSON respectant la structure attendue 
+          (shaft, disks, gear_elements, bearings).</small>
         </div>
         """, unsafe_allow_html=True)
-
-        uploaded = st.file_uploader(
-            "Fichier JSON MultiRotor",
+        
+        fichier_uploade = st.file_uploader(
+            "Sélectionnez votre fichier JSON",
             type=["json"],
             label_visibility="collapsed",
             key="m8_upload")
 
-        if uploaded is not None:
-            file_id = "{}_{}".format(uploaded.name, uploaded.size)
-            if st.session_state.get("m8_last_file_id") != file_id:
+    st.markdown("") # Petit espace visuel
+
+    # ── ÉTAPE 3 : Le bouton d'action UNIQUE ──────────────────────────────
+    # On désactive le bouton si c'est un fichier JSON mais qu'aucun fichier n'est sélectionné
+    bouton_desactive = (source == "Charger un modèle (fichier json)" and fichier_uploade is None)
+    
+    if st.button("Charger modèle", type="primary", key="m8_load_action", 
+                 use_container_width=True, disabled=bouton_desactive):
+        
+        # --- Logique si c'est le modèle de référence ---
+        if source == "Modèle de référence (ROSS Tutorial Part 4)":
+            st.session_state["m8_json_data"]   = REFERENCE_JSON
+            st.session_state["m8_loaded"]      = True
+            st.session_state["m8_source_name"] = "ROSS Tutorial Part 4"
+            _clear_results()
+            _log("Modèle référence ROSS Part 4 chargé", "ok")
+            
+        # --- Logique si c'est un fichier uploadé ---
+        else:
+            if fichier_uploade is not None:
                 try:
-                    data = json.loads(uploaded.read().decode("utf-8"))
+                    data = json.loads(fichier_uploade.read().decode("utf-8"))
                     _validate_json(data)
                     st.session_state["m8_json_data"]    = data
                     st.session_state["m8_loaded"]       = True
-                    st.session_state["m8_last_file_id"] = file_id
-                    st.session_state["m8_source_name"]  = data.get(
-                        "name", uploaded.name)
+                    st.session_state["m8_source_name"]  = data.get("name", fichier_uploade.name)
                     _clear_results()
-                    st.success("Charge : {}".format(
-                        st.session_state["m8_source_name"]))
-                    _log("JSON charge", "ok")
+                    _log("JSON chargé avec succès", "ok")
                 except Exception as e:
-                    st.error("Erreur JSON : {}".format(e))
+                    st.error("Erreur lors de la lecture du JSON : {}".format(e))
+            else:
+                st.warning("Veuillez d'abord sélectionner un fichier.")
 
-    if st.session_state.get("m8_loaded") and \
-            st.session_state.get("m8_json_data"):
+    # ── ÉTAPE 4 : Affichage après chargement (Résumé + Download) ─────────
+    if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
+        st.markdown("---") # Séparateur visuel propre
         _show_model_summary()
-
+        
+        # Le bouton de téléchargement n'apparaît qu'une fois le modèle chargé
+        st.download_button(
+            "Télécharger le JSON en cours",
+            data=json.dumps(st.session_state["m8_json_data"], indent=2),
+            file_name="multirotor_model.json",
+            mime="application/json",
+            key="m8_dl_current")
 
 def _show_model_summary():
     data = st.session_state["m8_json_data"]
