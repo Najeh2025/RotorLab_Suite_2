@@ -109,112 +109,80 @@ def _render_settings():
 
 
 def _render_tab_load():
-    # ── STYLE "PRO" POUR LES BOUTONS (Version Bouton Solide) ─────────────
-    # ── STYLE "PRO" (On cible le bouton standard pour contourner Streamlit) ──
-    st.markdown("""
-    <style>
-        /* 1. Le bouton "Charger modèle" (Apparence forcée) */
-        div[data-testid="stBaseButton-secondary"] button {
-            background-color: #1F5C8B !important;  /* Force le fond bleu */
-            color: white !important;                /* Force le texte blanc */
-            border: none !important;                
-            border-radius: 8px !important;          
-            box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important; 
-            font-weight: bold !important;
-        }
-        
-        div[data-testid="stBaseButton-secondary"] button:hover {
-            background-color: #164b70 !important;  /* Bleu plus foncé au survol */
-        }
-
-        /* Apparence quand le bouton est grisé (si aucun JSON sélectionné) */
-        div[data-testid="stBaseButton-secondary"] button:disabled {
-            background-color: #a0b4c8 !important;  /* Gris bleuté */
-            color: white !important;
-        }
-
-        /* 2. Bouton "Télécharger" (Aspect discret fantôme) */
-        .stDownloadButton > button {
-            background-color: transparent !important; 
-            color: #1F5C8B !important;                
-            border: 1px dashed #1F5C8B !important;    
-            border-radius: 5px !important;
-            font-weight: 500 !important;
-        }
-        .stDownloadButton > button:hover {
-            background-color: #f0f4f8 !important;    
-            border: 1px solid #1F5C8B !important;    
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    # ──────────────────────────────────────────────────────────────────────
-
     st.markdown('<div class="rl-section-header">Source du modèle</div>',
                 unsafe_allow_html=True)
 
-    # ── ÉTAPE 1 : Choix de la source ─────────────────────────────────────
-    source = st.radio(
-        "Source :",
-        ["Modèle de référence (ROSS Tutorial Part 4)", "Charger un modèle (fichier json)"],
-        key="m8_source")
-
-    # ── ÉTAPE 2 : Champ de saisie dynamique selon le choix ───────────────
-    fichier_uploade = None
-    
-    if source == "Modèle de référence (ROSS Tutorial Part 4)":
-        st.markdown("""
-        <div class="rl-card-info">
-          <strong>Benchmark ROSS Tutorial Part 4</strong><br>
-          <small>Générateur-turbine couplé par engrenage droit 22.5 deg.<br>
-          R1 : 7 nœuds | R2 : 5 nœuds | z1=37, z2=159, i=0.2327<br>
-          N1=1200 RPM, N2=279 RPM, fe=740 Hz</small>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="rl-card-info">
-          <small>Chargez un fichier JSON respectant la structure attendue 
-          (shaft, disks, gear_elements, bearings).</small>
-        </div>
-        """, unsafe_allow_html=True)
+    # ── OUVERTURE DU FORMULAIRE ──────────────────────────────────────────
+    # Tout ce qui est dans ce "with" ne sera validé que lorsqu'on clique sur le bouton
+    with st.form("m8_form_load"):
         
-        fichier_uploade = st.file_uploader(
-            "Sélectionnez votre fichier JSON",
-            type=["json"],
-            label_visibility="collapsed",
-            key="m8_upload")
+        # ── ÉTAPE 1 : Choix de la source ─────────────────────────────────
+        source = st.radio(
+            "Source :",
+            ["Modèle de référence (ROSS Tutorial Part 4)", "Charger un modèle (fichier json)"],
+            key="m8_source")
 
-    st.markdown("") 
-
-    # ── ÉTAPE 3 : Le bouton d'action UNIQUE ──────────────────────────────
-    bouton_desactive = (source == "Charger un modèle (fichier json)" and fichier_uploade is None)
-    
-    if st.button("Charger modèle", key="m8_load_action", 
-                 use_container_width=True, disabled=bouton_desactive):
+        # ── ÉTAPE 2 : Champ de saisie dynamique ──────────────────────────
+        fichier_uploade = None
         
         if source == "Modèle de référence (ROSS Tutorial Part 4)":
-            st.session_state["m8_json_data"]   = REFERENCE_JSON
-            st.session_state["m8_loaded"]      = True
-            st.session_state["m8_source_name"] = "ROSS Tutorial Part 4"
-            _clear_results()
-            _log("Modèle référence ROSS Part 4 chargé", "ok")
-            
+            st.markdown("""
+            <div class="rl-card-info">
+              <strong>Benchmark ROSS Tutorial Part 4</strong><br>
+              <small>Générateur-turbine couplé par engrenage droit 22.5 deg.<br>
+              R1 : 7 nœuds | R2 : 5 nœuds | z1=37, z2=159, i=0.2327<br>
+              N1=1200 RPM, N2=279 RPM, fe=740 Hz</small>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            if fichier_uploade is not None:
-                try:
-                    data = json.loads(fichier_uploade.read().decode("utf-8"))
-                    _validate_json(data)
-                    st.session_state["m8_json_data"]    = data
-                    st.session_state["m8_loaded"]       = True
-                    st.session_state["m8_source_name"]  = data.get("name", fichier_uploade.name)
-                    _clear_results()
-                    _log("JSON chargé avec succès", "ok")
-                except Exception as e:
-                    st.error("Erreur lors de la lecture du JSON : {}".format(e))
-            else:
-                st.warning("Veuillez d'abord sélectionner un fichier.")
+            st.markdown("""
+            <div class="rl-card-info">
+              <small>Chargez un fichier JSON respectant la structure attendue 
+              (shaft, disks, gear_elements, bearings).</small>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            fichier_uploade = st.file_uploader(
+                "Sélectionnez votre fichier JSON",
+                type=["json"],
+                label_visibility="collapsed",
+                key="m8_upload")
 
-    # ── ÉTAPE 4 : Affichage après chargement ─────────────────────────────
+        st.markdown("") # Petit espace visuel
+
+        # ── ÉTAPE 3 : Le BOUTON DE FORMULAIRE (Apparence solide garantie) ──
+        submitted = st.form_submit_button(
+            "Charger modèle", 
+            type="primary", 
+            use_container_width=True
+        )
+
+        # ── LOGIQUE AU CLIC ──────────────────────────────────────────────
+        if submitted:
+            if source == "Modèle de référence (ROSS Tutorial Part 4)":
+                st.session_state["m8_json_data"]   = REFERENCE_JSON
+                st.session_state["m8_loaded"]      = True
+                st.session_state["m8_source_name"] = "ROSS Tutorial Part 4"
+                _clear_results()
+                _log("Modèle référence ROSS Part 4 chargé", "ok")
+                
+            else:
+                if fichier_uploade is not None:
+                    try:
+                        data = json.loads(fichier_uploade.read().decode("utf-8"))
+                        _validate_json(data)
+                        st.session_state["m8_json_data"]    = data
+                        st.session_state["m8_loaded"]       = True
+                        st.session_state["m8_source_name"]  = data.get("name", fichier_uploade.name)
+                        _clear_results()
+                        _log("JSON chargé avec succès", "ok")
+                    except Exception as e:
+                        st.error("Erreur lors de la lecture du JSON : {}".format(e))
+                else:
+                    st.warning("Veuillez d'abord sélectionner un fichier.")
+
+    # ── ÉTAPE 4 : Affichage après chargement (EN DEHORS DU FORMULAIRE) ───
+    # On le met en dehors du "with st.form" pour qu'il s'affiche correctement après
     if st.session_state.get("m8_loaded") and st.session_state.get("m8_json_data"):
         st.markdown("---")
         _show_model_summary()
