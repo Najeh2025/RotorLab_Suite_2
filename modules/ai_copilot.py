@@ -270,40 +270,20 @@ def _render_chat_area():
                     st.markdown(msg["content"])
 
     # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
-    # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
-    # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
     user_input = st.chat_input(
-        "Posez votre question sur la dynamique des rotors… ",
+        "Posez votre question sur la dynamique des rotors…",
         key="copilot_chat_input"
     )
-    
+
     if user_input:
-        # 1. Ajout du message user à l'historique
+        # Même pattern que les questions rapides :
+        # 1. Stocker le message user dans l'historique
+        # 2. Marquer la réponse comme en attente
+        # 3. st.rerun() → cycle propre qui régénère le chat_input vide
         st.session_state["copilot_chat_history"].append(
-            {"role": "user", "content": user_input}
-        )
-        
-        # 2. Activation du mécanisme de réponse (identique aux quick prompts)
+            {"role": "user", "content": user_input})
         st.session_state["copilot_pending_response"] = user_input
-        
-        # 3. Rerun immédiat pour reconstruire l'UI proprement
         st.rerun()
-
-        # Affichage immédiat du message user
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        # Génération de la réponse
-        context  = _build_context()
-        history  = st.session_state["copilot_chat_history"][:-1]
-        with st.chat_message("assistant"):
-            with st.spinner("SmartRotor Copilot réfléchit…"):
-                response = _call_gemini(user_input, context, history)
-            st.markdown(response)
-
-        # Sauvegarde de la réponse
-        st.session_state["copilot_chat_history"].append(
-            {"role": "assistant", "content": response})
 
 
 # =============================================================================
