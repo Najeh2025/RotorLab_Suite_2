@@ -271,6 +271,7 @@ def _render_chat_area():
 
     # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
     # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
+    # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
     user_input = st.chat_input(
         "Posez votre question sur la dynamique des rotors… ",
         key="copilot_chat_input"
@@ -279,7 +280,8 @@ def _render_chat_area():
     if user_input:
         # 1. Ajout du message user à l'historique
         st.session_state["copilot_chat_history"].append(
-            {"role": "user", "content": user_input})
+            {"role": "user", "content": user_input}
+        )
         
         # 2. Activation du mécanisme de réponse (identique aux quick prompts)
         st.session_state["copilot_pending_response"] = user_input
