@@ -277,13 +277,14 @@ def _render_chat_area():
     )
     
     if user_input:
-        # 1. Stockage de la question
+        # 1. Ajout du message user à l'historique
         st.session_state["copilot_chat_history"].append(
-            {"role": "user", "content": user_input}
-        )
-        # 2. Activation du pipeline de réponse (identique aux questions rapides)
+            {"role": "user", "content": user_input})
+        
+        # 2. Activation du mécanisme de réponse (identique aux quick prompts)
         st.session_state["copilot_pending_response"] = user_input
-        # 3. Rerun immédiat pour garantir un état UI propre et conserver st.chat_input()
+        
+        # 3. Rerun immédiat pour reconstruire l'UI proprement
         st.rerun()
 
         # Affichage immédiat du message user
