@@ -270,15 +270,21 @@ def _render_chat_area():
                     st.markdown(msg["content"])
 
     # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
+    # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
     user_input = st.chat_input(
-        "Posez votre question sur la dynamique des rotors…",
+        "Posez votre question sur la dynamique des rotors… ",
         key="copilot_chat_input"
     )
-
+    
     if user_input:
-        # Ajout du message user
+        # 1. Stockage de la question
         st.session_state["copilot_chat_history"].append(
-            {"role": "user", "content": user_input})
+            {"role": "user", "content": user_input}
+        )
+        # 2. Activation du pipeline de réponse (identique aux questions rapides)
+        st.session_state["copilot_pending_response"] = user_input
+        # 3. Rerun immédiat pour garantir un état UI propre et conserver st.chat_input()
+        st.rerun()
 
         # Affichage immédiat du message user
         with st.chat_message("user"):
