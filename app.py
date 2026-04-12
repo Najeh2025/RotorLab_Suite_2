@@ -133,18 +133,6 @@ def get_rotor_status():
 # =============================================================================
 # CALLBACKS (on_click — sans st.rerun())
 # =============================================================================
-def _cb_nav_dashboard():
-    st.session_state["nav_mode"] = "dashboard"
-
-def _cb_nav_simulation():
-    st.session_state["nav_mode"] = "simulation"
-
-def _cb_nav_tutorial():
-    st.session_state["nav_mode"] = "tutorial"
-
-def _cb_nav_copilot():
-    st.session_state["nav_mode"] = "copilot"
-
 def _cb_tree(node_id, module):
     st.session_state["active_node"]   = node_id
     st.session_state["active_module"] = module
