@@ -268,8 +268,9 @@ def render_model_tree():
 
     st.markdown("""
     <style>
+    /* Cible UNIQUEMENT les boutons secondary (items de l'arbre) */
     div[data-testid="stVerticalBlock"]
-        div[data-testid="stButton"] > button {
+        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] {
         text-align      : left !important;
         justify-content : flex-start !important;
         font-size       : 0.82em !important;
@@ -284,13 +285,15 @@ def render_model_tree():
         color           : #1A1A2E !important;
     }
     div[data-testid="stVerticalBlock"]
-        div[data-testid="stButton"] > button:hover {
+        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover {
         background      : rgba(31,92,139,0.09) !important;
         border-left-color: rgba(31,92,139,0.4) !important;
         color           : #1F5C8B !important;
     }
     </style>
     """, unsafe_allow_html=True)
+
+    # ... reste de la fonction inchangé
 
     for section in MODEL_TREE:
         st.markdown(
