@@ -232,21 +232,21 @@ def _render_chat_area():
                         qp[:55] + ("…" if len(qp) > 55 else ""),
                         key="qp_{}".format(i),
                         use_container_width=True):
-                    # Injecter la question dans l'historique comme message user
                     st.session_state["copilot_chat_history"].append(
                         {"role": "user", "content": qp})
                     st.session_state["copilot_pending_response"] = qp
                     st.rerun()
 
-    # ── Traitement de la réponse en attente (quick prompts) ───────────────
+    # ── Traitement de la réponse en attente ───────────────────────────────
     if st.session_state.get("copilot_pending_response"):
         pending = st.session_state.pop("copilot_pending_response")
-        context  = _build_context()
-        history  = st.session_state["copilot_chat_history"][:-1]
+        context = _build_context()
+        history = st.session_state["copilot_chat_history"][:-1]
         with st.spinner("SmartRotor Copilot réfléchit…"):
             response = _call_gemini(pending, context, history)
         st.session_state["copilot_chat_history"].append(
             {"role": "assistant", "content": response})
+        st.rerun()  # ◄─── LA CORRECTION EST ICI
 
     # ── Affichage de l'historique ──────────────────────────────────────────
     chat_container = st.container()
@@ -276,10 +276,6 @@ def _render_chat_area():
     )
 
     if user_input:
-        # Même pattern que les questions rapides :
-        # 1. Stocker le message user dans l'historique
-        # 2. Marquer la réponse comme en attente
-        # 3. st.rerun() → cycle propre qui régénère le chat_input vide
         st.session_state["copilot_chat_history"].append(
             {"role": "user", "content": user_input})
         st.session_state["copilot_pending_response"] = user_input
