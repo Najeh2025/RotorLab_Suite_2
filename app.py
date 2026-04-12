@@ -240,27 +240,38 @@ def render_header():
 def render_top_nav():
     mode = st.session_state["nav_mode"]
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.button("🏠 Tableau de Bord",
-                  use_container_width=True,
-                  type="primary" if mode=="dashboard" else "secondary",
-                  key="nav_dash", on_click=_cb_nav_dashboard)
-    with c2:
-        st.button("🔬 Mode Simulation",
-                  use_container_width=True,
-                  type="primary" if mode=="simulation" else "secondary",
-                  key="nav_sim", on_click=_cb_nav_simulation)
-    with c3:
-        st.button("🎓 Mode Pédagogique",
-                  use_container_width=True,
-                  type="primary" if mode=="tutorial" else "secondary",
-                  key="nav_tut", on_click=_cb_nav_tutorial)
-    with c4:
-        st.button("✨ SmartRotor Copilot",
-                  use_container_width=True,
-                  type="primary" if mode=="copilot" else "secondary",
-                  key="nav_cop", on_click=_cb_nav_copilot)
 
+    with c1:
+        if st.button("🏠 Tableau de Bord",
+                     use_container_width=True,
+                     type="primary" if mode == "dashboard" else "secondary",
+                     key="nav_dash"):
+            st.session_state["nav_mode"] = "dashboard"
+            st.rerun()
+
+    with c2:
+        if st.button("🔬 Mode Simulation",
+                     use_container_width=True,
+                     type="primary" if mode == "simulation" else "secondary",
+                     key="nav_sim"):
+            st.session_state["nav_mode"] = "simulation"
+            st.rerun()
+
+    with c3:
+        if st.button("🎓 Mode Pédagogique",
+                     use_container_width=True,
+                     type="primary" if mode == "tutorial" else "secondary",
+                     key="nav_tut"):
+            st.session_state["nav_mode"] = "tutorial"
+            st.rerun()
+
+    with c4:
+        if st.button("✨ SmartRotor Copilot",
+                     use_container_width=True,
+                     type="primary" if mode == "copilot" else "secondary",
+                     key="nav_cop"):
+            st.session_state["nav_mode"] = "copilot"
+            st.rerun()
 # =============================================================================
 # MODEL TREE
 # =============================================================================
