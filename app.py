@@ -230,43 +230,36 @@ def render_top_nav():
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
-        if st.button(
-                "🏠 Tableau de Bord",
-                use_container_width=True,
-                type="primary" if mode == "dashboard" else "secondary",
-                key="nav_dash"):
+        if st.button("🏠 Tableau de Bord",
+                     use_container_width=True,
+                     type="primary" if mode == "dashboard" else "secondary",
+                     key="nav_dash"):
             st.session_state["nav_mode"] = "dashboard"
             st.rerun()
 
     with c2:
-        if st.button(
-                "🔬 Mode Simulation",
-                use_container_width=True,
-                type="primary" if mode == "simulation" else "secondary",
-                key="nav_sim"):
+        if st.button("🔬 Mode Simulation",
+                     use_container_width=True,
+                     type="primary" if mode == "simulation" else "secondary",
+                     key="nav_sim"):
             st.session_state["nav_mode"] = "simulation"
             st.rerun()
 
     with c3:
-        if st.button(
-                "🎓 Mode Pédagogique",
-                use_container_width=True,
-                type="primary" if mode == "tutorial" else "secondary",
-                key="nav_tut"):
+        if st.button("🎓 Mode Pédagogique",
+                     use_container_width=True,
+                     type="primary" if mode == "tutorial" else "secondary",
+                     key="nav_tut"):
             st.session_state["nav_mode"] = "tutorial"
             st.rerun()
 
     with c4:
-        if st.button(
-                "✨ SmartRotor Copilot",
-                use_container_width=True,
-                type="primary" if mode == "copilot" else "secondary",
-                key="nav_cop"):
+        if st.button("✨ SmartRotor Copilot",
+                     use_container_width=True,
+                     type="primary" if mode == "copilot" else "secondary",
+                     key="nav_cop"):
             st.session_state["nav_mode"] = "copilot"
             st.rerun()
-
-    # Séparateur coloré sous la navigation
-    st.markdown('<div class="rl-nav-separator"></div>', unsafe_allow_html=True)
 # =============================================================================
 # MODEL TREE
 # =============================================================================
@@ -275,29 +268,32 @@ def render_model_tree():
 
     st.markdown("""
     <style>
+    /* Cible UNIQUEMENT les boutons secondary (items de l'arbre) */
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] {
-        text-align       : left !important;
-        justify-content  : flex-start !important;
-        font-size        : 0.82em !important;
-        font-weight      : 400 !important;
-        background       : transparent !important;
-        border           : none !important;
-        border-left      : 3px solid transparent !important;
-        border-radius    : 0 !important;
-        padding          : 5px 8px 5px 18px !important;
-        margin           : 1px 0 !important;
-        box-shadow       : none !important;
-        color            : #1A1A2E !important;
+        text-align      : left !important;
+        justify-content : flex-start !important;
+        font-size       : 0.82em !important;
+        font-weight     : 400 !important;
+        background      : transparent !important;
+        border          : none !important;
+        border-left     : 3px solid transparent !important;
+        border-radius   : 0 !important;
+        padding         : 5px 8px 5px 18px !important;
+        margin          : 1px 0 !important;
+        box-shadow      : none !important;
+        color           : #1A1A2E !important;
     }
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover {
-        background       : rgba(31,92,139,0.09) !important;
-        border-left-color: rgba(31,92,139,0.4)  !important;
-        color            : #1F5C8B !important;
+        background      : rgba(31,92,139,0.09) !important;
+        border-left-color: rgba(31,92,139,0.4) !important;
+        color           : #1F5C8B !important;
     }
     </style>
     """, unsafe_allow_html=True)
+
+    # ... reste de la fonction inchangé
 
     for section in MODEL_TREE:
         st.markdown(
@@ -305,15 +301,12 @@ def render_model_tree():
                 section["icon"], section["label"]),
             unsafe_allow_html=True
         )
-
         for item in section["children"]:
             is_active = (item["id"] == active)
-            is_new    = item.get("new", False)
+            is_new    = item["module"] in ("M5", "M8")
+            new_tag   = " [NEW]" if is_new else ""
 
             if is_active:
-                new_tag = ' <span style="font-size:0.7em;background:#F3E5F5;'\
-                          'color:#4A148C;padding:1px 5px;border-radius:8px;'\
-                          'font-weight:700;">NEW</span>' if is_new else ""
                 st.markdown(
                     '<div style="background:rgba(31,92,139,0.10);'
                     'border-left:3px solid #1F5C8B;'
@@ -324,11 +317,11 @@ def render_model_tree():
                     unsafe_allow_html=True
                 )
             else:
+                # Lambda avec valeurs par défaut pour éviter la closure loop bug
                 node_id = item["id"]
                 module  = item["module"]
                 st.button(
-                    "{}  {}".format(item["icon"], item["label"]) +
-                    (" [NEW]" if is_new else ""),
+                    "{}  {}{}".format(item["icon"], item["label"], new_tag),
                     key="tree_{}".format(item["id"]),
                     use_container_width=True,
                     on_click=_cb_tree,
@@ -336,25 +329,20 @@ def render_model_tree():
                 )
 
     st.markdown("---")
+    st.caption("Actions rapides")
 
     if ROSS_AVAILABLE:
-        st.caption("📂 Exemple ROSS")
-        st.button(
-            "Compresseur centrifuge",
-            use_container_width=True,
-            key="tree_comp",
-            on_click=_cb_load_compressor,
-            help="Charge l'exemple compresseur centrifuge ROSS"
-        )
+        st.button("📂 Charger compresseur",
+                  use_container_width=True,
+                  key="tree_comp",
+                  on_click=_cb_load_compressor)
 
     if st.session_state.get("rotor") is not None:
-        st.button(
-            "🗑️ Réinitialiser le modèle",
-            use_container_width=True,
-            key="tree_reset",
-            on_click=_cb_reset_model,
-            help="Remet à zéro le rotor et les résultats"
-        )
+        st.button("🗑️ Réinitialiser",
+                  use_container_width=True,
+                  key="tree_reset",
+                  on_click=_cb_reset_model)
+
 # =============================================================================
 # LOG BAR
 # =============================================================================
@@ -427,46 +415,9 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
-    st.markdown("""
-    <style>
-    section.main [data-testid="stHorizontalBlock"]
-        > [data-testid="column"]:nth-child(1)
-        > [data-testid="stVerticalBlock"] {
-        background    : #F2F5F9 !important;
-        border        : 1px solid #D0D8E4 !important;
-        border-radius : 10px !important;
-        box-shadow    : 2px 0 8px rgba(31,92,139,0.07) !important;
-        padding       : 8px 4px !important;
-        min-height    : 78vh !important;
-    }
-    section.main [data-testid="stHorizontalBlock"]
-        > [data-testid="column"]:nth-child(2)
-        > [data-testid="stVerticalBlock"] {
-        background    : #FFFFFF !important;
-        border        : 1px solid #D0D8E4 !important;
-        border-radius : 10px !important;
-        box-shadow    : 0 2px 12px rgba(31,92,139,0.06) !important;
-        padding       : 12px 8px !important;
-        min-height    : 78vh !important;
-    }
-    section.main [data-testid="stHorizontalBlock"]
-        > [data-testid="column"]:nth-child(3)
-        > [data-testid="stVerticalBlock"] {
-        background    : #FAFBFD !important;
-        border        : 1px solid #D0D8E4 !important;
-        border-radius : 10px !important;
-        box-shadow    : -2px 0 8px rgba(31,92,139,0.07) !important;
-        padding       : 10px 8px !important;
-        min-height    : 78vh !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
-
     with col_tree:
         render_model_tree()
-
     module_id = st.session_state["active_module"]
     node_id   = st.session_state["active_node"]
     route_to_module(module_id, node_id, col_settings, col_graphics)
