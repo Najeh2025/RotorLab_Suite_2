@@ -42,49 +42,120 @@ BEARING_PRESETS = {
 }
 
 # ── Structure de l'arbre de navigation (Model Tree) ─────────────────────
+# CORRECTIONS v2.1 :
+#   - Tous les libellés en FRANÇAIS
+#   - Suppression du doublon "API 684 Level 1" (intégré dans M3)
+#   - Suppression du doublon "Réponse H(jω)" (intégré dans M4)
+#   - Fusion Material + Parameters → un seul nœud "Matériau & Paramètres"
+#   - Suppression de la section "Actions rapides" du tree
+#     (bouton compresseur déplacé dans M1, voir m1_builder.py)
 MODEL_TREE = [
     {
         "id": "global_defs",
-        "label": "Global Definitions",
+        "label": "Définitions globales",
         "icon": "⚙️",
         "children": [
-            {"id": "material",   "label": "Material",    "icon": "🧱", "module": "M1"},
-            {"id": "parameters", "label": "Parameters",  "icon": "📋", "module": "M1"},
+            {
+                "id":     "material",
+                "label":  "Matériau & Paramètres",
+                "icon":   "🧱",
+                "module": "M1",
+            },
         ]
     },
     {
         "id": "rotor_model",
-        "label": "Rotor Model",
+        "label": "Modèle du rotor",
         "icon": "🔩",
         "children": [
-            {"id": "shaft",    "label": "Shaft Elements",  "icon": "📏", "module": "M1"},
-            {"id": "disks",    "label": "Disk Elements",   "icon": "💿", "module": "M1"},
-            {"id": "bearings", "label": "Bearings / Seals","icon": "⚙️", "module": "M1"},
+            {
+                "id":     "shaft",
+                "label":  "Éléments d'arbre",
+                "icon":   "📏",
+                "module": "M1",
+            },
+            {
+                "id":     "disks",
+                "label":  "Éléments disques",
+                "icon":   "💿",
+                "module": "M1",
+            },
+            {
+                "id":     "bearings",
+                "label":  "Paliers & Joints",
+                "icon":   "⚙️",
+                "module": "M1",
+            },
         ]
     },
     {
         "id": "study",
-        "label": "Study",
+        "label": "Études",
         "icon": "🔬",
         "children": [
-            {"id": "static_modal", "label": "Static & Modal",        "icon": "📊", "module": "M2"},
-            {"id": "campbell",     "label": "Campbell + UCS Map",     "icon": "📈", "module": "M3"},
-            {"id": "api_level1",   "label": "API 684 Level 1",        "icon": "📜", "module": "M3"},
-            {"id": "unbalance",    "label": "Unbalance Response",     "icon": "🌀", "module": "M4"},
-            {"id": "freq_resp",    "label": "Freq. Response H(jω)",   "icon": "📡", "module": "M4"},
-            {"id": "hd_bearings",  "label": "Fluid Film Bearings",    "icon": "💧", "module": "M5"},
-            {"id": "temporal",     "label": "Time Response",          "icon": "⏱️", "module": "M6"},
-            {"id": "faults",       "label": "Fault Analysis",         "icon": "🔧", "module": "M7"},
-            {"id": "multirotor",   "label": "MultiRotor & Gear",      "icon": "⚙️", "module": "M8"},
+            {
+                "id":     "static_modal",
+                "label":  "Statique & Modal",
+                "icon":   "📊",
+                "module": "M2",
+            },
+            {
+                "id":     "campbell",
+                "label":  "Campbell + UCS Map",
+                "icon":   "📈",
+                "module": "M3",
+            },
+            {
+                "id":     "unbalance",
+                "label":  "Réponse au balourd",
+                "icon":   "🌀",
+                "module": "M4",
+            },
+            {
+                "id":     "hd_bearings",
+                "label":  "Paliers film fluide",
+                "icon":   "💧",
+                "module": "M5",
+                "new":    True,
+            },
+            {
+                "id":     "temporal",
+                "label":  "Réponse temporelle",
+                "icon":   "⏱️",
+                "module": "M6",
+            },
+            {
+                "id":     "faults",
+                "label":  "Analyse des défauts",
+                "icon":   "🔧",
+                "module": "M7",
+            },
+            {
+                "id":     "multirotor",
+                "label":  "MultiRotor & Engrenages",
+                "icon":   "⚙️",
+                "module": "M8",
+                "new":    True,
+            },
         ]
     },
     {
         "id": "results",
-        "label": "Results",
+        "label": "Résultats",
         "icon": "📊",
         "children": [
-            {"id": "report", "label": "Report & Export", "icon": "📄", "module": "M9"},
-            {"id": "copilot","label": "SmartRotor Copilot","icon":"✨","module": "AI"},
+            {
+                "id":     "report",
+                "label":  "Rapport & Export",
+                "icon":   "📄",
+                "module": "M9",
+            },
+            {
+                "id":     "copilot",
+                "label":  "SmartRotor Copilot",
+                "icon":   "✨",
+                "module": "AI",
+            },
         ]
     },
 ]
