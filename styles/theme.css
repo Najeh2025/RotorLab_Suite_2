@@ -11,12 +11,6 @@
     --rl-border:     #D0D8E4;
     --rl-text:       #1A1A2E;
     --rl-text-muted: #6B7280;
-
-    /* Séparateurs de panneaux */
-    --rl-panel-shadow-left:   2px 0 8px rgba(31,92,139,0.08);
-    --rl-panel-shadow-right: -2px 0 8px rgba(31,92,139,0.08);
-    --rl-panel-border:        1px solid #D0D8E4;
-    --rl-panel-radius:        10px;
 }
 
 /* ── Suppression padding Streamlit par défaut ───────────────────────── */
@@ -36,7 +30,6 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 6px;
-    box-shadow: 0 2px 12px rgba(31,92,139,0.18);
 }
 .rl-header-title {
     color: white;
@@ -57,116 +50,6 @@
     font-weight: 600;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   SÉPARATEURS VISUELS ENTRE LES 3 PANNEAUX
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* Conteneur de la simulation : row flex avec gaps */
-.rl-simulation-row {
-    display: flex;
-    gap: 0;
-    align-items: stretch;
-    min-height: 80vh;
-}
-
-/* Panneau gauche (Model Tree) */
-.rl-panel-left {
-    background: var(--rl-bg-tree);
-    border: var(--rl-panel-border);
-    border-radius: var(--rl-panel-radius);
-    box-shadow: var(--rl-panel-shadow-left);
-    padding: 10px 0;
-    position: relative;
-}
-
-/* Séparateur après le panneau gauche */
-.rl-panel-left::after {
-    content: "";
-    position: absolute;
-    top: 10%;
-    right: -1px;
-    height: 80%;
-    width: 2px;
-    background: linear-gradient(
-        to bottom,
-        transparent 0%,
-        #D0D8E4 20%,
-        #1F5C8B 50%,
-        #D0D8E4 80%,
-        transparent 100%
-    );
-    border-radius: 2px;
-}
-
-/* Panneau central (Settings) */
-.rl-panel-center {
-    background: white;
-    border: var(--rl-panel-border);
-    border-radius: var(--rl-panel-radius);
-    box-shadow: 0 2px 12px rgba(31,92,139,0.06);
-    padding: 12px;
-    position: relative;
-}
-
-/* Séparateur après le panneau central */
-.rl-panel-center::after {
-    content: "";
-    position: absolute;
-    top: 10%;
-    right: -1px;
-    height: 80%;
-    width: 2px;
-    background: linear-gradient(
-        to bottom,
-        transparent 0%,
-        #D0D8E4 20%,
-        #C55A11 50%,
-        #D0D8E4 80%,
-        transparent 100%
-    );
-    border-radius: 2px;
-}
-
-/* Panneau droit (Graphics) */
-.rl-panel-right {
-    background: white;
-    border: var(--rl-panel-border);
-    border-radius: var(--rl-panel-radius);
-    box-shadow: var(--rl-panel-shadow-right);
-    padding: 10px;
-}
-
-/* Hack Streamlit : appliquer les styles aux colonnes générées */
-/* Colonne 1 = menu gauche */
-[data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1) > [data-testid="stVerticalBlock"] {
-    background    : var(--rl-bg-tree);
-    border        : var(--rl-panel-border);
-    border-radius : var(--rl-panel-radius);
-    box-shadow    : var(--rl-panel-shadow-left);
-    padding       : 8px 4px;
-    min-height    : 75vh;
-}
-
-/* Colonne 2 = panneau central */
-[data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) > [data-testid="stVerticalBlock"] {
-    background    : #FFFFFF;
-    border        : var(--rl-panel-border);
-    border-radius : var(--rl-panel-radius);
-    box-shadow    : 0 2px 12px rgba(31,92,139,0.07);
-    padding       : 12px 8px;
-    min-height    : 75vh;
-}
-
-/* Colonne 3 = panneau droite */
-[data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3) > [data-testid="stVerticalBlock"] {
-    background    : #FAFBFD;
-    border        : var(--rl-panel-border);
-    border-radius : var(--rl-panel-radius);
-    box-shadow    : var(--rl-panel-shadow-right);
-    padding       : 10px 8px;
-    min-height    : 75vh;
-}
-
 /* ── Panneau gauche : Model Tree ────────────────────────────────────── */
 .rl-tree-panel {
     background: var(--rl-bg-tree);
@@ -176,14 +59,13 @@
     min-height: 80vh;
 }
 .rl-tree-section {
-    padding: 6px 10px 3px 10px;
+    padding: 4px 10px 2px 10px;
     font-size: 0.68em;
     font-weight: 700;
     color: var(--rl-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-top: 8px;
-    border-left: 3px solid transparent;
+    margin-top: 6px;
 }
 .rl-tree-item {
     padding: 5px 10px 5px 20px;
@@ -206,31 +88,20 @@
     color: var(--rl-primary);
     font-weight: 600;
 }
-
-/* Boutons secondaires du tree — ciblage précis pour ne pas affecter nav */
-div[data-testid="stVerticalBlock"]
-    div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] {
-    text-align       : left !important;
-    justify-content  : flex-start !important;
-    font-size        : 0.82em !important;
-    font-weight      : 400 !important;
-    background       : transparent !important;
-    border           : none !important;
-    border-left      : 3px solid transparent !important;
-    border-radius    : 0 !important;
-    padding          : 5px 8px 5px 18px !important;
-    margin           : 1px 0 !important;
-    box-shadow       : none !important;
-    color            : #1A1A2E !important;
-}
-div[data-testid="stVerticalBlock"]
-    div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover {
-    background       : rgba(31,92,139,0.09) !important;
-    border-left-color: rgba(31,92,139,0.4) !important;
-    color            : #1F5C8B !important;
+.rl-tree-item .icon {
+    font-size: 0.85em;
+    width: 16px;
+    text-align: center;
 }
 
 /* ── Panneau central : Settings ─────────────────────────────────────── */
+.rl-settings-panel {
+    background: white;
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 80vh;
+}
 .rl-settings-title {
     font-size: 0.85em;
     font-weight: 700;
@@ -248,9 +119,34 @@ div[data-testid="stVerticalBlock"]
     color: var(--rl-primary);
     border-radius: 0 4px 4px 0;
     margin: 10px 0 6px 0;
+    cursor: pointer;
+}
+.rl-field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid #F0F4FF;
+    font-size: 0.8em;
+}
+.rl-field-label { color: var(--rl-text-muted); }
+.rl-field-value {
+    font-weight: 600;
+    color: var(--rl-text);
+    background: #F0F4FF;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
 }
 
 /* ── Panneau droit : Graphics ────────────────────────────────────────── */
+.rl-graphics-panel {
+    background: white;
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 80vh;
+}
 .rl-graphics-title {
     font-size: 0.82em;
     font-weight: 600;
@@ -279,14 +175,14 @@ div[data-testid="stVerticalBlock"]
 .rl-log-err  { color: #F44336; }
 
 /* ── Bouton Run principal ────────────────────────────────────────────── */
-.stButton > button[data-testid="baseButton-primary"] {
+.stButton > button[kind="primary"] {
     background-color: var(--rl-primary) !important;
     border-color: var(--rl-primary) !important;
     color: white !important;
     font-weight: 600 !important;
     border-radius: 6px !important;
 }
-.stButton > button[data-testid="baseButton-primary"]:hover {
+.stButton > button[kind="primary"]:hover {
     background-color: #154F7A !important;
 }
 
@@ -356,18 +252,4 @@ div[data-testid="stVerticalBlock"]
 /* ── Progress bar ────────────────────────────────────────────────────── */
 div[data-testid="stProgress"] > div > div {
     background: var(--rl-primary) !important;
-}
-
-/* ── Séparateur de navigation top ────────────────────────────────────── */
-.rl-nav-separator {
-    height: 3px;
-    background: linear-gradient(
-        to right,
-        #1F5C8B 0%,
-        #C55A11 50%,
-        #22863A 100%
-    );
-    border-radius: 2px;
-    margin: 4px 0 8px 0;
-    opacity: 0.4;
 }
