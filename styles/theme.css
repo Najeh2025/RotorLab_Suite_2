@@ -50,6 +50,47 @@
     font-weight: 600;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   SÉPARATEURS VISUELS — 3 PANNEAUX (ajout sans toucher aux boutons)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Panneau gauche : fond légèrement coloré + bordure droite */
+section.main > div > div > div
+    [data-testid="stHorizontalBlock"]
+    > [data-testid="column"]:nth-child(1)
+    > [data-testid="stVerticalBlock"] {
+    background    : #F2F5F9;
+    border        : 1px solid #D0D8E4;
+    border-radius : 10px;
+    padding       : 8px 4px;
+    min-height    : 75vh;
+}
+
+/* Panneau central : fond blanc + bordure */
+section.main > div > div > div
+    [data-testid="stHorizontalBlock"]
+    > [data-testid="column"]:nth-child(2)
+    > [data-testid="stVerticalBlock"] {
+    background    : #FFFFFF;
+    border        : 1px solid #D0D8E4;
+    border-radius : 10px;
+    padding       : 12px 8px;
+    min-height    : 75vh;
+    box-shadow    : 0 1px 6px rgba(31,92,139,0.06);
+}
+
+/* Panneau droit : fond très légèrement teinté + bordure */
+section.main > div > div > div
+    [data-testid="stHorizontalBlock"]
+    > [data-testid="column"]:nth-child(3)
+    > [data-testid="stVerticalBlock"] {
+    background    : #FAFBFD;
+    border        : 1px solid #D0D8E4;
+    border-radius : 10px;
+    padding       : 10px 8px;
+    min-height    : 75vh;
+}
+
 /* ── Panneau gauche : Model Tree ────────────────────────────────────── */
 .rl-tree-panel {
     background: var(--rl-bg-tree);
@@ -88,10 +129,34 @@
     color: var(--rl-primary);
     font-weight: 600;
 }
-.rl-tree-item .icon {
-    font-size: 0.85em;
-    width: 16px;
-    text-align: center;
+
+/* ── Boutons du tree : style liste, ciblage précis ───────────────────
+   IMPORTANT : on cible uniquement les boutons SECONDARY du tree
+   pour ne pas affecter les boutons PRIMARY (bleus) ni les
+   boutons des modules.
+   ─────────────────────────────────────────────────────────────────── */
+div[data-testid="stVerticalBlock"]
+    div[data-testid="stButton"]
+    > button[kind="secondary"] {
+    text-align      : left !important;
+    justify-content : flex-start !important;
+    font-size       : 0.82em !important;
+    font-weight     : 400 !important;
+    background      : transparent !important;
+    border          : none !important;
+    border-left     : 3px solid transparent !important;
+    border-radius   : 0 !important;
+    padding         : 5px 8px 5px 18px !important;
+    margin          : 1px 0 !important;
+    box-shadow      : none !important;
+    color           : #1A1A2E !important;
+}
+div[data-testid="stVerticalBlock"]
+    div[data-testid="stButton"]
+    > button[kind="secondary"]:hover {
+    background      : rgba(31,92,139,0.09) !important;
+    border-left-color: rgba(31,92,139,0.4) !important;
+    color           : #1F5C8B !important;
 }
 
 /* ── Panneau central : Settings ─────────────────────────────────────── */
@@ -174,7 +239,7 @@
 .rl-log-warn { color: #FF9800; }
 .rl-log-err  { color: #F44336; }
 
-/* ── Bouton Run principal ────────────────────────────────────────────── */
+/* ── Bouton Run principal ── NE PAS MODIFIER ─────────────────────────── */
 .stButton > button[kind="primary"] {
     background-color: var(--rl-primary) !important;
     border-color: var(--rl-primary) !important;
