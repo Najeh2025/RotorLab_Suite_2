@@ -263,14 +263,23 @@ def render_top_nav():
 # =============================================================================
 # MODEL TREE
 # =============================================================================
+# =========================================================
+# COPIER-COLLER CE BLOC DANS app.py
+# Remplace UNIQUEMENT la fonction render_model_tree()
+# Aucune autre fonction n'est modifiée
+# =========================================================
+
 def render_model_tree():
     active = st.session_state.get("active_node", "shaft")
 
+    # CSS UNIQUEMENT pour les boutons secondaires du tree
+    # kind="secondary" est l'attribut Streamlit natif — pas de data-testid
+    # → ne touche PAS aux boutons primary (bleus)
     st.markdown("""
     <style>
-    /* Cible UNIQUEMENT les boutons secondary (items de l'arbre) */
     div[data-testid="stVerticalBlock"]
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] {
+        div[data-testid="stButton"]
+        > button[kind="secondary"] {
         text-align      : left !important;
         justify-content : flex-start !important;
         font-size       : 0.82em !important;
@@ -285,15 +294,14 @@ def render_model_tree():
         color           : #1A1A2E !important;
     }
     div[data-testid="stVerticalBlock"]
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover {
-        background      : rgba(31,92,139,0.09) !important;
+        div[data-testid="stButton"]
+        > button[kind="secondary"]:hover {
+        background       : rgba(31,92,139,0.09) !important;
         border-left-color: rgba(31,92,139,0.4) !important;
-        color           : #1F5C8B !important;
+        color            : #1F5C8B !important;
     }
     </style>
     """, unsafe_allow_html=True)
-
-    # ... reste de la fonction inchangé
 
     for section in MODEL_TREE:
         st.markdown(
@@ -317,7 +325,6 @@ def render_model_tree():
                     unsafe_allow_html=True
                 )
             else:
-                # Lambda avec valeurs par défaut pour éviter la closure loop bug
                 node_id = item["id"]
                 module  = item["module"]
                 st.button(
@@ -328,20 +335,25 @@ def render_model_tree():
                     args=(node_id, module),
                 )
 
+    # ── Exemples et actions (sans le titre "Actions rapides") ────────────
     st.markdown("---")
-    st.caption("Actions rapides")
 
     if ROSS_AVAILABLE:
-        st.button("📂 Charger compresseur",
-                  use_container_width=True,
-                  key="tree_comp",
-                  on_click=_cb_load_compressor)
+        st.caption("📂 Exemples")
+        st.button(
+            "📂 Compresseur centrifuge",
+            use_container_width=True,
+            key="tree_comp",
+            on_click=_cb_load_compressor,
+        )
 
     if st.session_state.get("rotor") is not None:
-        st.button("🗑️ Réinitialiser",
-                  use_container_width=True,
-                  key="tree_reset",
-                  on_click=_cb_reset_model)
+        st.button(
+            "🗑️ Réinitialiser",
+            use_container_width=True,
+            key="tree_reset",
+            on_click=_cb_reset_model,
+        )
 
 # =============================================================================
 # LOG BAR
