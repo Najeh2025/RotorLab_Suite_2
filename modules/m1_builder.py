@@ -109,7 +109,7 @@ def _render_settings(active_node: str):
     # ── Mapping nœud actif → onglet à afficher ────────────────────────────
     # Chaque item du menu gauche pointe vers un onglet précis de M1
     # ── Rendu direct selon la session — aucun sélecteur visible ──────────
-        _label_to_render = {
+    _label_to_render = {
             "🧱 Matériau" : _render_tab_material,
             "📏 Arbre"    : _render_tab_shaft,
             "💿 Disques"  : _render_tab_disk,
@@ -118,7 +118,7 @@ def _render_settings(active_node: str):
         current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
         _label_to_render.get(current, _render_tab_material)()
     
-        st.markdown("---")
+    st.markdown("---")
 
     # ── Bouton Assembler ──────────────────────────────────────────────────
     if st.button("🚀 Assembler le rotor", type="primary",
