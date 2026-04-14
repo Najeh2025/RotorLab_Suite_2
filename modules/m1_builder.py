@@ -104,7 +104,7 @@ def _render_settings(active_node: str):
             else:
                 st.info("Fichier '{}' déjà chargé.".format(uploaded.name))
 
-    st.markdown("---")
+    #st.markdown("---")
 
  # ── Rendu direct selon la session — aucun sélecteur visible ──────────
     _label_to_render = {
