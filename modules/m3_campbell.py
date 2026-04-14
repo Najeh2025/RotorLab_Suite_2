@@ -99,19 +99,28 @@ def _render_settings(rotor):
           dimensionnement des paliers.</small>
         </div>
         """, unsafe_allow_html=True)
-        st.slider(
+        st.number_input(
             "Log10(K_min) [N/m]",
-            3, 8, 5,
+            min_value=3,
+            max_value=8,
+            value=5,
+            step=1,
             key="m3_kmin_log"
         )
-        st.slider(
+        st.number_input(
             "Log10(K_max) [N/m]",
-            6, 12, 9,
+            min_value=6,
+            max_value=12,
+            value=9,
+            step=1,
             key="m3_kmax_log"
         )
-        st.slider(
+        st.number_input(
             "Nombre de points K",
-            10, 60, 20,
+            min_value=10,
+            max_value=60,
+            value=20,
+            step=1,
             key="m3_k_npts"
         )
         st.button(
