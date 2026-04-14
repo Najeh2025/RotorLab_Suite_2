@@ -1,5 +1,6 @@
 # modules/m1_builder.py — Constructeur de Rotor (Module M1)
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
+# Correction v2.1 : routage automatique vers l'onglet selon active_node
 # =============================================================================
 
 import streamlit as st
@@ -20,19 +21,15 @@ from config import MATERIALS_DB, BEARING_PRESETS
 # POINT D'ENTRÉE PRINCIPAL
 # =============================================================================
 def render_m1(col_settings, col_graphics):
-    """Rendu du module M1 dans le layout 3 panneaux."""
-
     active_node = st.session_state.get("active_node", "shaft")
-
     with col_settings:
         _render_settings(active_node)
-
     with col_graphics:
         _render_graphics(active_node)
 
 
 # =============================================================================
-# PANNEAU SETTINGS (centre)
+# PANNEAU SETTINGS
 # =============================================================================
 def _render_settings(active_node: str):
     st.markdown(
@@ -70,26 +67,18 @@ def _render_settings(active_node: str):
             key="m1_upload"
         )
         if uploaded is not None:
-            # Calcul d'un identifiant unique pour ce fichier
             file_id = "{}_{}".format(uploaded.name, uploaded.size)
-            # Charger seulement si c'est un nouveau fichier
             if st.session_state.get("m1_last_file_id") != file_id:
                 try:
-                    import io
                     content = uploaded.read()
                     data    = json.loads(content.decode("utf-8"))
-
-                    # Validation de la structure
                     if "shaft" not in data:
                         st.error("Fichier JSON invalide : clé 'shaft' manquante.")
                     else:
-                        # 1. VIDER LE CACHE DES WIDGETS DATA_EDITOR
-                        # Cela force les tableaux à oublier l'ancien modèle
-                        for editor_key in ["m1_shaft_editor", "m1_disk_editor", "m1_bear_editor"]:
+                        for editor_key in ["m1_shaft_editor", "m1_disk_editor",
+                                           "m1_bear_editor"]:
                             if editor_key in st.session_state:
                                 del st.session_state[editor_key]
-
-                        # 2. METTRE À JOUR LES DONNÉES
                         st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
                         st.session_state["df_disk"]  = pd.DataFrame(
                             data.get("disks", data.get("disk", [])))
@@ -97,8 +86,6 @@ def _render_settings(active_node: str):
                             data.get("bearings", data.get("bearing", [])))
                         st.session_state["mat_name"] = data.get(
                             "material", "Acier standard (AISI 1045)")
-                        
-                        # Invalider le rotor et les résultats
                         st.session_state["rotor"]      = None
                         st.session_state["rotor_name"] = data.get(
                             "name", uploaded.name.replace(".json", ""))
@@ -106,15 +93,10 @@ def _render_settings(active_node: str):
                                     "res_ucs","res_unbalance","res_freq",
                                     "res_temporal"]:
                             st.session_state[key] = None
-                            
-                        # Marquer ce fichier comme déjà chargé
                         st.session_state["m1_last_file_id"] = file_id
-                        st.success("Modèle '{}' chargé avec succès !".format(
+                        st.success("Modèle '{}' chargé !".format(
                             st.session_state["rotor_name"]))
-                        
-                        # 3. FORCER L'ACTUALISATION DE L'INTERFACE
                         st.rerun()
-
                 except json.JSONDecodeError as e:
                     st.error("Fichier JSON malformé : {}".format(e))
                 except Exception as e:
@@ -124,152 +106,207 @@ def _render_settings(active_node: str):
 
     st.markdown("---")
 
-    # ── Onglets de paramétrage ────────────────────────────────────────────
-    tab_mat, tab_shaft, tab_disk, tab_bear = st.tabs(
-        ["🧱 Matériau", "📏 Arbre", "💿 Disques", "⚙️ Paliers"]
+    # ── Mapping nœud actif → onglet à afficher ────────────────────────────
+    # Chaque item du menu gauche pointe vers un onglet précis de M1
+    _node_to_tab = {
+        "material"  : "🧱 Matériau",
+        "parameters": "🧱 Matériau",
+        "shaft"     : "📏 Arbre",
+        "disks"     : "💿 Disques",
+        "bearings"  : "⚙️ Paliers",
+    }
+    TAB_LABELS = ["🧱 Matériau", "📏 Arbre", "💿 Disques", "⚙️ Paliers"]
+    default_tab = _node_to_tab.get(active_node, "🧱 Matériau")
+
+    # Sélecteur d'onglet — piloté automatiquement par le menu gauche
+    # et modifiable manuellement par l'utilisateur
+    selected = st.radio(
+        "",
+        TAB_LABELS,
+        index=TAB_LABELS.index(default_tab),
+        horizontal=True,
+        key="m1_tab_selector",
+        label_visibility="collapsed"
     )
-
-    # ── MATÉRIAU ──────────────────────────────────────────────────────────
-    with tab_mat:
-        mat_name = st.selectbox(
-            "Matériau :",
-            list(MATERIALS_DB.keys()),
-            index=list(MATERIALS_DB.keys()).index(
-                st.session_state.get("mat_name",
-                "Acier standard (AISI 1045)")
-            ),
-            key="m1_mat_select"
-        )
-        st.session_state["mat_name"] = mat_name
-        props = MATERIALS_DB[mat_name]
-
-        if mat_name == "Personnalisé":
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                props["rho"] = st.number_input(
-                    "ρ (kg/m³)", 500.0, 20000.0,
-                    float(props["rho"]), key="m1_rho")
-            with c2:
-                props["E"] = st.number_input(
-                    "E (GPa)", 1.0, 500.0,
-                    float(props["E"]) / 1e9, key="m1_E") * 1e9
-            with c3:
-                props["G_s"] = st.number_input(
-                    "G_s (GPa)", 1.0, 200.0,
-                    float(props["G_s"]) / 1e9, key="m1_Gs") * 1e9
-        else:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("ρ (kg/m³)", f"{props['rho']:.0f}")
-            c2.metric("E (GPa)",   f"{props['E']/1e9:.1f}")
-            c3.metric("G_s (GPa)", f"{props['G_s']/1e9:.1f}")
-
-    # ── ARBRE ─────────────────────────────────────────────────────────────
-    with tab_shaft:
-        st.caption(
-            "Éléments de poutre Timoshenko — L : longueur, id : Ø interne, "
-            "od : Ø externe. _L = côté gauche, _R = côté droit (arbre conique)."
-        )
-        st.session_state["df_shaft"] = st.data_editor(
-            st.session_state["df_shaft"],
-            num_rows="dynamic",
-            key="m1_shaft_editor",
-            use_container_width=True,
-            column_config={
-                "L (m)":    st.column_config.NumberColumn(
-                    "L (m)", min_value=0.001, format="%.4f"),
-                "id_L (m)": st.column_config.NumberColumn(
-                    "id_L (m)", min_value=0.0, format="%.4f"),
-                "od_L (m)": st.column_config.NumberColumn(
-                    "od_L (m)", min_value=0.001, format="%.4f"),
-                "id_R (m)": st.column_config.NumberColumn(
-                    "id_R (m)", min_value=0.0, format="%.4f"),
-                "od_R (m)": st.column_config.NumberColumn(
-                    "od_R (m)", min_value=0.001, format="%.4f"),
-            }
-        )
-        n_el = len(st.session_state["df_shaft"])
-        st.caption(f"→ {n_el} éléments · {n_el + 1} nœuds (0 → {n_el})")
-
-    # ── DISQUES ───────────────────────────────────────────────────────────
-    with tab_disk:
-        st.caption(
-            "Masses concentrées — saisie directe de masse et inerties "
-            "(données CAO ou catalogue constructeur)."
-        )
-        st.session_state["df_disk"] = st.data_editor(
-            st.session_state["df_disk"],
-            num_rows="dynamic",
-            key="m1_disk_editor",
-            use_container_width=True,
-            column_config={
-                "nœud":       st.column_config.NumberColumn(
-                    "Nœud", min_value=0, step=1),
-                "Masse (kg)": st.column_config.NumberColumn(
-                    "Masse (kg)", min_value=0.0, format="%.4f"),
-                "Id (kg.m²)": st.column_config.NumberColumn(
-                    "Id (kg.m²)", min_value=0.0, format="%.6f"),
-                "Ip (kg.m²)": st.column_config.NumberColumn(
-                    "Ip (kg.m²)", min_value=0.0, format="%.6f"),
-            }
-        )
-
-    # ── PALIERS ───────────────────────────────────────────────────────────
-    with tab_bear:
-        c_pre, _ = st.columns([3, 5])
-        with c_pre:
-            preset = st.selectbox(
-                "Preset :",
-                ["-"] + list(BEARING_PRESETS.keys()),
-                key="m1_preset"
-            )
-            if preset != "-":
-                p    = BEARING_PRESETS[preset]
-                n_el = max(1, len(st.session_state["df_shaft"]))
-                st.session_state["df_bear"] = pd.DataFrame([
-                    {"nœud": 0,   "Type": "Palier",
-                     "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
-                     "cxx": p["cxx"], "cyy": p["cyy"]},
-                    {"nœud": n_el, "Type": "Palier",
-                     "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
-                     "cxx": p["cxx"], "cyy": p["cyy"]},
-                ])
-
-        st.session_state["df_bear"] = st.data_editor(
-            st.session_state["df_bear"].fillna(0.0),
-            num_rows="dynamic",
-            key="m1_bear_editor",
-            use_container_width=True,
-            column_config={
-                "Type": st.column_config.SelectboxColumn(
-                    "Type",
-                    options=["Palier", "Joint", "Roulement", "Masse"],
-                    required=True
-                ),
-                "kxx": st.column_config.NumberColumn("kxx (N/m)",  format="%.2e"),
-                "kyy": st.column_config.NumberColumn("kyy (N/m)",  format="%.2e"),
-                "kxy": st.column_config.NumberColumn("kxy (N/m)",  format="%.2e"),
-                "cxx": st.column_config.NumberColumn("cxx (N·s/m)",format="%.1f"),
-                "cyy": st.column_config.NumberColumn("cyy (N·s/m)",format="%.1f"),
-            }
-        )
-        st.caption(
-            "💡 Type 'Masse' : ajoute une masse ponctuelle sans rigidité "
-            "(capteur, demi-accouplement)."
-        )
 
     st.markdown("---")
 
-    # ── BOUTON ASSEMBLER ──────────────────────────────────────────────────
+    # ── Rendu de la section sélectionnée ──────────────────────────────────
+    if selected == "🧱 Matériau":
+        _render_tab_material()
+    elif selected == "📏 Arbre":
+        _render_tab_shaft()
+    elif selected == "💿 Disques":
+        _render_tab_disk()
+    elif selected == "⚙️ Paliers":
+        _render_tab_bearing()
+
+    st.markdown("---")
+
+    # ── Bouton Assembler ──────────────────────────────────────────────────
     if st.button("🚀 Assembler le rotor", type="primary",
                  key="m1_build", use_container_width=True):
         _assemble_rotor()
 
 
 # =============================================================================
-# PANNEAU GRAPHICS (droite)
+# ONGLET MATÉRIAU
 # =============================================================================
+def _render_tab_material():
+    st.markdown(
+        '<div class="rl-section-header">🧱 Matériau</div>',
+        unsafe_allow_html=True
+    )
+    mat_name = st.selectbox(
+        "Matériau :",
+        list(MATERIALS_DB.keys()),
+        index=list(MATERIALS_DB.keys()).index(
+            st.session_state.get("mat_name",
+            "Acier standard (AISI 1045)")
+        ),
+        key="m1_mat_select"
+    )
+    st.session_state["mat_name"] = mat_name
+    props = MATERIALS_DB[mat_name]
+
+    if mat_name == "Personnalisé":
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            props["rho"] = st.number_input(
+                "ρ (kg/m³)", 500.0, 20000.0,
+                float(props["rho"]), key="m1_rho")
+        with c2:
+            props["E"] = st.number_input(
+                "E (GPa)", 1.0, 500.0,
+                float(props["E"]) / 1e9, key="m1_E") * 1e9
+        with c3:
+            props["G_s"] = st.number_input(
+                "G_s (GPa)", 1.0, 200.0,
+                float(props["G_s"]) / 1e9, key="m1_Gs") * 1e9
+    else:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("ρ (kg/m³)", f"{props['rho']:.0f}")
+        c2.metric("E (GPa)",   f"{props['E']/1e9:.1f}")
+        c3.metric("G_s (GPa)", f"{props['G_s']/1e9:.1f}")
+
+
 # =============================================================================
-# PANNEAU GRAPHICS (droite)
+# ONGLET ARBRE
+# =============================================================================
+def _render_tab_shaft():
+    st.markdown(
+        '<div class="rl-section-header">📏 Éléments d\'arbre</div>',
+        unsafe_allow_html=True
+    )
+    st.caption(
+        "Éléments de poutre Timoshenko — L : longueur, id : Ø interne, "
+        "od : Ø externe. _L = côté gauche, _R = côté droit (arbre conique)."
+    )
+    st.session_state["df_shaft"] = st.data_editor(
+        st.session_state["df_shaft"],
+        num_rows="dynamic",
+        key="m1_shaft_editor",
+        use_container_width=True,
+        column_config={
+            "L (m)":    st.column_config.NumberColumn(
+                "L (m)", min_value=0.001, format="%.4f"),
+            "id_L (m)": st.column_config.NumberColumn(
+                "id_L (m)", min_value=0.0, format="%.4f"),
+            "od_L (m)": st.column_config.NumberColumn(
+                "od_L (m)", min_value=0.001, format="%.4f"),
+            "id_R (m)": st.column_config.NumberColumn(
+                "id_R (m)", min_value=0.0, format="%.4f"),
+            "od_R (m)": st.column_config.NumberColumn(
+                "od_R (m)", min_value=0.001, format="%.4f"),
+        }
+    )
+    n_el = len(st.session_state["df_shaft"])
+    st.caption(f"→ {n_el} éléments · {n_el + 1} nœuds (0 → {n_el})")
+
+
+# =============================================================================
+# ONGLET DISQUES
+# =============================================================================
+def _render_tab_disk():
+    st.markdown(
+        '<div class="rl-section-header">💿 Éléments disques</div>',
+        unsafe_allow_html=True
+    )
+    st.caption(
+        "Masses concentrées — saisie directe de masse et inerties "
+        "(données CAO ou catalogue constructeur)."
+    )
+    st.session_state["df_disk"] = st.data_editor(
+        st.session_state["df_disk"],
+        num_rows="dynamic",
+        key="m1_disk_editor",
+        use_container_width=True,
+        column_config={
+            "nœud":       st.column_config.NumberColumn(
+                "Nœud", min_value=0, step=1),
+            "Masse (kg)": st.column_config.NumberColumn(
+                "Masse (kg)", min_value=0.0, format="%.4f"),
+            "Id (kg.m²)": st.column_config.NumberColumn(
+                "Id (kg.m²)", min_value=0.0, format="%.6f"),
+            "Ip (kg.m²)": st.column_config.NumberColumn(
+                "Ip (kg.m²)", min_value=0.0, format="%.6f"),
+        }
+    )
+
+
+# =============================================================================
+# ONGLET PALIERS
+# =============================================================================
+def _render_tab_bearing():
+    st.markdown(
+        '<div class="rl-section-header">⚙️ Paliers & Joints</div>',
+        unsafe_allow_html=True
+    )
+    c_pre, _ = st.columns([3, 5])
+    with c_pre:
+        preset = st.selectbox(
+            "Preset :",
+            ["-"] + list(BEARING_PRESETS.keys()),
+            key="m1_preset"
+        )
+        if preset != "-":
+            p    = BEARING_PRESETS[preset]
+            n_el = max(1, len(st.session_state["df_shaft"]))
+            st.session_state["df_bear"] = pd.DataFrame([
+                {"nœud": 0,   "Type": "Palier",
+                 "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
+                 "cxx": p["cxx"], "cyy": p["cyy"]},
+                {"nœud": n_el, "Type": "Palier",
+                 "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
+                 "cxx": p["cxx"], "cyy": p["cyy"]},
+            ])
+
+    st.session_state["df_bear"] = st.data_editor(
+        st.session_state["df_bear"].fillna(0.0),
+        num_rows="dynamic",
+        key="m1_bear_editor",
+        use_container_width=True,
+        column_config={
+            "Type": st.column_config.SelectboxColumn(
+                "Type",
+                options=["Palier", "Joint", "Roulement", "Masse"],
+                required=True
+            ),
+            "kxx": st.column_config.NumberColumn("kxx (N/m)",  format="%.2e"),
+            "kyy": st.column_config.NumberColumn("kyy (N/m)",  format="%.2e"),
+            "kxy": st.column_config.NumberColumn("kxy (N/m)",  format="%.2e"),
+            "cxx": st.column_config.NumberColumn("cxx (N·s/m)",format="%.1f"),
+            "cyy": st.column_config.NumberColumn("cyy (N·s/m)",format="%.1f"),
+        }
+    )
+    st.caption(
+        "💡 Type 'Masse' : ajoute une masse ponctuelle sans rigidité "
+        "(capteur, demi-accouplement)."
+    )
+
+
+# =============================================================================
+# PANNEAU GRAPHICS (droite) — inchangé
 # =============================================================================
 def _render_graphics(active_node: str):
     st.markdown(
@@ -282,15 +319,14 @@ def _render_graphics(active_node: str):
     rotor = st.session_state.get("rotor")
 
     if rotor is None:
-        # ── État vide : guide de démarrage ──────────────────────────────
         st.markdown("""
         <div class="rl-card-info">
           <strong>🚀 Démarrage rapide</strong><br>
           <ol style="margin:6px 0 0 16px; font-size:0.9em;">
-            <li>Sélectionnez un <strong>matériau</strong> (onglet Matériau)</li>
-            <li>Définissez les <strong>éléments d'arbre</strong> (onglet Arbre)</li>
-            <li>Ajoutez les <strong>disques</strong> (onglet Disques)</li>
-            <li>Configurez les <strong>paliers</strong> (onglet Paliers)</li>
+            <li>Sélectionnez un <strong>matériau</strong></li>
+            <li>Définissez les <strong>éléments d'arbre</strong></li>
+            <li>Ajoutez les <strong>disques</strong></li>
+            <li>Configurez les <strong>paliers</strong></li>
             <li>Cliquez sur <strong>🚀 Assembler le rotor</strong></li>
           </ol>
         </div>
@@ -298,28 +334,26 @@ def _render_graphics(active_node: str):
         return
 
     # ── Métriques globales ───────────────────────────────────────────────
-    n_el = len(st.session_state.get("df_shaft", []))
+    n_el    = len(st.session_state.get("df_shaft", []))
     L_total = sum(
         float(r.get("L (m)", 0))
-        for r in st.session_state.get("df_shaft", pd.DataFrame()).to_dict("records")
+        for r in st.session_state.get(
+            "df_shaft", pd.DataFrame()).to_dict("records")
     )
 
     c1, c2, c3, c4 = st.columns(4)
-    
     c1.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">Masse totale</div>
       <div class="rl-metric-value">{rotor.m:.2f}</div>
       <div class="rl-metric-unit">kg</div>
     </div>""", unsafe_allow_html=True)
-    
     c2.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">Nœuds</div>
       <div class="rl-metric-value">{len(rotor.nodes)}</div>
       <div class="rl-metric-unit">{n_el} éléments</div>
     </div>""", unsafe_allow_html=True)
-    
     c3.markdown(f"""
     <div class="rl-metric-card">
       <div class="rl-metric-label">Longueur</div>
@@ -327,11 +361,10 @@ def _render_graphics(active_node: str):
       <div class="rl-metric-unit">m</div>
     </div>""", unsafe_allow_html=True)
 
-    # Sécurisation extrême de l'affichage DDL
     try:
         ddl_val = rotor.ndof
     except Exception:
-        ddl_val = "Erreur"
+        ddl_val = "—"
 
     c4.markdown(f"""
     <div class="rl-metric-card">
@@ -339,18 +372,15 @@ def _render_graphics(active_node: str):
       <div class="rl-metric-value">{ddl_val}</div>
       <div class="rl-metric-unit">Valeur ROSS</div>
     </div>""", unsafe_allow_html=True)
-    
+
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Visualisation 3D ─────────────────────────────────────────────────
     try:
         fig = rotor.plot_rotor()
         fig.update_layout(height=420, margin=dict(l=0, r=0, t=30, b=0))
-        
-        plot_key = f"m1_3d_plot_{id(rotor)}"
-        st.plotly_chart(fig, use_container_width=True, key=plot_key)
-        
-        # Capture pour le rapport PDF
+        st.plotly_chart(fig, use_container_width=True,
+                        key=f"m1_3d_plot_{id(rotor)}")
         try:
             import kaleido  # noqa
             st.session_state["img_rotor"] = fig.to_image(
@@ -360,7 +390,7 @@ def _render_graphics(active_node: str):
     except Exception as e:
         st.error(f"❌ Impossible d'afficher le modèle 3D. Détail : {e}")
 
-    # ── Tableau récapitulatif des éléments ───────────────────────────────
+    # ── Récapitulatif ────────────────────────────────────────────────────
     with st.expander("📋 Récapitulatif du modèle", expanded=False):
         tab_s, tab_d, tab_b = st.tabs(["Arbre", "Disques", "Paliers"])
         with tab_s:
@@ -388,17 +418,18 @@ def _render_graphics(active_node: str):
             "📥 Export Excel (.xlsx)",
             data=buf.getvalue(),
             file_name="rotor_parameters.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            mime="application/vnd.openxmlformats-officedocument"
+                 ".spreadsheetml.sheet",
             key="m1_excel"
         )
     except Exception:
         st.caption("⚠️ xlsxwriter manquant — export Excel désactivé.")
 
+
 # =============================================================================
-# ASSEMBLAGE DU ROTOR (logique métier)
+# ASSEMBLAGE DU ROTOR
 # =============================================================================
 def _assemble_rotor():
-    """Construit l'objet rs.Rotor depuis les tableaux de session."""
     if not ROSS_OK:
         st.error("❌ ROSS n'est pas installé.")
         return
@@ -406,7 +437,6 @@ def _assemble_rotor():
     errors = []
 
     try:
-        # ── Matériau ──────────────────────────────────────────────────────
         mat_name = st.session_state.get("mat_name", "Acier standard (AISI 1045)")
         props    = MATERIALS_DB[mat_name]
         mat = rs.Material(
@@ -416,10 +446,10 @@ def _assemble_rotor():
             G_s   = props["G_s"]
         )
 
-        # ── Arbre ─────────────────────────────────────────────────────────
+        # Arbre
         shaft = []
         for i, row in st.session_state["df_shaft"].iterrows():
-            L   = float(row.get("L (m)",   0.2))
+            L   = float(row.get("L (m)",    0.2))
             idl = float(row.get("id_L (m)", 0.0))
             odl = float(row.get("od_L (m)", 0.05))
             idr = float(row.get("id_R (m)", idl))
@@ -436,7 +466,7 @@ def _assemble_rotor():
         if not shaft:
             errors.append("Aucun élément d'arbre valide.")
 
-        # ── Disques ───────────────────────────────────────────────────────
+        # Disques
         disks = []
         for i, row in st.session_state["df_disk"].iterrows():
             try:
@@ -449,7 +479,7 @@ def _assemble_rotor():
             except Exception as e:
                 errors.append(f"Disque ligne {i+1} : {e}")
 
-        # ── Paliers ───────────────────────────────────────────────────────
+        # Paliers
         bears = []
         for i, row in st.session_state["df_bear"].fillna(0.0).iterrows():
             try:
@@ -491,13 +521,11 @@ def _assemble_rotor():
         if not bears:
             errors.append("Aucun palier défini.")
 
-        # ── Rapport d'erreurs ─────────────────────────────────────────────
         if errors:
             for err in errors:
                 st.error(f"❌ {err}")
             return
 
-        # ── Assemblage final ──────────────────────────────────────────────
         with st.spinner("Assemblage du modèle éléments finis…"):
             rotor = rs.Rotor(shaft, disks, bears)
 
@@ -505,12 +533,10 @@ def _assemble_rotor():
         st.session_state["rotor_name"]   = "Rotor personnalisé"
         st.session_state["rotor_source"] = "custom"
 
-        # Invalider les résultats précédents
         for key in ["res_static", "res_modal", "res_campbell",
                     "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
             st.session_state[key] = None
 
-        # Log
         try:
             from app import add_log
             add_log(
@@ -535,7 +561,6 @@ def _assemble_rotor():
 # INITIALISATION DES TABLEAUX PAR DÉFAUT
 # =============================================================================
 def _init_tables():
-    """Réinitialise les tableaux M1 à leurs valeurs par défaut."""
     st.session_state["df_shaft"] = pd.DataFrame([
         {"L (m)": 0.20, "id_L (m)": 0.0, "od_L (m)": 0.05,
          "id_R (m)": 0.0, "od_R (m)": 0.05}
