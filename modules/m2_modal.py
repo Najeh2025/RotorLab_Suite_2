@@ -58,7 +58,7 @@ def _render_settings_m2(rotor):
     min_value=0,
     max_value=15000,
     value=0,
-    step=10,
+    step=100,
     key="m2_speed"
     )
     st.caption(
