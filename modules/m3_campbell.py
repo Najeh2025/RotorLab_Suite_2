@@ -65,10 +65,13 @@ def _render_settings(rotor):
         step=500,
         key="m3_vmax"
         )
-        st.slider(
-            "Résolution (points de calcul)",
-            20, 150, 60, step=10,
-            key="m3_npts"
+        resolution_npts = st.number_input(
+        "Résolution (points de calcul)",
+        min_value=20,
+        max_value=150,
+        value=60,
+        step=10,
+        key="m3_npts"
         )
         st.radio(
             "Harmoniques à tracer",
