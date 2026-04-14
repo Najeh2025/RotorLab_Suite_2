@@ -237,25 +237,35 @@ def _render_tab_bearing():
         '<div class="rl-section-header">⚙️ Paliers & Joints</div>',
         unsafe_allow_html=True
     )
-    #c_pre, _ = st.columns([3, 5])
-    with c_pre:
-        preset = st.selectbox(
-            "Preset :",
-            ["-"] + list(BEARING_PRESETS.keys()),
-            key="m1_preset"
-        )
-        if preset != "-":
-            p    = BEARING_PRESETS[preset]
-            n_el = max(1, len(st.session_state["df_shaft"]))
-            st.session_state["df_bear"] = pd.DataFrame([
-                {"nœud": 0,   "Type": "Palier",
-                 "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
-                 "cxx": p["cxx"], "cyy": p["cyy"]},
-                {"nœud": n_el, "Type": "Palier",
-                 "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
-                 "cxx": p["cxx"], "cyy": p["cyy"]},
-            ])
 
+    # ✅ 1. Selectbox en pleine largeur (colonnes inutiles supprimées)
+    preset = st.selectbox(
+        "Preset :",
+        ["-"] + list(BEARING_PRESETS.keys()),
+        key="m1_preset"
+    )
+
+    # ✅ 2. Initialisation sécurisée (évite KeyError si preset == "-")
+    if "df_bear" not in st.session_state:
+        st.session_state["df_bear"] = pd.DataFrame(
+            columns=["nœud", "Type", "kxx", "kyy", "kxy", "cxx", "cyy"]
+        )
+
+    # ✅ 3. Application du preset si sélectionné
+    if preset != "-":
+        p = BEARING_PRESETS[preset]
+        # Sécurisation si df_shaft n'est pas encore créé
+        n_el = max(1, len(st.session_state.get("df_shaft", [])))
+        st.session_state["df_bear"] = pd.DataFrame([
+            {"nœud": 0,   "Type": "Palier",
+             "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
+             "cxx": p["cxx"], "cyy": p["cyy"]},
+            {"nœud": n_el, "Type": "Palier",
+             "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
+             "cxx": p["cxx"], "cyy": p["cyy"]},
+        ])
+
+    # ✅ 4. Éditeur de données
     st.session_state["df_bear"] = st.data_editor(
         st.session_state["df_bear"].fillna(0.0),
         num_rows="dynamic",
@@ -263,17 +273,16 @@ def _render_tab_bearing():
         use_container_width=True,
         column_config={
             "Type": st.column_config.SelectboxColumn(
-                "Type",
-                options=["Palier", "Joint", "Roulement", "Masse"],
-                required=True
+                "Type", options=["Palier", "Joint", "Roulement", "Masse"], required=True
             ),
-            "kxx": st.column_config.NumberColumn("kxx (N/m)",  format="%.2e"),
-            "kyy": st.column_config.NumberColumn("kyy (N/m)",  format="%.2e"),
-            "kxy": st.column_config.NumberColumn("kxy (N/m)",  format="%.2e"),
-            "cxx": st.column_config.NumberColumn("cxx (N·s/m)",format="%.1f"),
-            "cyy": st.column_config.NumberColumn("cyy (N·s/m)",format="%.1f"),
+            "kxx": st.column_config.NumberColumn("kxx (N/m)", format="%.2e"),
+            "kyy": st.column_config.NumberColumn("kyy (N/m)", format="%.2e"),
+            "kxy": st.column_config.NumberColumn("kxy (N/m)", format="%.2e"),
+            "cxx": st.column_config.NumberColumn("cxx (N·s/m)", format="%.1f"),
+            "cyy": st.column_config.NumberColumn("cyy (N·s/m)", format="%.1f"),
         }
     )
+
     st.caption(
         "💡 Type 'Masse' : ajoute une masse ponctuelle sans rigidité "
         "(capteur, demi-accouplement)."
