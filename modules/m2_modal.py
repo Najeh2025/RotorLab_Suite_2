@@ -76,10 +76,13 @@ def _render_settings_m2(rotor):
         '<div class="rl-section-header">▼ Options d\'affichage</div>',
         unsafe_allow_html=True
     )
-    n_modes_disp = st.slider(
-        "Nombre de modes à afficher",
-        1, 12, 6,
-        key="m2_nmodes"
+    n_modes_disp = st.number_input(
+    "Nombre de modes à afficher",
+    min_value=1,
+    max_value=12,
+    value=6,
+    step=1,
+    key="m2_nmodes"
     )
 
     # Lancement des calculs
