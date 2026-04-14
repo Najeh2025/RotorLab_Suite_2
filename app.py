@@ -137,6 +137,18 @@ def _cb_tree(node_id, module):
     st.session_state["active_node"]   = node_id
     st.session_state["active_module"] = module
 
+    # Mise à jour directe du sélecteur d'onglet M1
+    # (st.radio ignore index= si la clé existe déjà en session)
+    _node_to_tab = {
+        "material"  : "🧱 Matériau",
+        "parameters": "🧱 Matériau",
+        "shaft"     : "📏 Arbre",
+        "disks"     : "💿 Disques",
+        "bearings"  : "⚙️ Paliers",
+    }
+    if node_id in _node_to_tab:
+        st.session_state["m1_tab_selector"] = _node_to_tab[node_id]
+
 def _cb_load_compressor():
     if not ROSS_AVAILABLE:
         add_log("ROSS non disponible", "err")
