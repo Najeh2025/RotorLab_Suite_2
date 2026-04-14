@@ -53,14 +53,14 @@ def _render_settings_m2(rotor):
         '<div class="rl-section-header">▼ Analyse modale</div>',
         unsafe_allow_html=True
     )
-    speed_rpm = st.slider(
+    speed_rpm = st.number_input(
     "Vitesse de rotation (RPM)",
     min_value=0,
     max_value=15000,
     value=0,
-    step=10,          # 🔹 Incrémentation par pas de 10
+    step=10,
     key="m2_speed"
-)
+    )
     st.caption(
         "Ω = {:.1f} rad/s".format(speed_rpm * np.pi / 30)
     )
