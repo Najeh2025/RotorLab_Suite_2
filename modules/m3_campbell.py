@@ -57,10 +57,13 @@ def _render_settings(rotor):
             value=3000.0, step=100.0,
             key="m3_op_rpm"
         )
-        st.slider(
-            "Vitesse maximale d'analyse (RPM)",
-            2000, 30000, 10000, step=500,
-            key="m3_vmax"
+        vmax_analyse = st.number_input(
+        "Vitesse maximale d'analyse (RPM)",
+        min_value=2000,
+        max_value=30000,
+        value=10000,
+        step=500,
+        key="m3_vmax"
         )
         st.slider(
             "Résolution (points de calcul)",
