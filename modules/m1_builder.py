@@ -237,7 +237,7 @@ def _render_tab_bearing():
         '<div class="rl-section-header">⚙️ Paliers & Joints</div>',
         unsafe_allow_html=True
     )
-    c_pre, _ = st.columns([3, 5])
+    #c_pre, _ = st.columns([3, 5])
     with c_pre:
         preset = st.selectbox(
             "Preset :",
