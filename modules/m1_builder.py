@@ -106,24 +106,46 @@ def _render_settings(active_node: str):
 
     st.markdown("---")
 
-            # ── Mapping nœud actif → onglet à afficher ────────────────────────────
-            # Chaque item du menu gauche pointe vers un onglet précis de M1
+    # ── Mapping nœud actif → onglet à afficher ────────────────────────────
+    # Chaque item du menu gauche pointe vers un onglet précis de M1
+    _node_to_tab = {
+        "material"  : "🧱 Matériau",
+        "parameters": "🧱 Matériau",
+        "shaft"     : "📏 Arbre",
+        "disks"     : "💿 Disques",
+        "bearings"  : "⚙️ Paliers",
+    }
+    TAB_LABELS = ["🧱 Matériau", "📏 Arbre", "💿 Disques", "⚙️ Paliers"]
+    default_tab = _node_to_tab.get(active_node, "🧱 Matériau")
 
-        # ── Rendu direct selon la session — aucun sélecteur visible ──────────
-        _label_to_render = {
-                        "🧱 Matériau" : _render_tab_material,
-                        "📏 Arbre"    : _render_tab_shaft,
-                        "💿 Disques"  : _render_tab_disk,
-                        "⚙️ Paliers"  : _render_tab_bearing,
-                    }
-        current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
-        _label_to_render.get(current, _render_tab_material)()
-                
-        st.markdown("---")
-            
-        # ── Bouton Assembler ──────────────────────────────────────────────────
-        if st.button("🚀 Assembler le rotor", type="primary",
-                             key="m1_build", use_container_width=True):
+    # Sélecteur d'onglet — piloté automatiquement par le menu gauche
+    # et modifiable manuellement par l'utilisateur
+    selected = st.radio(
+        "",
+        TAB_LABELS,
+        index=TAB_LABELS.index(default_tab),
+        horizontal=True,
+        key="m1_tab_selector",
+        label_visibility="collapsed"
+    )
+
+    st.markdown("---")
+
+    # ── Rendu de la section sélectionnée ──────────────────────────────────
+    if selected == "🧱 Matériau":
+        _render_tab_material()
+    elif selected == "📏 Arbre":
+        _render_tab_shaft()
+    elif selected == "💿 Disques":
+        _render_tab_disk()
+    elif selected == "⚙️ Paliers":
+        _render_tab_bearing()
+
+    st.markdown("---")
+
+    # ── Bouton Assembler ──────────────────────────────────────────────────
+    if st.button("🚀 Assembler le rotor", type="primary",
+                 key="m1_build", use_container_width=True):
         _assemble_rotor()
 
 
