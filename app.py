@@ -442,59 +442,52 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
+    # 1. CSS simplifié pour les couleurs de fond uniquement 
+    # On crée des classes CSS personnalisées pour éviter de dépendre du DOM de Streamlit
     st.markdown("""
     <style>
-    /* Espace entre les colonnes */
-    div[data-testid="stHorizontalBlock"] {
-        align-items: stretch;
-        gap: 0.8rem;
-    }
-
-    /* Style commun aux 3 panneaux */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-        border: 1px solid #D0D8E4;
-        border-radius: 10px;
-        min-height: 76vh;
-        padding: 10px;
-    }
-
-    /* Panneau gauche */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(1) {
-        background-color: #F2F5F9;
-    }
-
-    /* Panneau central */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(2) {
-        background-color: #FFFFFF;
-        box-shadow: 0 1px 6px rgba(31,92,139,0.07);
-    }
-
-    /* Panneau droit */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(3) {
-        background-color: #FAFBFD;
-    }
-
-    /* Le bloc interne prend toute la hauteur */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
-        height: 100%;
+    .col-bg-grey { background-color: #F2F5F9; border-radius: 10px; padding: 10px; height: 100%; }
+    .col-bg-white { background-color: #FFFFFF; border-radius: 10px; padding: 10px; height: 100%; }
+    .col-bg-light { background-color: #FAFBFD; border-radius: 10px; padding: 10px; height: 100%; }
+    .col-bg-white { 
+        background-color: #FFFFFF; 
+        border-radius: 10px; 
+        padding: 10px; 
+        height: 100%; 
+        box-shadow: 0 1px 6px rgba(31,92,139,0.07); 
     }
     </style>
     """, unsafe_allow_html=True)
 
-    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5], gap="medium")
+    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
 
     with col_tree:
-        render_model_tree()
+        # Utilisation du container natif pour la bordure
+        with st.container(border=True):
+            st.markdown('<div class="col-bg-grey">', unsafe_allow_html=True)
+            render_model_tree()
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    module_id = st.session_state.get("active_module")
-    node_id   = st.session_state.get("active_node")
+    module_id = st.session_state["active_module"]
+    node_id   = st.session_state["active_node"]
 
-    if module_id is None or node_id is None:
-        with col_settings:
-            st.info("Sélectionnez un module et un nœud.")
-        return
+    # Pour les deux autres colonnes, on passe les containers à la fonction de routage
+    with col_settings:
+        with st.container(border=True):
+            st.markdown('<div class="col-bg-white">', unsafe_allow_html=True)
+            # On crée un sous-container pour que route_to_module écrive dedans
+            container_settings = st.container() 
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    route_to_module(module_id, node_id, col_settings, col_graphics)
+    with col_graphics:
+        with st.container(border=True):
+            st.markdown('<div class="col-bg-light">', unsafe_allow_html=True)
+            container_graphics = st.container()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # On appelle le routage en passant les containers internes
+    route_to_module(module_id, node_id, container_settings, container_graphics)
+
 
 def render_dashboard():
     st.markdown("""
