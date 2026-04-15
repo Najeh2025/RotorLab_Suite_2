@@ -439,55 +439,45 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
-    # ── 1. CSS propre ciblant uniquement les zones de contenu ─────────────
+    # ── Séparateurs visuels entre les 3 panneaux ──────────────────────────
     st.markdown("""
     <style>
-    .rl-panel {
-        border-radius: 8px;
-        padding: 14px;
-        min-height: 78vh;
-        box-sizing: border-box;
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1)
+        > [data-testid="stVerticalBlock"] > div:first-child {
+        background    : #F2F5F9;
+        border        : 1px solid #D0D8E4;
+        border-radius : 10px;
+        padding       : 8px;
+        min-height    : 76vh;
     }
-    .rl-col-tree {
-        background: #F0F4F8;
-        border-right: 4px solid #1F5C8B;
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2)
+        > [data-testid="stVerticalBlock"] > div:first-child {
+        background    : #FFFFFF;
+        border        : 1px solid #D0D8E4;
+        border-radius : 10px;
+        padding       : 12px;
+        min-height    : 76vh;
+        box-shadow    : 0 1px 6px rgba(31,92,139,0.07);
     }
-    .rl-col-set {
-        background: #FFFFFF;
-        border-right: 4px solid #C55A11;
-    }
-    .rl-col-graph {
-        background: #FAFBFC;
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3)
+        > [data-testid="stVerticalBlock"] > div:first-child {
+        background    : #FAFBFD;
+        border        : 1px solid #D0D8E4;
+        border-radius : 10px;
+        padding       : 10px;
+        min-height    : 76vh;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # ── 2. Structure des 3 colonnes ──────────────────────────────────────
     col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
-
-    # ── 3. Injection des panneaux visuels ────────────────────────────────
     with col_tree:
-        st.markdown('<div class="rl-panel rl-col-tree">', unsafe_allow_html=True)
         render_model_tree()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col_settings:
-        st.markdown('<div class="rl-panel rl-col-set">', unsafe_allow_html=True)
-        # Le contenu de route_to_module sera injecté ICI, à l'intérieur du div stylisé
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col_graphics:
-        st.markdown('<div class="rl-panel rl-col-graph">', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── 4. Routage sécurisé (reste à l'extérieur pour respecter le contexte)
-    module_id = st.session_state.get("active_module", "m1_builder")
-    node_id   = st.session_state.get("active_node", 0)
-    
-    # ⚠️ Important : On passe les colonnes, mais comme nous sommes toujours 
-    # dans les blocs `with col_...:`, le rendu de route_to_module apparaîtra 
-    # naturellement ENTRE les balises <div> ouvrantes et fermantes.
+    module_id = st.session_state["active_module"]
+    node_id   = st.session_state["active_node"]
     route_to_module(module_id, node_id, col_settings, col_graphics)
+
+
 def render_dashboard():
     st.markdown("""
     <div style="text-align:center;padding:20px 0 30px;">
