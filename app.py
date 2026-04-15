@@ -439,42 +439,45 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
-    # ── Séparateurs visuels entre les 3 panneaux ──────────────────────────
+    # ── 1. CSS pur ciblant la structure native des colonnes ───────────────
     st.markdown("""
     <style>
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #F2F5F9;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 8px;
-        min-height    : 76vh;
+    /* Colonne 1 : Arborescence */
+    div[data-testid="column"]:nth-of-type(1) {
+        background: #F0F4F8 !important;
+        border-right: 4px solid #1F5C8B !important;
+        border-radius: 0 8px 8px 0 !important;
+        padding: 12px !important;
+        min-height: 80vh !important;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FFFFFF;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 12px;
-        min-height    : 76vh;
-        box-shadow    : 0 1px 6px rgba(31,92,139,0.07);
+    /* Colonne 2 : Paramètres */
+    div[data-testid="column"]:nth-of-type(2) {
+        background: #FFFFFF !important;
+        border-right: 4px solid #C55A11 !important;
+        border-radius: 0 8px 8px 0 !important;
+        padding: 12px !important;
+        min-height: 80vh !important;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FAFBFD;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 10px;
-        min-height    : 76vh;
+    /* Colonne 3 : Graphiques */
+    div[data-testid="column"]:nth-of-type(3) {
+        background: #FAFBFC !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        min-height: 80vh !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
+    # ── 2. Création des colonnes ─────────────────────────────────────────
     col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
+
+    # ── 3. Rendu dans les colonnes ───────────────────────────────────────
     with col_tree:
         render_model_tree()
-    module_id = st.session_state["active_module"]
-    node_id   = st.session_state["active_node"]
+
+    # ── 4. Routage sécurisé (le contenu s'affichera DANS les colonnes stylisées)
+    module_id = st.session_state.get("active_module", "m1_builder")
+    node_id   = st.session_state.get("active_node", 0)
     route_to_module(module_id, node_id, col_settings, col_graphics)
 
 
