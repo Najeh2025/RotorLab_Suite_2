@@ -442,42 +442,58 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
-    # ── Séparateurs visuels entre les 3 panneaux ──────────────────────────
     st.markdown("""
     <style>
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #F2F5F9;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 8px;
-        min-height    : 76vh;
+    /* Espace entre les colonnes */
+    div[data-testid="stHorizontalBlock"] {
+        align-items: stretch;
+        gap: 0.8rem;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FFFFFF;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 12px;
-        min-height    : 76vh;
-        box-shadow    : 0 1px 6px rgba(31,92,139,0.07);
+
+    /* Style commun aux 3 panneaux */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        border: 1px solid #D0D8E4;
+        border-radius: 10px;
+        min-height: 76vh;
+        padding: 10px;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FAFBFD;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 10px;
-        min-height    : 76vh;
+
+    /* Panneau gauche */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(1) {
+        background-color: #F2F5F9;
+    }
+
+    /* Panneau central */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(2) {
+        background-color: #FFFFFF;
+        box-shadow: 0 1px 6px rgba(31,92,139,0.07);
+    }
+
+    /* Panneau droit */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(3) {
+        background-color: #FAFBFD;
+    }
+
+    /* Le bloc interne prend toute la hauteur */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
+        height: 100%;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
+    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5], gap="medium")
+
     with col_tree:
         render_model_tree()
-    module_id = st.session_state["active_module"]
-    node_id   = st.session_state["active_node"]
+
+    module_id = st.session_state.get("active_module")
+    node_id   = st.session_state.get("active_node")
+
+    if module_id is None or node_id is None:
+        with col_settings:
+            st.info("Sélectionnez un module et un nœud.")
+        return
+
     route_to_module(module_id, node_id, col_settings, col_graphics)
 
 def render_dashboard():
