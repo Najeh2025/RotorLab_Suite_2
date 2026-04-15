@@ -9,7 +9,10 @@ import pandas as pd
 from pathlib import Path
 
 from config import APP_NAME, APP_VERSION, APP_AUTHOR, APP_INST, MODEL_TREE
+# En haut du fichier
+from simulation_layout import render_simulation_mode  # ← remplace l'ancienne
 
+# Rien d'autre à changer — route_to_module et render_model_tree restent inchangés
 try:
     import ross as rs
     ROSS_AVAILABLE = True
@@ -438,44 +441,9 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # =============================================================================
 # MODES
 # =============================================================================
-def render_simulation_mode():
-    # ── Séparateurs visuels entre les 3 panneaux ──────────────────────────
-    st.markdown("""
-    <style>
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #F2F5F9;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 8px;
-        min-height    : 76vh;
-    }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FFFFFF;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 12px;
-        min-height    : 76vh;
-        box-shadow    : 0 1px 6px rgba(31,92,139,0.07);
-    }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FAFBFD;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 10px;
-        min-height    : 76vh;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# def render_simulation_mode():
 
-    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
-    with col_tree:
-        render_model_tree()
-    module_id = st.session_state["active_module"]
-    node_id   = st.session_state["active_node"]
-    route_to_module(module_id, node_id, col_settings, col_graphics)
+# on place ici la fonction render_simulation_mode() si ça pas marché
 
 def render_dashboard():
     st.markdown("""
