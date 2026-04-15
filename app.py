@@ -439,43 +439,58 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
-    # ── Séparateurs visuels entre les 3 panneaux ──────────────────────────
+    # CSS stable avec classes personnalisées
     st.markdown("""
     <style>
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #F2F5F9;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 8px;
-        min-height    : 76vh;
+    .rl-col-wrapper {
+        border-radius: 8px;
+        padding: 12px;
+        margin: 4px;
+        min-height: 70vh;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FFFFFF;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 12px;
-        min-height    : 76vh;
-        box-shadow    : 0 1px 6px rgba(31,92,139,0.07);
+    .rl-col-tree {
+        background: #f0f4f8;
+        border: 2px solid #d1d9e6;
+        border-right: 3px solid #1f5c8b;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3)
-        > [data-testid="stVerticalBlock"] > div:first-child {
-        background    : #FAFBFD;
-        border        : 1px solid #D0D8E4;
-        border-radius : 10px;
-        padding       : 10px;
-        min-height    : 76vh;
+    .rl-col-settings {
+        background: #ffffff;
+        border: 2px solid #d1d9e6;
+        border-left: 1px solid #e8eef5;
+        border-right: 3px solid #c55a11;
+    }
+    .rl-col-graphics {
+        background: #fafbfc;
+        border: 2px solid #d1d9e6;
+        border-left: 1px solid #e8eef5;
     }
     </style>
     """, unsafe_allow_html=True)
-
+    
     col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
+    
+    # Colonne 1
     with col_tree:
+        st.markdown('<div class="rl-col-wrapper rl-col-tree">', unsafe_allow_html=True)
         render_model_tree()
-    module_id = st.session_state["active_module"]
-    node_id   = st.session_state["active_node"]
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Colonne 2
+    with col_settings:
+        st.markdown('<div class="rl-col-wrapper rl-col-settings">', unsafe_allow_html=True)
+    
+    # Colonne 3
+    with col_graphics:
+        st.markdown('<div class="rl-col-wrapper rl-col-graphics">', unsafe_allow_html=True)
+    
+    # Routage
+    module_id = st.session_state.get("active_module", "m1_builder")
+    node_id = st.session_state.get("active_node", 0)
     route_to_module(module_id, node_id, col_settings, col_graphics)
+    
+    # Fermeture des divs
+    st.markdown('</div>', unsafe_allow_html=True)  # col_settings
+    st.markdown('</div>', unsafe_allow_html=True)  # col_graphics
 
 
 def render_dashboard():
