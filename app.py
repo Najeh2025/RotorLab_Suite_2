@@ -10,7 +10,7 @@ from pathlib import Path
 
 from config import APP_NAME, APP_VERSION, APP_AUTHOR, APP_INST, MODEL_TREE
 # En haut du fichier
-from simulation_layout import render_simulation_mode  # ← remplace l'ancienne
+#from simulation_layout import render_simulation_mode  # ← remplace l'ancienne
 
 # Rien d'autre à changer — route_to_module et render_model_tree restent inchangés
 try:
@@ -441,9 +441,13 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # =============================================================================
 # MODES
 # =============================================================================
-# def render_simulation_mode():
-
-# on place ici la fonction render_simulation_mode() si ça pas marché
+def render_simulation_mode():
+    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
+    with col_tree:
+        render_model_tree()
+    module_id = st.session_state["active_module"]
+    node_id   = st.session_state["active_node"]
+    route_to_module(module_id, node_id, col_settings, col_graphics)
 
 def render_dashboard():
     st.markdown("""
