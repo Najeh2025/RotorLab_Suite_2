@@ -439,59 +439,54 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
-    # CSS stable avec classes personnalisées
+    # ── 1. Injection CSS pour la séparation visuelle ───────────────────────
     st.markdown("""
     <style>
-    .rl-col-wrapper {
+    /* Colonne 1 : Arborescence (Fond Bleu-Gris + Bordure Droite Bleue) */
+    div[data-testid="column"]:nth-child(1) div[data-testid="stVerticalBlock"] {
+        background-color: #F0F4F8 !important;
+        border-right: 4px solid #1F5C8B !important;
+        border-radius: 0 8px 8px 0;
+        padding: 12px !important;
+        min-height: 80vh;
+    }
+
+    /* Colonne 2 : Paramètres (Fond Blanc + Bordure Droite Orange) */
+    div[data-testid="column"]:nth-child(2) div[data-testid="stVerticalBlock"] {
+        background-color: #FFFFFF !important;
+        border-right: 4px solid #C55A11 !important;
+        border-radius: 0 8px 8px 0;
+        padding: 12px !important;
+        min-height: 80vh;
+    }
+
+    /* Colonne 3 : Graphiques (Fond Gris Très Clair) */
+    div[data-testid="column"]:nth-child(3) div[data-testid="stVerticalBlock"] {
+        background-color: #FAFBFC !important;
         border-radius: 8px;
-        padding: 12px;
-        margin: 4px;
-        min-height: 70vh;
-    }
-    .rl-col-tree {
-        background: #f0f4f8;
-        border: 2px solid #d1d9e6;
-        border-right: 3px solid #1f5c8b;
-    }
-    .rl-col-settings {
-        background: #ffffff;
-        border: 2px solid #d1d9e6;
-        border-left: 1px solid #e8eef5;
-        border-right: 3px solid #c55a11;
-    }
-    .rl-col-graphics {
-        background: #fafbfc;
-        border: 2px solid #d1d9e6;
-        border-left: 1px solid #e8eef5;
+        padding: 12px !important;
+        min-height: 80vh;
     }
     </style>
     """, unsafe_allow_html=True)
-    
-    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
-    
-    # Colonne 1
-    with col_tree:
-        st.markdown('<div class="rl-col-wrapper rl-col-tree">', unsafe_allow_html=True)
-        render_model_tree()
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Colonne 2
-    with col_settings:
-        st.markdown('<div class="rl-col-wrapper rl-col-settings">', unsafe_allow_html=True)
-    
-    # Colonne 3
-    with col_graphics:
-        st.markdown('<div class="rl-col-wrapper rl-col-graphics">', unsafe_allow_html=True)
-    
-    # Routage
-    module_id = st.session_state.get("active_module", "m1_builder")
-    node_id = st.session_state.get("active_node", 0)
-    route_to_module(module_id, node_id, col_settings, col_graphics)
-    
-    # Fermeture des divs
-    st.markdown('</div>', unsafe_allow_html=True)  # col_settings
-    st.markdown('</div>', unsafe_allow_html=True)  # col_graphics
 
+    # ── 2. Structure des Colonnes ─────────────────────────────────────────
+    # Ratios 1.5 : 2 : 3.5 pour respecter vos proportions
+    col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
+
+    # ── 3. Contenu des Colonnes ───────────────────────────────────────────
+    with col_tree:
+        render_model_tree()
+
+    # ── 4. Routage Sécurisé ───────────────────────────────────────────────
+    # Utilisation de .get() pour éviter les erreurs si la session est vide
+    module_id = st.session_state.get("active_module", "m1_builder")
+    node_id   = st.session_state.get("active_node", 0)
+    
+    # L'appel à route_to_module va injecter le contenu dans col_settings 
+    # et col_graphics selon le module actif. Le CSS appliqué ci-dessus 
+    # stylisera automatiquement ces colonnes.
+    route_to_module(module_id, node_id, col_settings, col_graphics)
 
 def render_dashboard():
     st.markdown("""
