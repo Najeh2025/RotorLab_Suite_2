@@ -442,209 +442,247 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 # =============================================================================
-# simulation_layout.py — Mode Simulation : Mise en page 3 panneaux
-# RotorLab Suite 2.0 — À coller dans app.py en remplacement de
-# render_simulation_mode() et de _inject_simulation_css() (si existant).
+# simulation_layout.py — Mode Simulation corrigé
+# Les div HTML n'encapsulent PAS les widgets Streamlit → on cible les colonnes
+# directement par CSS data-testid, et on ajoute les en-têtes séparément.
 # =============================================================================
 
 import streamlit as st
 
 
 # =============================================================================
-# CSS — Panneaux avec séparateurs + en-têtes de panneau
+# CSS — Styler les colonnes Streamlit via data-testid (sans wrappers HTML)
 # =============================================================================
 def _inject_simulation_panel_css():
     st.markdown("""
-<style>
-/* ─── Variables de thème ────────────────────────────────────────────────── */
-:root {
-  --panel-bg-tree:      #0F1923;
-  --panel-bg-settings:  #F7F9FC;
-  --panel-bg-graphics:  #FFFFFF;
-  --panel-border:       #1F5C8B;
-  --sep-color:          #1F5C8B;
-  --sep-glow:           rgba(31,92,139,.35);
-  --header-bg-tree:     #1F5C8B;
-  --header-bg-settings: #153F62;
-  --header-bg-graphics: #22863A;
-  --header-text:        #FFFFFF;
-  --panel-radius:       10px;
-  --panel-shadow:       0 4px 20px rgba(0,0,0,.12);
-}
+    <style>
 
-/* ─── Conteneur flex 3 colonnes ─────────────────────────────────────────── */
-.sim-panels-wrap {
-  display: flex;
-  gap: 0;
-  width: 100%;
-  min-height: 82vh;
-  border: 1.5px solid #D1DCE8;
-  border-radius: var(--panel-radius);
-  overflow: hidden;
-  box-shadow: var(--panel-shadow);
-}
+    /* ── Cibler les 5 colonnes du layout simulation ─────────────────────
+       col_tree=0, col_sep1=1, col_settings=2, col_sep2=3, col_graphics=4  */
 
-/* ─── Panneau générique ──────────────────────────────────────────────────── */
-.sim-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: 82vh;
-  overflow: hidden;
-}
-.sim-panel-tree     { flex: 0 0 18%; background: var(--panel-bg-tree); }
-.sim-panel-settings { flex: 0 0 27%; background: var(--panel-bg-settings); }
-.sim-panel-graphics { flex: 1 1 55%;  background: var(--panel-bg-graphics); }
+    /* --- Colonne ARBRE (index 0) ---------------------------------------- */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(1)
+        > div[data-testid="stVerticalBlock"] {
+        background      : #0F1923;
+        border-radius   : 10px 0 0 10px;
+        min-height      : 80vh;
+        padding         : 0 6px 16px 6px;
+        border-right    : none;
+    }
+    /* Texte clair dans panneau arbre */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(1)
+        div[data-testid="stMarkdownContainer"] p,
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(1)
+        div[data-testid="stMarkdownContainer"] span {
+        color : #CBD5E0 !important;
+    }
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(1)
+        button[kind="secondary"] {
+        background  : rgba(31,92,139,.30) !important;
+        color       : #E2EAF4 !important;
+        border      : 1px solid rgba(31,92,139,.55) !important;
+        font-size   : .78em !important;
+        border-radius: 5px !important;
+    }
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(1)
+        button[kind="secondary"]:hover {
+        background   : rgba(31,92,139,.60) !important;
+        border-color : #93C5FD !important;
+        color        : white !important;
+    }
 
-/* ─── Séparateurs entre panneaux ────────────────────────────────────────── */
-.sim-sep {
-  width: 4px;
-  min-height: 82vh;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    var(--sep-color) 15%,
-    var(--sep-color) 85%,
-    transparent 100%
-  );
-  box-shadow: 0 0 10px var(--sep-glow);
-  flex-shrink: 0;
-  position: relative;
-  cursor: col-resize;
-}
-/* Petits tirets décoratifs sur le séparateur */
-.sim-sep::before,
-.sim-sep::after {
-  content: "⋮";
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--sep-color);
-  font-size: 14px;
-  opacity: .6;
-  letter-spacing: -2px;
-}
-.sim-sep::before { top: 42%; }
-.sim-sep::after  { top: 52%; }
+    /* --- Colonne SÉPARATEUR 1 (index 2 → nth-child(2)) ------------------ */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(2)
+        > div[data-testid="stVerticalBlock"] {
+        background : linear-gradient(
+            180deg,
+            transparent 0%,
+            #1F5C8B 10%,
+            #1F5C8B 90%,
+            transparent 100%
+        );
+        min-height  : 80vh;
+        width       : 4px !important;
+        padding     : 0 !important;
+        box-shadow  : 0 0 12px rgba(31,92,139,.40);
+    }
 
-/* ─── En-tête de chaque panneau ─────────────────────────────────────────── */
-.sim-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
-  background: var(--hbg, #1F5C8B);
-  color: var(--header-text);
-  font-size: .80em;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  border-bottom: 2px solid rgba(255,255,255,.12);
-  flex-shrink: 0;
-  user-select: none;
-}
-.sim-panel-header .ph-icon { font-size: 1.1em; opacity: .85; }
-.sim-panel-header .ph-badge {
-  margin-left: auto;
-  background: rgba(255,255,255,.18);
-  border-radius: 99px;
-  padding: 2px 8px;
-  font-size: .75em;
-  font-weight: 600;
-}
+    /* --- Colonne PARAMÈTRES (index 3 → nth-child(3)) -------------------- */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(3)
+        > div[data-testid="stVerticalBlock"] {
+        background    : #F7F9FC;
+        min-height    : 80vh;
+        padding       : 0 10px 16px 10px;
+        border-left   : none;
+        border-right  : none;
+    }
 
-/* ─── Corps scrollable de chaque panneau ───────────────────────────────── */
-.sim-panel-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 10px 10px 16px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--sep-color) transparent;
-}
-.sim-panel-body::-webkit-scrollbar       { width: 5px; }
-.sim-panel-body::-webkit-scrollbar-thumb { background: var(--sep-color); border-radius: 4px; }
+    /* --- Colonne SÉPARATEUR 2 (index 4 → nth-child(4)) ------------------ */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(4)
+        > div[data-testid="stVerticalBlock"] {
+        background : linear-gradient(
+            180deg,
+            transparent 0%,
+            #22863A 10%,
+            #22863A 90%,
+            transparent 100%
+        );
+        min-height  : 80vh;
+        width       : 4px !important;
+        padding     : 0 !important;
+        box-shadow  : 0 0 12px rgba(34,134,58,.35);
+    }
 
-/* ─── Titre en pied de panneau (optionnel) ──────────────────────────────── */
-.sim-panel-footer {
-  padding: 6px 12px;
-  background: rgba(0,0,0,.04);
-  border-top: 1px solid #D1DCE8;
-  font-size: .72em;
-  color: #8A9BB0;
-  flex-shrink: 0;
-}
+    /* --- Colonne GRAPHIQUES (index 5 → nth-child(5)) -------------------- */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(5)
+        > div[data-testid="stVerticalBlock"] {
+        background    : #FFFFFF;
+        border-radius : 0 10px 10px 0;
+        min-height    : 80vh;
+        padding       : 0 10px 16px 10px;
+        box-shadow    : 2px 0 18px rgba(0,0,0,.06) inset;
+    }
 
-/* ─── Texte clair sur fond sombre (panneau arbre) ───────────────────────── */
-.sim-panel-tree .sim-panel-body * { color: #CBD5E0 !important; }
-.sim-panel-tree .sim-panel-body .stMarkdown h3,
-.sim-panel-tree .sim-panel-body .stMarkdown h4 {
-  color: #93C5FD !important;
-  font-size: .82em !important;
-  margin-top: 10px !important;
-}
-.sim-panel-tree .sim-panel-body .stButton > button {
-  background: rgba(31,92,139,.35) !important;
-  color: #E2EAF4 !important;
-  border: 1px solid rgba(31,92,139,.6) !important;
-  font-size: .78em !important;
-  padding: 3px 8px !important;
-  width: 100% !important;
-  text-align: left !important;
-  border-radius: 5px !important;
-}
-.sim-panel-tree .sim-panel-body .stButton > button:hover {
-  background: rgba(31,92,139,.65) !important;
-  border-color: #1F5C8B !important;
-}
-/* Sélecteur actif dans l'arbre */
-.sim-panel-tree .sim-panel-body .stButton > button[kind="primary"] {
-  background: #1F5C8B !important;
-  border-color: #93C5FD !important;
-  color: white !important;
-}
+    /* --- Bordure globale autour du bloc 5 colonnes ---------------------- */
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"] {
+        border        : 1.5px solid #1F5C8B;
+        border-radius : 10px;
+        overflow      : hidden;
+        box-shadow    : 0 4px 24px rgba(0,0,0,.10);
+        gap           : 0 !important;
+    }
 
-/* ─── Panneau réglages ──────────────────────────────────────────────────── */
-.sim-panel-settings .sim-panel-body .stSlider,
-.sim-panel-settings .sim-panel-body .stNumberInput,
-.sim-panel-settings .sim-panel-body .stSelectbox {
-  font-size: .88em;
-}
+    /* ── En-têtes de panneaux ─────────────────────────────────────────── */
+    .ph {
+        display        : flex;
+        align-items    : center;
+        gap            : 8px;
+        padding        : 8px 14px;
+        font-size      : .78em;
+        font-weight    : 700;
+        letter-spacing : .07em;
+        text-transform : uppercase;
+        color          : #fff;
+        margin         : -1px -6px 10px -6px;   /* déborde du padding colonne */
+        border-bottom  : 2px solid rgba(255,255,255,.15);
+    }
+    .ph-tree     { background : #0F2D4A; }
+    .ph-settings { background : #153F62; }
+    .ph-graphics { background : #1A5C3A; }
+    .ph-badge {
+        margin-left    : auto;
+        background     : rgba(255,255,255,.18);
+        border-radius  : 99px;
+        padding        : 2px 9px;
+        font-size      : .78em;
+        font-weight    : 600;
+        letter-spacing : 0;
+    }
 
-/* ─── Animation d'entrée des panneaux ──────────────────────────────────── */
-@keyframes panelFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.sim-panel {
-  animation: panelFadeIn .3s ease both;
-}
-.sim-panel-tree     { animation-delay: .00s; }
-.sim-panel-settings { animation-delay: .06s; }
-.sim-panel-graphics { animation-delay: .12s; }
+    /* ── Rail chariot ──────────────────────────────────────────────────── */
+    .sim-rail {
+        display         : flex;
+        justify-content : center;
+        align-items     : center;
+        gap             : 8px;
+        padding         : 6px 0 3px;
+        background      : #EEF2F7;
+        border-top      : 1px solid #D1DCE8;
+        border-radius   : 0 0 10px 10px;
+        margin-top      : 6px;
+    }
+    .sim-rail-item {
+        display     : flex;
+        align-items : center;
+        gap         : 5px;
+        font-size   : .70em;
+        color       : #8A9BB0;
+    }
+    .sim-rail-dot {
+        width         : 32px;
+        height        : 5px;
+        border-radius : 99px;
+        background    : #CBD5E0;
+    }
+    .sim-rail-dot.t { background : #0F2D4A; }
+    .sim-rail-dot.s { background : #153F62; }
+    .sim-rail-dot.g { background : #1A5C3A; }
 
-/* ─── Chariot (rail indicators en bas) ─────────────────────────────────── */
-.sim-rail {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 0 2px;
-  background: #F0F4FA;
-  border-top: 1px solid #D1DCE8;
-}
-.sim-rail-dot {
-  width: 28px; height: 4px;
-  border-radius: 99px;
-  background: #CBD5E0;
-  transition: background .2s, width .2s;
-}
-.sim-rail-dot.active { background: #1F5C8B; width: 42px; }
-</style>
-""", unsafe_allow_html=True)
+    /* ── Topbar ────────────────────────────────────────────────────────── */
+    .sim-topbar {
+        display         : flex;
+        justify-content : space-between;
+        align-items     : center;
+        background      : linear-gradient(90deg, #0F1923 0%, #153F62 100%);
+        padding         : 8px 18px;
+        border-radius   : 10px 10px 0 0;
+        border          : 1.5px solid #1F5C8B;
+        border-bottom   : 2px solid #1F5C8B;
+        margin-bottom   : -2px;
+    }
+    .sim-topbar-left  { display:flex; align-items:center; gap:8px; }
+    .sim-topbar-title { font-weight:800; font-size:.85em; letter-spacing:.06em;
+                        color:#E2EAF4; text-transform:uppercase; }
+    .sim-topbar-sep   { color:#4A6584; }
+    .sim-topbar-mod   { background:#1F5C8B; color:white; font-size:.78em;
+                        font-weight:700; padding:2px 10px; border-radius:99px; }
+    .sim-tab-row      { display:flex; gap:4px; }
+    .sim-tab {
+        color       : #8FAFC8;
+        font-size   : .73em;
+        font-weight : 600;
+        padding     : 3px 9px;
+        border-radius: 5px;
+        border      : 1px solid transparent;
+        cursor      : default;
+    }
+    .sim-tab.on { background:#1F5C8B; color:white; border-color:#93C5FD; }
+
+    /* ── Animation d'entrée ───────────────────────────────────────────── */
+    @keyframes fadeUp {
+        from { opacity:0; transform:translateY(8px); }
+        to   { opacity:1; transform:translateY(0);   }
+    }
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"] {
+        animation : fadeUp .35s ease both;
+    }
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(1) { animation-delay:.00s; }
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(3) { animation-delay:.07s; }
+    section[data-testid="stMain"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]:nth-child(5) { animation-delay:.14s; }
+
+    </style>
+    """, unsafe_allow_html=True)
 
 
 # =============================================================================
-# FONCTION PRINCIPALE — remplace render_simulation_mode()
+# FONCTION PRINCIPALE — render_simulation_mode()
 # =============================================================================
 def render_simulation_mode():
     _inject_simulation_panel_css()
@@ -652,202 +690,106 @@ def render_simulation_mode():
     module_id = st.session_state.get("active_module", "M1")
     node_id   = st.session_state.get("active_node",   "shaft")
 
-    # ── Barre de titre global (au-dessus des 3 panneaux) ─────────────────
-    _render_simulation_topbar(module_id)
+    MODULES_INFO = {
+        "M1": ("⚙️",  "Constructeur",    "#153F62"),
+        "M2": ("📊",  "Statique & Modal","#1A5C3A"),
+        "M3": ("📈",  "Campbell + UCS",  "#6B2D0F"),
+        "M4": ("🌀",  "Balourd",         "#4A1F6B"),
+        "M5": ("💧",  "Paliers HD",      "#004D40"),
+        "M6": ("⏱️",  "Temporel",        "#4A3500"),
+        "M7": ("🔧",  "Défauts",         "#1A237E"),
+        "M8": ("⚙️",  "MultiRotor",      "#3E1F00"),
+        "M9": ("📄",  "Rapport",         "#212121"),
+        "AI": ("✨",  "Copilot",         "#1F3A5C"),
+    }
+    icon, label, color = MODULES_INFO.get(module_id, ("🔧", module_id, "#1F5C8B"))
 
-    # ── Les 3 colonnes Streamlit ─────────────────────────────────────────
+    # ── Topbar ──────────────────────────────────────────────────────────
+    tabs_html = "".join(
+        '<span class="sim-tab{}">{} {}</span>'.format(
+            " on" if mid == module_id else "",
+            MODULES_INFO.get(mid, ("🔧",""))[0], mid
+        )
+        for mid in ["M1","M2","M3","M4","M5","M6","M7","M8","M9","AI"]
+    )
+    st.markdown("""
+    <div class="sim-topbar">
+      <div class="sim-topbar-left">
+        <span style="color:#93C5FD;font-size:1.1em;">⚙</span>
+        <span class="sim-topbar-title">Mode Simulation</span>
+        <span class="sim-topbar-sep">›</span>
+        <span class="sim-topbar-mod">{module_id}</span>
+        <span style="color:#6B8AAA;font-size:.82em;margin-left:4px;">{label}</span>
+      </div>
+      <div class="sim-tab-row">{tabs}</div>
+    </div>
+    """.format(module_id=module_id, label=label, tabs=tabs_html),
+    unsafe_allow_html=True)
+
+    # ── 5 colonnes : tree | sep | settings | sep | graphics ─────────────
     col_tree, col_sep1, col_settings, col_sep2, col_graphics = st.columns(
         [1.5, 0.04, 2.1, 0.04, 3.9]
     )
 
-    # ══ PANNEAU 1 — Arbre de modèle ══════════════════════════════════════
+    # ══ PANNEAU 1 — ARBRE ════════════════════════════════════════════════
     with col_tree:
-        st.markdown("""
-        <div class="sim-panel sim-panel-tree">
-          <div class="sim-panel-header" style="--hbg:#0F2D4A;">
-            <span class="ph-icon">🌳</span>
-            Arbre de modèle
-            <span class="ph-badge">M1</span>
-          </div>
-          <div class="sim-panel-body" id="panel-tree-body">
-        """, unsafe_allow_html=True)
-
+        # En-tête uniquement (pas de div wrapper autour des widgets)
+        st.markdown(
+            '<div class="ph ph-tree">'
+            '<span>🌳</span> Arbre de modèle'
+            '<span class="ph-badge">M1</span></div>',
+            unsafe_allow_html=True
+        )
         render_model_tree()
 
-        st.markdown("""
-          </div>
-          <div class="sim-panel-footer">Cliquez sur un nœud pour le sélectionner</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ══ SÉPARATEUR 1 ══════════════════════════════════════════════════════
+    # ══ SEP 1 ════════════════════════════════════════════════════════════
     with col_sep1:
-        st.markdown("""
-        <div class="sim-sep" title="Glisser pour redimensionner"></div>
-        """, unsafe_allow_html=True)
+        st.markdown("&nbsp;", unsafe_allow_html=True)   # force la colonne à exister
 
-    # ══ PANNEAU 2 — Paramètres / Réglages ════════════════════════════════
+    # ══ PANNEAU 2 — PARAMÈTRES ═══════════════════════════════════════════
     with col_settings:
-        MODULE_LABELS = {
-            "M1": ("⚙️", "Constructeur", "#153F62"),
-            "M2": ("📊", "Statique & Modal", "#1A5C3A"),
-            "M3": ("📈", "Campbell & UCS",  "#6B2D0F"),
-            "M4": ("🌀", "Balourd & H(jω)", "#4A1F6B"),
-            "M5": ("💧", "Paliers HD",       "#004D40"),
-            "M6": ("🔄", "Torsionnel",       "#5D2A0C"),
-            "M7": ("⚡", "Transitoire",      "#1A237E"),
-            "M8": ("🔗", "MultiRotor",       "#3E1F00"),
-            "M9": ("📋", "Rapport",          "#212121"),
-        }
-        icon, label, color = MODULE_LABELS.get(module_id, ("🔧", module_id, "#1F5C8B"))
-
-        st.markdown(f"""
-        <div class="sim-panel sim-panel-settings">
-          <div class="sim-panel-header" style="--hbg:{color};">
-            <span class="ph-icon">{icon}</span>
-            Paramètres — {label}
-            <span class="ph-badge">{module_id}</span>
-          </div>
-          <div class="sim-panel-body" id="panel-settings-body">
-        """, unsafe_allow_html=True)
-
-        # Appel du module : col_settings reçoit les widgets de réglage
+        st.markdown(
+            '<div class="ph ph-settings">'
+            '<span>{icon}</span> Paramètres — {label}'
+            '<span class="ph-badge">{mid}</span></div>'.format(
+                icon=icon, label=label, mid=module_id
+            ),
+            unsafe_allow_html=True
+        )
+        # route_to_module gère lui-même les with col_settings / col_graphics
         route_to_module(module_id, node_id, col_settings, col_graphics)
 
-        st.markdown("""
-          </div>
-          <div class="sim-panel-footer">Modifiez les paramètres puis relancez la simulation</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ══ SÉPARATEUR 2 ══════════════════════════════════════════════════════
+    # ══ SEP 2 ════════════════════════════════════════════════════════════
     with col_sep2:
-        st.markdown("""
-        <div class="sim-sep" title="Glisser pour redimensionner"></div>
-        """, unsafe_allow_html=True)
+        st.markdown("&nbsp;", unsafe_allow_html=True)
 
-    # ══ PANNEAU 3 — Graphiques / Résultats ═══════════════════════════════
+    # ══ PANNEAU 3 — GRAPHIQUES ═══════════════════════════════════════════
     with col_graphics:
-        st.markdown(f"""
-        <div class="sim-panel sim-panel-graphics">
-          <div class="sim-panel-header" style="--hbg:#1A5C3A;">
-            <span class="ph-icon">📉</span>
-            Résultats & Graphiques
-            <span class="ph-badge">{module_id} · {node_id}</span>
-          </div>
-          <div class="sim-panel-body" id="panel-graphics-body">
-        """, unsafe_allow_html=True)
+        st.markdown(
+            '<div class="ph ph-graphics">'
+            '📉 Résultats &amp; Graphiques'
+            '<span class="ph-badge">{mid} · {node}</span></div>'.format(
+                mid=module_id, node=node_id
+            ),
+            unsafe_allow_html=True
+        )
+        # Le contenu est injecté par route_to_module ci-dessus via col_graphics
 
-        # Le contenu graphique est injecté par route_to_module via col_graphics
-        # (déjà appelé dans col_settings ci-dessus)
-
-        st.markdown("""
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ══ RAIL / CHARIOT en pied de page ═══════════════════════════════════
-    _render_simulation_rail(module_id)
-
-
-# =============================================================================
-# BARRE DE TITRE GLOBALE (au-dessus des 3 panneaux)
-# =============================================================================
-def _render_simulation_topbar(module_id):
-    MODULES_ORDER = ["M1","M2","M3","M4","M5","M6","M7","M8","M9"]
-    MODULES_INFO  = {
-        "M1": ("⚙️", "Constructeur"),
-        "M2": ("📊", "Modal"),
-        "M3": ("📈", "Campbell"),
-        "M4": ("🌀", "Balourd"),
-        "M5": ("💧", "Paliers HD"),
-        "M6": ("🔄", "Torsionnel"),
-        "M7": ("⚡", "Transitoire"),
-        "M8": ("🔗", "MultiRotor"),
-        "M9": ("📋", "Rapport"),
-    }
-
-    tabs_html = ""
-    for mid in MODULES_ORDER:
-        icon, lbl = MODULES_INFO.get(mid, ("🔧", mid))
-        active_cls = "sim-tab-active" if mid == module_id else ""
-        tabs_html += f"""
-        <span class="sim-tab {active_cls}" onclick="
-          // Streamlit ne supporte pas le click JS direct —
-          // utilisez les boutons Streamlit ci-dessous
-        " title="{lbl}">{icon} {mid}</span>"""
-
-    st.markdown(f"""
-    <div class="sim-topbar">
-      <div class="sim-topbar-left">
-        <span class="sim-topbar-icon">⚙</span>
-        <span class="sim-topbar-title">Mode Simulation</span>
-        <span class="sim-topbar-sep">›</span>
-        <span class="sim-topbar-active">{module_id}</span>
+    # ══ RAIL CHARIOT ═════════════════════════════════════════════════════
+    st.markdown("""
+    <div class="sim-rail">
+      <div class="sim-rail-item">
+        <div class="sim-rail-dot t"></div>
+        <span>🌳 Arbre</span>
       </div>
-      <div class="sim-topbar-tabs">{tabs_html}</div>
-    </div>
-    <style>
-    .sim-topbar {{
-      display:flex; justify-content:space-between; align-items:center;
-      background: linear-gradient(90deg, #0F1923 0%, #153F62 100%);
-      padding: 8px 16px; border-radius: 10px 10px 0 0;
-      margin-bottom: 0; border-bottom: 2px solid #1F5C8B;
-    }}
-    .sim-topbar-left   {{ display:flex; align-items:center; gap:8px; color:#CBD5E0; }}
-    .sim-topbar-icon   {{ font-size:1.1em; color:#93C5FD; }}
-    .sim-topbar-title  {{ font-weight:700; font-size:.85em; letter-spacing:.05em; color:#E2EAF4; text-transform:uppercase; }}
-    .sim-topbar-sep    {{ color:#4A6584; font-size:.9em; }}
-    .sim-topbar-active {{ background:#1F5C8B; color:white; font-size:.78em; font-weight:700;
-                          padding:2px 10px; border-radius:99px; }}
-    .sim-topbar-tabs   {{ display:flex; gap:4px; flex-wrap:wrap; }}
-    .sim-tab {{
-      color:#8FAFC8; font-size:.74em; font-weight:600; padding:3px 9px;
-      border-radius:5px; cursor:pointer; transition:all .15s;
-      border: 1px solid transparent;
-    }}
-    .sim-tab:hover      {{ background:rgba(31,92,139,.3); color:white; }}
-    .sim-tab-active     {{ background:#1F5C8B; color:white !important;
-                           border-color:#93C5FD; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Navigation rapide entre modules (boutons Streamlit réels)
-    with st.expander("🗂️ Navigation rapide entre modules", expanded=False):
-        cols = st.columns(len(MODULES_ORDER))
-        for i, mid in enumerate(MODULES_ORDER):
-            with cols[i]:
-                icon, lbl = MODULES_INFO[mid]
-                btn_type = "primary" if mid == module_id else "secondary"
-                if st.button(f"{icon}\n{mid}", key=f"topnav_{mid}",
-                             type=btn_type, use_container_width=True):
-                    st.session_state["active_module"] = mid
-                    st.session_state["active_node"]   = "default"
-                    st.rerun()
-
-
-# =============================================================================
-# CHARIOT (rail indicateur en pied de page)
-# =============================================================================
-def _render_simulation_rail(module_id):
-    PANELS = [
-        ("🌳", "Arbre",        "active"),
-        ("⚙️", "Paramètres",  "active"),
-        ("📉", "Résultats",    "active"),
-    ]
-    dots = "".join(
-        f'<div class="sim-rail-dot active" title="{lbl}"></div>'
-        for _, lbl, _ in PANELS
-    )
-    labels = "".join(
-        f'<span style="font-size:.68em;color:#8A9BB0;padding:0 8px;">{icon} {lbl}</span>'
-        for icon, lbl, _ in PANELS
-    )
-    st.markdown(f"""
-    <div style="background:#F0F4FA;border:1px solid #D1DCE8;border-top:none;
-                border-radius:0 0 10px 10px;padding:6px 0 4px;">
-      <div style="display:flex;justify-content:center;gap:6px;">{dots}</div>
-      <div style="display:flex;justify-content:center;gap:0;margin-top:3px;">{labels}</div>
+      <div class="sim-rail-item">
+        <div class="sim-rail-dot s"></div>
+        <span>⚙️ Paramètres</span>
+      </div>
+      <div class="sim-rail-item">
+        <div class="sim-rail-dot g"></div>
+        <span>📉 Résultats</span>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 # ==============================================================================
