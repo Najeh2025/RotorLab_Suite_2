@@ -442,6 +442,37 @@ def route_to_module(module_id, node_id, col_settings, col_graphics):
 # MODES
 # =============================================================================
 def render_simulation_mode():
+    # ── Séparateurs visuels entre les 3 panneaux ──────────────────────────
+    st.markdown("""
+    <style>
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1)
+        > [data-testid="stVerticalBlock"] > div:first-child {
+        background    : #F2F5F9;
+        border        : 1px solid #D0D8E4;
+        border-radius : 10px;
+        padding       : 8px;
+        min-height    : 76vh;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2)
+        > [data-testid="stVerticalBlock"] > div:first-child {
+        background    : #FFFFFF;
+        border        : 1px solid #D0D8E4;
+        border-radius : 10px;
+        padding       : 12px;
+        min-height    : 76vh;
+        box-shadow    : 0 1px 6px rgba(31,92,139,0.07);
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(3)
+        > [data-testid="stVerticalBlock"] > div:first-child {
+        background    : #FAFBFD;
+        border        : 1px solid #D0D8E4;
+        border-radius : 10px;
+        padding       : 10px;
+        min-height    : 76vh;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     col_tree, col_settings, col_graphics = st.columns([1.5, 2, 3.5])
     with col_tree:
         render_model_tree()
