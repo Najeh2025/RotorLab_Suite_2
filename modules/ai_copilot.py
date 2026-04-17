@@ -712,7 +712,7 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
             elif "pro" in m and "vision" not in m:
                 model_name = m
 
-             system_prompt = (
+        system_prompt = (
                 "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
                 "rotors, mécanique vibratoire et spécialiste absolu de la "
                 "bibliothèque Python ROSS.\n\n"
@@ -738,7 +738,7 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
                 "(ex. : whirl/whip, Campbell, UCS, mode shape) quelle que soit la langue utilisée.\n\n"
                 "CONTEXTE ACTUEL DU ROTOR :\n"
                 + json.dumps(context, ensure_ascii=False, indent=2)
-            )
+        )
 
 
         model = genai.GenerativeModel(model_name)
