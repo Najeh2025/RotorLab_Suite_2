@@ -297,28 +297,30 @@ def render_model_tree():
     <style>
 
     /* ════════════════════════════════════════════════════════════════════
-       TITRES DE SECTIONS — plus grands, hiérarchie claire sur fond sombre
+       TITRES DE SECTIONS — Bleu profond et lisible
        ════════════════════════════════════════════════════════════════════ */
     .rl-tree-section {
         display        : flex;
         align-items    : center;
-        gap            : 7px;
-        padding        : 14px 12px 5px 12px;
-        font-size      : 0.72em;          /* was 0.68em */
+        gap            : 8px;
+        padding        : 12px 8px;
+        font-size      : 0.85em;
         font-weight    : 800;
-        color          : #93C5FD;         /* bleu clair lisible sur fond sombre */
+        color          : #1E3A8A;         /* Bleu foncé net */
         text-transform : uppercase;
-        letter-spacing : 0.10em;
-        border-left    : 3px solid rgba(147,197,253,0.35);
-        margin         : 4px 0 2px -1px;
+        letter-spacing : 0.08em;
+        border-left    : 4px solid #1E3A8A;
+        background     : rgba(30, 58, 138, 0.04);
+        border-radius  : 0 4px 4px 0;
+        margin         : 12px 0 8px 0;
         user-select    : none;
     }
     .rl-tree-section::before {
         content    : "";
         display    : inline-block;
-        width      : 18px;
+        width      : 0px;
         height     : 1px;
-        background : rgba(147,197,253,0.35);
+        background : transparent;
         flex-shrink: 0;
     }
 
@@ -330,34 +332,36 @@ def render_model_tree():
         > button[kind="secondary"] {
         text-align       : left           !important;
         justify-content  : flex-start     !important;
-        font-size        : 0.83em         !important;
+        font-size        : 0.90em         !important;
         font-weight      : 500            !important;
         background       : transparent    !important;
         border           : none           !important;
         border-left      : 3px solid transparent !important;
         border-radius    : 0 6px 6px 0    !important;
-        padding          : 6px 10px 6px 16px !important;
-        margin           : 1px 0          !important;
+        padding          : 10px 12px      !important;
+        margin           : 2px 0          !important;
         box-shadow       : none           !important;
-        color            : #9EB5CC        !important;
+        color            : #334155        !important; /* Gris foncé lisible */
         letter-spacing   : 0.01em         !important;
-        transition       : background 0.12s, border-color 0.12s, color 0.12s !important;
+        transition       : all 0.15s ease !important;
     }
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"]
         > button[kind="secondary"]:hover {
-        background       : rgba(147,197,253,0.10) !important;
-        border-left-color: rgba(147,197,253,0.50) !important;
-        color            : #D6E8FA               !important;
+        background       : #F1F5F9        !important; /* Gris très clair */
+        border-left-color: #3B82F6        !important; /* Bleu vif */
+        color            : #0F172A        !important; /* Presque noir */
+        transform        : translateX(2px) !important;
     }
 
     /* ════════════════════════════════════════════════════════════════════
        SÉPARATEUR INTERNE
        ════════════════════════════════════════════════════════════════════ */
     .rl-tree-sep {
-        height     : 1px;
-        background : rgba(147,197,253,0.12);
-        margin     : 10px 12px;
+        height     : 2px;
+        background : linear-gradient(90deg, rgba(30,58,138,0.2) 0%, rgba(30,58,138,0.05) 100%);
+        margin     : 16px 8px;
+        border-radius: 2px;
     }
 
     /* ════════════════════════════════════════════════════════════════════
@@ -395,18 +399,19 @@ def render_model_tree():
             new_tag   = " · NEW" if is_new else ""
 
             if is_active:
-                # Élément actif : rendu HTML (pas de bouton Streamlit)
+                # Élément actif : rendu HTML avec bleu vif
                 st.markdown(
                     '<div style="'
-                    'background   : rgba(31,92,139,0.30);'
-                    'border-left  : 3px solid #60A5FA;'
-                    'border-radius: 0 6px 6px 0;'
-                    'padding      : 6px 10px 6px 14px;'
-                    'font-size    : 0.83em;'
-                    'font-weight  : 700;'
-                    'color        : #EFF6FF;'
-                    'margin       : 1px 0;'
+                    'background   : #3B82F6;'           /* Bleu vif moderne */
+                    'color        : #FFFFFF;'            /* Texte blanc */
+                    'font-weight  : 700;'                /* Gras */
+                    'padding      : 10px 12px;'
+                    'border-radius: 6px;'
+                    'margin       : 2px 0;'
+                    'box-shadow   : 0 2px 4px rgba(59,130,246,0.3);'
+                    'font-size    : 0.90em;'
                     'letter-spacing: 0.01em;'
+                    'transition   : all 0.2s ease;'
                     '">'
                     '{icon}&nbsp;&nbsp;{label}{new}'
                     '</div>'.format(
