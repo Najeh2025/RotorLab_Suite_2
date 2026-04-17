@@ -1148,6 +1148,7 @@ def render_dashboard():
     """.format(pct=global_pct), unsafe_allow_html=True)
 
     # ── MODULES ───────────────────────────────────────────────────────────
+    # ── MODULES ───────────────────────────────────────────────────────────
     st.markdown("""
     <div class="dash-section-header">
       <span class="dash-section-title">Accès rapide aux modules</span>
@@ -1158,26 +1159,30 @@ def render_dashboard():
     modules_info = [
         ("M1", "🏗️", "Constructeur",      "Géométrie, matériaux, paliers",       "shaft",        "#1F5C8B", "#EBF4FB", False, "res_modal"),
         ("M2", "📊", "Statique & Modal",  "Déflexion, fréquences propres",       "static_modal", "#22863A", "#E8F5E9", False, "res_modal"),
-        ("M3", "📈", "Campbell + UCS",    "Stabilité, vitesses critiques",        "campbell",     "#C55A11", "#FFF3E0", False, "res_campbell"),
+        ("M3", "📈", "Campbell + UCS",    "Stabilité, vitesses critiques",       "campbell",     "#C55A11", "#FFF3E0", False, "res_campbell"),
         ("M4", "🌀", "Balourd & H(jω)",   "Bode, polaire, ISO 1940",             "unbalance",    "#7B1FA2", "#F3E5F5", False, "res_unbalance"),
-        ("M5", "💧", "Paliers HD",        "Film fluide, coefficients",            "hd_bearings",  "#00796B", "#E0F2F1", True,  None),
+        ("M5", "💧", "Paliers HD",        "Film fluide, coefficients",           "hd_bearings",  "#00796B", "#E0F2F1", True,  None),
         ("M6", "⏱️", "Temporel",          "Newmark, orbites, waterfall 3D",      "temporal",     "#F57C00", "#FFF3E0", False, "res_temporal"),
         ("M7", "🔧", "Défauts",           "Fissure, désalignement, frottement",  "faults",       "#C62828", "#FFEBEE", False, None),
         ("M8", "⚙️", "MultiRotor",        "GearElement, engrenages couplés",     "multirotor",   "#4527A0", "#EDE7F6", True,  None),
         ("M9", "📄", "Rapport PDF",       "Export complet multi-sections",       "report",       "#37474F", "#ECEFF1", False, None),
     ]
 
-    # Affichage en HTML + boutons Streamlit en dessous
-    # Affichage en HTML + boutons Streamlit en dessous
-    html_cards = '<div class="dash-module-grid">\n'
-    for mid, icon, title, desc, node, color, bg, is_new, res_key in modules_info:
-        has_result = st.session_state.get(res_key) is not None if res_key else False
-        status_cls = "done" if has_result else "none"
-        status_lbl = "Calculé" if has_result else "Non calculé"
-        new_tag    = ' <span class="dash-module-new">NEW</span>' if is_new else ""
-        
-        # Structure HTML sans indentation et avec new_tag sur la même ligne
-        html_cards += """<div class="dash-module-card">
+    # Utilisation du système de colonnes natif de Streamlit (groupées par 3)
+    for i in range(0, len(modules_info), 3):
+        cols = st.columns(3)
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx < len(modules_info):
+                mid, icon, title, desc, node, color, bg, is_new, res_key = modules_info[idx]
+                
+                has_result = st.session_state.get(res_key) is not None if res_key else False
+                status_cls = "done" if has_result else "none"
+                status_lbl = "Calculé" if has_result else "Non calculé"
+                new_tag    = ' <span class="dash-module-new">NEW</span>' if is_new else ""
+                
+                # Code HTML pour UNE SEULE carte (avec une marge basse pour espacer du bouton)
+                card_html = """<div class="dash-module-card" style="margin-bottom: 12px;">
 <div class="dash-module-card-header" style="background:{color};"></div>
 <div class="dash-module-card-body">
 <div class="dash-module-card-top">
@@ -1192,31 +1197,32 @@ def render_dashboard():
 </div>
 </div>
 """.format(
-            color=color, bg=bg, icon=icon, mid=mid,
-            new_tag=new_tag, title=title, desc=desc,
-            sc=status_cls, sl=status_lbl
-        )
-    html_cards += "</div>"
-    st.markdown(html_cards, unsafe_allow_html=True)
-
-    # Boutons Streamlit (fonctionnels) — alignés sous la grille
-    cols = st.columns(3)
-    for i, (mid, icon, title, desc, node, color, bg, is_new, _) in enumerate(modules_info):
-        with cols[i % 3]:
-            _node, _module = node, mid
-            def _make_cb(n, m):
-                def _cb():
-                    st.session_state["active_node"]   = n
-                    st.session_state["active_module"] = m
-                    st.session_state["nav_mode"]      = "simulation"
-                return _cb
-            st.button(
-                "Ouvrir {}".format(mid),
-                key="dash2_{}".format(mid),
-                use_container_width=True,
-                type="primary",
-                on_click=_make_cb(_node, _module)
-            )
+                    color=color, bg=bg, icon=icon, mid=mid,
+                    new_tag=new_tag, title=title, desc=desc,
+                    sc=status_cls, sl=status_lbl
+                )
+                
+                with col:
+                    # 1. Afficher la carte HTML
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
+                    # 2. Préparer la fonction de redirection du bouton
+                    _node, _module = node, mid
+                    def _make_cb(n, m):
+                        def _cb():
+                            st.session_state["active_node"]   = n
+                            st.session_state["active_module"] = m
+                            st.session_state["nav_mode"]      = "simulation"
+                        return _cb
+                        
+                    # 3. Afficher le bouton interactif, parfaitement aligné sous sa carte
+                    st.button(
+                        "Ouvrir {}".format(mid),
+                        key="dash2_{}".format(mid),
+                        use_container_width=True,
+                        type="primary",
+                        on_click=_make_cb(_node, _module)
+                    )
 
     # ── JOURNAL D'ACTIVITÉ ────────────────────────────────────────────────
     if logs:
