@@ -582,7 +582,7 @@ def _render_chat_area_inner():
     )
     if user_input:
         _enqueue_prompt(user_input)
-        #st.rerun()
+        st.rerun()
 
 
 # =============================================================================
