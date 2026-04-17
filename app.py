@@ -1174,23 +1174,22 @@ def render_dashboard():
         status_cls = "done" if has_result else "none"
         status_lbl = "Calculé" if has_result else "Non calculé"
         new_tag    = '<span class="dash-module-new">NEW</span>' if is_new else ""
-        html_cards += """
-        <div class="dash-module-card">
-          <div class="dash-module-card-header" style="background:{color};"></div>
-          <div class="dash-module-card-body">
-            <div class="dash-module-card-top">
-              <div class="dash-module-icon" style="background:{bg};">{icon}</div>
-              <div>
-                <span class="dash-module-id-badge" style="background:{bg};color:{color};">{mid}</span>
-                {new_tag}
-              </div>
-            </div>
-            <div class="dash-module-title">{title}</div>
-            <div class="dash-module-desc">{desc}</div>
-            <span class="dash-module-status {sc}">{sl}</span>
-          </div>
-        </div>
-        """.format(
+        html_cards += """<div class="dash-module-card">
+  <div class="dash-module-card-header" style="background:{color};"></div>
+  <div class="dash-module-card-body">
+    <div class="dash-module-card-top">
+      <div class="dash-module-icon" style="background:{bg};">{icon}</div>
+      <div>
+        <span class="dash-module-id-badge" style="background:{bg};color:{color};">{mid}</span>
+        {new_tag}
+      </div>
+    </div>
+    <div class="dash-module-title">{title}</div>
+    <div class="dash-module-desc">{desc}</div>
+    <span class="dash-module-status {sc}">{sl}</span>
+  </div>
+</div>
+""".format(
             color=color, bg=bg, icon=icon, mid=mid,
             new_tag=new_tag, title=title, desc=desc,
             sc=status_cls, sl=status_lbl
