@@ -490,7 +490,7 @@ def _render_chat_area_inner():
         st.session_state["copilot_is_processing"] = False
 
         # Un seul rerun pour afficher la réponse — l'API ne sera plus appelée
-        st.rerun()
+        #st.rerun()
 
     # ── 3. Bouton Effacer ─────────────────────────────────────────────────
     col_title, col_clear = st.columns([5, 1])
@@ -582,7 +582,7 @@ def _render_chat_area_inner():
     )
     if user_input:
         _enqueue_prompt(user_input)
-        st.rerun()
+        #st.rerun()
 
 
 # =============================================================================
