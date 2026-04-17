@@ -295,7 +295,6 @@ def render_model_tree():
     # ── CSS ciblé : uniquement le panneau arbre ───────────────────────────
     st.markdown("""
     <style>
-
     /* ════════════════════════════════════════════════════════════════════
        TITRES DE SECTIONS — Bleu profond et lisible
        ════════════════════════════════════════════════════════════════════ */
@@ -306,7 +305,7 @@ def render_model_tree():
         padding        : 12px 8px;
         font-size      : 0.85em;
         font-weight    : 800;
-        color          : #1E3A8A;         /* Bleu foncé net */
+        color          : #1E3A8A;
         text-transform : uppercase;
         letter-spacing : 0.08em;
         border-left    : 4px solid #1E3A8A;
@@ -315,18 +314,10 @@ def render_model_tree():
         margin         : 12px 0 8px 0;
         user-select    : none;
     }
-    .rl-tree-section::before {
-        content    : "";
-        display    : inline-block;
-        width      : 0px;
-        height     : 1px;
-        background : transparent;
-        flex-shrink: 0;
-    }
 
     /* ════════════════════════════════════════════════════════════════════
        ITEMS — boutons secondaires dans le panneau arbre
-       ════════════════════════════════════════════════════════════════════ */
+       ═══════════════════════════════════════════════════════════════════ */
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"]
         > button[kind="secondary"] {
@@ -341,16 +332,16 @@ def render_model_tree():
         padding          : 10px 12px      !important;
         margin           : 2px 0          !important;
         box-shadow       : none           !important;
-        color            : #334155        !important; /* Gris foncé lisible */
+        color            : #334155        !important;
         letter-spacing   : 0.01em         !important;
         transition       : all 0.15s ease !important;
     }
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"]
         > button[kind="secondary"]:hover {
-        background       : #F1F5F9        !important; /* Gris très clair */
-        border-left-color: #3B82F6        !important; /* Bleu vif */
-        color            : #0F172A        !important; /* Presque noir */
+        background       : #F1F5F9        !important;
+        border-left-color: #3B82F6        !important;
+        color            : #0F172A        !important;
         transform        : translateX(2px) !important;
     }
 
@@ -363,33 +354,13 @@ def render_model_tree():
         margin     : 16px 8px;
         border-radius: 2px;
     }
-
-    /* ════════════════════════════════════════════════════════════════════
-       BOUTON RESET — en bas du panneau
-       ════════════════════════════════════════════════════════════════════ */
-    .rl-tree-reset-wrap {
-        padding    : 8px 10px 12px;
-        margin-top : 6px;
-    }
-
     </style>
     """, unsafe_allow_html=True)
-
-    # ── Mapping node → onglet M1 ──────────────────────────────────────────
-    _node_to_tab = {
-        "material"  : "🧱 Matériau",
-        "parameters": "🧱 Matériau",
-        "shaft"     : "📏 Arbre",
-        "disks"     : "💿 Disques",
-        "bearings"  : "⚙️ Paliers",
-    }
 
     # ── Rendu de l'arbre ──────────────────────────────────────────────────
     for section in MODEL_TREE:
         st.markdown(
-            '<div class="rl-tree-section">{label}</div>'.format(
-                label=section["label"]
-            ),
+            f'<div class="rl-tree-section">{section["label"]}</div>',
             unsafe_allow_html=True,
         )
 
@@ -399,41 +370,28 @@ def render_model_tree():
             new_tag   = " · NEW" if is_new else ""
 
             if is_active:
-                # Élément actif : rendu HTML avec bleu vif
+                # Élément actif : rendu HTML avec bleu vif (f-string sécurisé)
                 st.markdown(
-                    '<div style="'
-                    'background   : #3B82F6;'           /* Bleu vif moderne */
-                    'color        : #FFFFFF;'            /* Texte blanc */
-                    'font-weight  : 700;'                /* Gras */
-                    'padding      : 10px 12px;'
-                    'border-radius: 6px;'
-                    'margin       : 2px 0;'
-                    'box-shadow   : 0 2px 4px rgba(59,130,246,0.3);'
-                    'font-size    : 0.90em;'
-                    'letter-spacing: 0.01em;'
-                    'transition   : all 0.2s ease;'
-                    '">'
-                    '{icon}&nbsp;&nbsp;{label}{new}'
-                    '</div>'.format(
-                        icon=item["icon"],
-                        label=item["label"],
-                        new=new_tag,
-                    ),
+                    f'<div style="'
+                    f'background: #3B82F6;'
+                    f'color: #FFFFFF;'
+                    f'font-weight: 700;'
+                    f'padding: 10px 12px;'
+                    f'border-radius: 6px;'
+                    f'margin: 2px 0;'
+                    f'box-shadow: 0 2px 4px rgba(59,130,246,0.3);'
+                    f'font-size: 0.90em;'
+                    f'letter-spacing: 0.01em;'
+                    f'">{item["icon"]}&nbsp;&nbsp;{item["label"]}{new_tag}</div>',
                     unsafe_allow_html=True,
                 )
             else:
-                node_id = item["id"]
-                module  = item["module"]
                 st.button(
-                    "{icon}  {label}{new}".format(
-                        icon=item["icon"],
-                        label=item["label"],
-                        new=new_tag,
-                    ),
-                    key="tree_{}".format(item["id"]),
+                    f"{item['icon']}  {item['label']}{new_tag}",
+                    key=f"tree_{item['id']}",
                     use_container_width=True,
                     on_click=_cb_tree,
-                    args=(node_id, module),
+                    args=(item["id"], item["module"]),
                 )
 
     # ── Séparateur + Bouton Réinitialiser ─────────────────────────────────
