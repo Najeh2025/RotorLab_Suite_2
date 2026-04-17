@@ -1,10 +1,6 @@
-# modules/ai_copilot.py — SmartRotor Copilot v2.1
+# modules/ai_copilot.py — SmartRotor Copilot v2.2
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
-# Corrections v2.1 :
-#   - Gestion clé API Gemini via interface
-#   - Zone de saisie toujours visible
-#   - Bouton Effacer fonctionnel
-#   - Persistance de l'historique entre les modes
+# Redesign v2.2 : interface cohérente avec Mode Simulation & Mode Pédagogique
 # =============================================================================
 
 import streamlit as st
@@ -17,19 +13,236 @@ try:
 except ImportError:
     GEMINI_OK = False
 
+# =============================================================================
+# CSS GLOBAL DU COPILOT
+# =============================================================================
+_COPILOT_CSS = """
+<style>
+/* ── Hero Copilot ────────────────────────────────────────────────────── */
+.cop-hero {
+    background: linear-gradient(135deg, #0F1923 0%, #153F62 55%, #1F5C8B 100%);
+    border-radius: 12px 12px 0 0;
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1.5px solid rgba(31,92,139,0.5);
+    border-bottom: none;
+}
+.cop-hero-left { display: flex; align-items: center; gap: 14px; }
+.cop-hero-orb {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #1F5C8B 0%, #7B1FA2 100%);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3em;
+    box-shadow: 0 0 18px rgba(123,31,162,0.35);
+    flex-shrink: 0;
+}
+.cop-hero-title { color: #FFFFFF; font-weight: 800; font-size: 1.05em; letter-spacing: -0.2px; }
+.cop-hero-sub   { color: rgba(255,255,255,0.55); font-size: 0.78em; margin-top: 2px; }
+.cop-hero-tags  { display: flex; gap: 6px; flex-wrap: wrap; }
+.cop-hero-tag {
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.75);
+    font-size: 0.70em; font-weight: 600;
+    padding: 3px 9px; border-radius: 99px;
+    letter-spacing: 0.03em;
+}
+.cop-hero-tag.active { background: rgba(34,134,58,0.3); border-color: rgba(34,134,58,0.6); color: #7FE5A0; }
+.cop-hero-tag.warn   { background: rgba(245,124,0,0.25); border-color: rgba(245,124,0,0.5);   color: #FFB74D; }
+.cop-hero-tag.err    { background: rgba(192,0,0,0.25);   border-color: rgba(192,0,0,0.5);     color: #FF8F8F; }
+
+/* ── Panneau Config ──────────────────────────────────────────────────── */
+.cop-config-wrap {
+    background: #F7F9FC;
+    border: 1.5px solid #D0D8E4;
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+.cop-config-header {
+    background: #153F62;
+    color: #FFFFFF;
+    padding: 9px 14px;
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.cop-config-body { padding: 12px 14px; }
+.cop-key-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.80em;
+    font-weight: 600;
+    margin-top: 8px;
+}
+.cop-key-status.ok  { background: #E8F5E9; color: #1B5E20; border: 1px solid #A5D6A7; }
+.cop-key-status.off { background: #FFF8E1; color: #E65100; border: 1px solid #FFCC80; }
+.cop-key-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cop-key-dot.ok  { background: #22863A; }
+.cop-key-dot.off { background: #F57C00; }
+
+/* ── Contexte rotor ──────────────────────────────────────────────────── */
+.cop-ctx-wrap {
+    background: #FFFFFF;
+    border: 1.5px solid #D0D8E4;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+.cop-ctx-header {
+    background: linear-gradient(90deg, #0F2D4A, #1F5C8B);
+    color: #FFFFFF;
+    padding: 8px 14px;
+    font-size: 0.76em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.cop-ctx-body { padding: 10px 12px; }
+.cop-ctx-row  { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #F0F4FF; font-size: 0.80em; }
+.cop-ctx-row:last-child { border-bottom: none; }
+.cop-ctx-label { color: #6B7280; }
+.cop-ctx-val   { font-weight: 700; color: #1A1A2E; }
+.cop-ctx-val.ok   { color: #22863A; }
+.cop-ctx-val.err  { color: #C00000; }
+.cop-ctx-val.warn { color: #C55A11; }
+
+/* ── Mode infos ──────────────────────────────────────────────────────── */
+.cop-mode-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 99px;
+    font-size: 0.72em; font-weight: 700;
+}
+.cop-mode-pill.ok  { background: #E8F5E9; color: #1B5E20; border: 1px solid #A5D6A7; }
+.cop-mode-pill.off { background: #FFF3E0; color: #E65100; border: 1px solid #FFCC80; }
+
+/* ── Historique de chat ──────────────────────────────────────────────── */
+.cop-chat-wrap {
+    background: #FFFFFF;
+    border: 1.5px solid #D0D8E4;
+    border-radius: 0 0 12px 12px;
+    min-height: 420px;
+    border-top: 1px solid #D0D8E4;
+}
+.cop-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 30px;
+    text-align: center;
+    gap: 12px;
+}
+.cop-empty-orb {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, #EBF4FB, #E3F2FD);
+    border: 2px solid #B5D4F4;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8em;
+    margin-bottom: 4px;
+}
+.cop-empty-title { font-size: 1.0em; font-weight: 700; color: #1F5C8B; }
+.cop-empty-sub   { font-size: 0.82em; color: #9CA3AF; line-height: 1.5; max-width: 300px; }
+
+/* ── Questions rapides ───────────────────────────────────────────────── */
+.cop-qp-section-title {
+    font-size: 0.76em;
+    font-weight: 700;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+.cop-qp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.cop-qp-btn {
+    background: #F7F9FC;
+    border: 1px solid #D0D8E4;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 0.76em;
+    color: #374151;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+}
+.cop-qp-btn:hover {
+    background: #EBF4FB;
+    border-color: #B5D4F4;
+    color: #1F5C8B;
+}
+.cop-qp-dot {
+    width: 6px; height: 6px;
+    background: #1F5C8B;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+/* ── Stats conversation ──────────────────────────────────────────────── */
+.cop-stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #F7F9FC;
+    border: 1px solid #D0D8E4;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+.cop-stat-item { text-align: center; }
+.cop-stat-num  { font-size: 1.1em; font-weight: 800; color: #1F5C8B; line-height: 1; }
+.cop-stat-lbl  { font-size: 0.66em; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; }
+.cop-stat-sep  { width: 1px; height: 28px; background: #D0D8E4; }
+
+/* ── Modes propres dans contexte ─────────────────────────────────────── */
+.cop-mode-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 0.78em;
+    border-bottom: 1px solid #F0F4FF;
+}
+.cop-mode-row:last-child { border-bottom: none; }
+.cop-mode-fn  { font-weight: 700; color: #1A1A2E; }
+.cop-mode-ld  { color: #6B7280; }
+.cop-mode-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cop-mode-dot.ok   { background: #22863A; }
+.cop-mode-dot.warn { background: #C55A11; }
+.cop-mode-dot.err  { background: #C00000; }
+</style>
+"""
 
 # =============================================================================
-# INITIALISATION DE L'ÉTAT — appelée au démarrage
+# INITIALISATION
 # =============================================================================
 def _init_copilot_state():
-    """Initialise les clés de session dédiées au Copilot (une seule fois)."""
     if "copilot_chat_history" not in st.session_state:
         st.session_state["copilot_chat_history"] = []
     if "copilot_api_key" not in st.session_state:
-        # Tenter de lire depuis st.secrets si disponible
         try:
-            st.session_state["copilot_api_key"] = st.secrets.get(
-                "GEMINI_API_KEY", "")
+            st.session_state["copilot_api_key"] = st.secrets.get("GEMINI_API_KEY", "")
         except Exception:
             st.session_state["copilot_api_key"] = ""
     if "copilot_clear_requested" not in st.session_state:
@@ -42,256 +255,338 @@ def _init_copilot_state():
 # POINTS D'ENTRÉE
 # =============================================================================
 def render_copilot(col_settings, col_graphics):
-    """Copilot intégré dans le layout 3 panneaux (Mode Simulation)."""
     _init_copilot_state()
     with col_settings:
-        st.markdown(
-            '<div class="rl-settings-title">✨ SmartRotor Copilot</div>',
-            unsafe_allow_html=True)
+        st.markdown(_COPILOT_CSS, unsafe_allow_html=True)
         _render_settings_panel()
     with col_graphics:
         _render_chat_area()
 
 
 def render_copilot_fullscreen():
-    """Copilot en mode plein écran (onglet dédié)."""
     _init_copilot_state()
-    col1, col2 = st.columns([1, 3])
+    st.markdown(_COPILOT_CSS, unsafe_allow_html=True)
+
+    # Hero pleine largeur
+    _render_cop_hero()
+
+    col1, col2 = st.columns([1, 2.8])
     with col1:
-        st.markdown("### ⚙️ Configuration")
-        _render_settings_panel()
+        _render_settings_panel(compact=False)
     with col2:
-        _render_chat_area()
+        _render_chat_area_inner()
 
 
 # =============================================================================
-# PANNEAU SETTINGS — Configuration + Contexte
+# HERO COPILOT
 # =============================================================================
-def _render_settings_panel():
-    """Panneau gauche : clé API, contexte rotor, actions."""
+def _render_cop_hero():
+    api_key  = st.session_state.get("copilot_api_key", "")
+    rotor    = st.session_state.get("rotor")
+    n_msgs   = len(st.session_state.get("copilot_chat_history", []))
 
-    # ── 1. GESTION CLÉ API ────────────────────────────────────────────────
-    st.markdown(
-        '<div class="rl-section-header">🔑 Clé API Gemini</div>',
-        unsafe_allow_html=True)
+    tag_gemini = ("active", "Gemini IA actif") if (GEMINI_OK and api_key) else \
+                 ("warn",   "Mode hors-ligne") if GEMINI_OK else \
+                 ("err",    "Gemini absent")
+    tag_ross   = ("active", "ROSS OK") if True else ("err", "ROSS absent")
+    tag_rotor  = ("active", "{} nœuds".format(len(rotor.nodes))) if rotor else ("warn", "Sans rotor")
 
-    current_key = st.session_state.get("copilot_api_key", "")
-    key_preview = ("●" * 8 + current_key[-4:]) if len(current_key) > 4 else ""
+    tags_html = ""
+    for cls, lbl in [tag_gemini, tag_ross, tag_rotor,
+                     ("", "{} messages".format(n_msgs))]:
+        tags_html += '<span class="cop-hero-tag {}">{}</span>'.format(cls, lbl)
 
+    st.markdown("""
+    <div class="cop-hero">
+      <div class="cop-hero-left">
+        <div class="cop-hero-orb">✨</div>
+        <div>
+          <div class="cop-hero-title">SmartRotor Copilot</div>
+          <div class="cop-hero-sub">Assistant IA spécialisé en dynamique des rotors · Powered by Gemini</div>
+        </div>
+      </div>
+      <div class="cop-hero-tags">{tags}</div>
+    </div>
+    """.format(tags=tags_html), unsafe_allow_html=True)
+
+
+# =============================================================================
+# PANNEAU SETTINGS
+# =============================================================================
+def _render_settings_panel(compact=True):
+    if not compact:
+        _render_cop_hero()
+
+    # ── Configuration clé API ─────────────────────────────────────────────
+    st.markdown("""
+    <div class="cop-config-wrap">
+      <div class="cop-config-header">🔑 Configuration Gemini</div>
+      <div class="cop-config-body">
+    """, unsafe_allow_html=True)
+
+    api_key = st.session_state.get("copilot_api_key", "")
     new_key = st.text_input(
-        "Clé API Google Gemini :",
+        "Clé API Google Gemini",
         value="",
         type="password",
         placeholder="AIza...",
-        help="Obtenez votre clé sur https://aistudio.google.com/apikey",
-        key="copilot_key_input"
+        help="https://aistudio.google.com/apikey — gratuit",
+        key="copilot_key_input",
+        label_visibility="collapsed"
     )
 
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("✅ Valider", key="copilot_key_save",
-                     use_container_width=True):
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Valider la clé", key="copilot_key_save", use_container_width=True, type="primary"):
             if new_key.strip():
                 st.session_state["copilot_api_key"] = new_key.strip()
                 st.success("Clé sauvegardée !")
             else:
-                st.warning("Saisissez une clé valide.")
-    with col_btn2:
-        if st.button("🗑️ Effacer", key="copilot_key_clear",
-                     use_container_width=True):
+                st.warning("Saisissez une clé.")
+    with c2:
+        if st.button("Effacer", key="copilot_key_clear", use_container_width=True):
             st.session_state["copilot_api_key"] = ""
             st.info("Clé supprimée.")
 
-    # Indicateur de statut
-    api_key = st.session_state.get("copilot_api_key", "")
-    if api_key:
-        st.markdown(
-            '<div class="rl-card-ok"><small>🟢 Clé configurée : '
-            '<code>{}...{}</code></small></div>'.format(
-                api_key[:4], api_key[-4:] if len(api_key) > 8 else "****"),
-            unsafe_allow_html=True)
-    else:
-        st.markdown(
-            '<div class="rl-card-warn"><small>🟡 Aucune clé — '
-            'mode hors-ligne actif</small></div>',
-            unsafe_allow_html=True)
-
-    if not GEMINI_OK:
-        st.markdown(
-            '<div class="rl-card-danger"><small>❌ google-generativeai '
-            'non installé</small></div>',
-            unsafe_allow_html=True)
+    # Statut clé
+    if api_key and GEMINI_OK:
+        st.markdown("""
+        <div class="cop-key-status ok">
+          <div class="cop-key-dot ok"></div>
+          Connecté · {}...{}
+        </div>
+        """.format(api_key[:4], api_key[-4:]), unsafe_allow_html=True)
+    elif not GEMINI_OK:
+        st.markdown("""
+        <div class="cop-key-status off">
+          <div class="cop-key-dot off"></div>
+          google-generativeai non installé
+        </div>
+        """, unsafe_allow_html=True)
         st.code("pip install google-generativeai", language="bash")
+    else:
+        st.markdown("""
+        <div class="cop-key-status off">
+          <div class="cop-key-dot off"></div>
+          Sans clé — mode hors-ligne actif
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-    # ── 2. CONTEXTE ROTOR ─────────────────────────────────────────────────
-    st.markdown(
-        '<div class="rl-section-header">🔩 Contexte du rotor</div>',
-        unsafe_allow_html=True)
-
+    # ── Contexte rotor ────────────────────────────────────────────────────
     context = _build_context()
     rotor   = st.session_state.get("rotor")
 
-    if rotor:
-        st.success("{} nœuds · {:.2f} kg · {} DDL".format(
-            context.get("n_nodes"),
-            context.get("mass_kg"),
-            context.get("ndof")))
-    else:
-        st.warning("Aucun rotor chargé.")
+    st.markdown("""
+    <div class="cop-ctx-wrap">
+      <div class="cop-ctx-header">🔩 Contexte du rotor actif</div>
+      <div class="cop-ctx-body">
+    """, unsafe_allow_html=True)
 
-    modal = st.session_state.get("res_modal")
-    if modal and context.get("modal"):
+    if rotor:
+        st.markdown("""
+        <div class="cop-ctx-row">
+          <span class="cop-ctx-label">Nœuds / DDL</span>
+          <span class="cop-ctx-val ok">{nn} / {ndof}</span>
+        </div>
+        <div class="cop-ctx-row">
+          <span class="cop-ctx-label">Masse totale</span>
+          <span class="cop-ctx-val">{m:.2f} kg</span>
+        </div>
+        """.format(
+            nn=context.get("n_nodes","—"),
+            ndof=context.get("ndof","—"),
+            m=context.get("mass_kg",0)
+        ), unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="cop-ctx-row">
+          <span class="cop-ctx-label">Rotor</span>
+          <span class="cop-ctx-val err">Non chargé</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Modes propres si disponibles
+    if context.get("modal"):
         fn_list = context["modal"]["fn_hz"]
         ld_list = context["modal"]["log_dec"]
-        n_inst  = context["modal"]["n_instable"]
-        for i, (f, ld) in enumerate(zip(fn_list, ld_list)):
-            if ld <= 0:
-                st.markdown("- M{} : {:.2f} Hz · δ={:.4f} **⚠️ INST.**".format(
-                    i+1, f, ld))
-            elif ld < 0.1:
-                st.markdown("- M{} : {:.2f} Hz · δ={:.4f} 🟡".format(
-                    i+1, f, ld))
-            else:
-                st.markdown("- M{} : {:.2f} Hz · δ={:.4f} 🟢".format(
-                    i+1, f, ld))
-        if n_inst > 0:
-            st.error("⚠️ {} mode(s) INSTABLE(S) !".format(n_inst))
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
+        st.markdown("""
+        <div class="cop-ctx-wrap" style="margin-top:10px;">
+          <div class="cop-ctx-header" style="background:linear-gradient(90deg,#1A5C3A,#22863A);">📊 Modes propres</div>
+          <div class="cop-ctx-body">
+        """, unsafe_allow_html=True)
+
+        mode_rows = ""
+        for i, (f, ld) in enumerate(zip(fn_list, ld_list)):
+            dot_cls = "err" if ld <= 0 else "warn" if ld < 0.1 else "ok"
+            mode_rows += """
+            <div class="cop-mode-row">
+              <span style="color:#6B7280;font-size:0.75em;">M{i}</span>
+              <span class="cop-mode-fn">{f:.2f} Hz</span>
+              <span class="cop-mode-ld">δ={ld:.4f}</span>
+              <div class="cop-mode-dot {cls}"></div>
+            </div>
+            """.format(i=i+1, f=f, ld=ld, cls=dot_cls)
+        st.markdown(mode_rows, unsafe_allow_html=True)
+
+        n_inst = context["modal"]["n_instable"]
+        if n_inst > 0:
+            st.markdown("</div></div>", unsafe_allow_html=True)
+            st.error("⚠️ {} mode(s) INSTABLE(S) détecté(s) !".format(n_inst))
+        else:
+            st.markdown("</div></div>", unsafe_allow_html=True)
+    else:
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+    # API 684
     if context.get("api684"):
         score = context["api684"]["score"]
-        color = "#22863A" if score >= 100 else \
-                "#C55A11" if score >= 67 else "#C00000"
-        st.markdown(
-            "**API 684 :** <span style='color:{};font-weight:bold;'>"
-            "{:.0f}%</span>".format(color, score),
-            unsafe_allow_html=True)
+        cls   = "ok" if score >= 80 else "warn" if score >= 50 else "off"
+        st.markdown("""
+        <div class="cop-key-status {cls}" style="margin-top:8px;">
+          <div class="cop-key-dot {cls}"></div>
+          API 684 — Score {score:.0f}%
+        </div>
+        """.format(cls=cls, score=score), unsafe_allow_html=True)
 
-    st.markdown("---")
-
-    # ── 3. STATISTIQUES CONVERSATION ──────────────────────────────────────
+    # Stats conversation
     n_msgs = len(st.session_state.get("copilot_chat_history", []))
-    n_user = sum(1 for m in st.session_state.get("copilot_chat_history", [])
-                 if m["role"] == "user")
+    n_user = sum(1 for m in st.session_state.get("copilot_chat_history", []) if m["role"] == "user")
     if n_msgs > 0:
-        st.caption("💬 {} messages · {} questions".format(n_msgs, n_user))
+        st.markdown("""
+        <div class="cop-stats-bar" style="margin-top:12px;">
+          <div class="cop-stat-item">
+            <div class="cop-stat-num">{nm}</div>
+            <div class="cop-stat-lbl">messages</div>
+          </div>
+          <div class="cop-stat-sep"></div>
+          <div class="cop-stat-item">
+            <div class="cop-stat-num">{nu}</div>
+            <div class="cop-stat-lbl">questions</div>
+          </div>
+          <div class="cop-stat-sep"></div>
+          <div class="cop-stat-item">
+            <div class="cop-stat-num">{na}</div>
+            <div class="cop-stat-lbl">réponses</div>
+          </div>
+        </div>
+        """.format(nm=n_msgs, nu=n_user, na=n_msgs-n_user), unsafe_allow_html=True)
 
-    with st.expander("📋 Contexte JSON complet"):
+    # JSON debug
+    with st.expander("Contexte JSON (debug)", expanded=False):
         st.json(context)
 
 
 # =============================================================================
-# ZONE DE CHAT PRINCIPALE
+# ZONE DE CHAT
 # =============================================================================
 def _render_chat_area():
-    """Zone de chat : questions rapides + historique + saisie permanente."""
+    """Appelé depuis le layout 3 panneaux."""
+    st.markdown(_COPILOT_CSS, unsafe_allow_html=True)
+    _render_cop_hero()
+    _render_chat_area_inner()
 
-    # ── Traitement de la demande d'effacement (callback-safe) ─────────────
+
+def _render_chat_area_inner():
+    """Corps du chat (sans hero)."""
+
+    # Effacement si demandé
     if st.session_state.get("copilot_clear_requested"):
         st.session_state["copilot_chat_history"] = []
         st.session_state["copilot_clear_requested"] = False
         st.session_state["copilot_pending_response"] = None
 
-    # ── En-tête avec bouton Effacer TOUJOURS VISIBLE ──────────────────────
-    col_title, col_clear = st.columns([4, 1])
+    # Bouton Effacer en haut à droite
+    col_title, col_clear = st.columns([5, 1])
     with col_title:
         st.markdown(
-            '<div class="rl-graphics-title">✨ SmartRotor Copilot'
-            ' — Powered by Gemini AI</div>',
+            '<div style="padding:6px 0 4px;font-size:0.82em;font-weight:700;'
+            'color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">'
+            '💬 Conversation</div>',
             unsafe_allow_html=True)
     with col_clear:
-        st.button(
-            "🗑️ Effacer",
-            key="copilot_clear_btn",
-            use_container_width=True,
-            on_click=_cb_clear_history,
-            help="Effacer tout l'historique de conversation"
-        )
+        st.button("🗑 Effacer", key="copilot_clear_btn",
+                  use_container_width=True, on_click=_cb_clear_history,
+                  help="Effacer l'historique")
 
     # ── Questions rapides ──────────────────────────────────────────────────
     with st.expander("⚡ Questions rapides", expanded=False):
+        st.markdown('<div class="cop-qp-section-title">Choisissez un sujet</div>', unsafe_allow_html=True)
         quick_prompts = [
-            "Comment créer un rotor simple avec ROSS ?",
-            "Explique le diagramme de Campbell",
-            "Pourquoi le Log Dec peut-il être négatif ?",
-            "Comment améliorer la stabilité du rotor ?",
-            "Différence entre précession avant et arrière ?",
-            "Calculer le DAF (Dynamic Amplification Factor) ?",
-            "Modéliser un défaut de fissure avec ROSS ?",
-            "Vérifier la conformité API 684 ?",
-            "Calculer le balourd toléré ISO 1940 ?",
-            "Qu'est-ce que la carte UCS Map ?",
-            "Comment fonctionne un palier hydrodynamique ?",
-            "Modéliser un MultiRotor avec GearElement ?",
+            ("⚙", "Créer un rotor avec ROSS"),
+            ("📈", "Comprendre le diagramme de Campbell"),
+            ("📊", "Interpréter le Log Décrément"),
+            ("🌀", "Analyser la réponse au balourd"),
+            ("💧", "Paliers hydrodynamiques HD"),
+            ("📜", "Vérifier la conformité API 684"),
+            ("⚙", "Modéliser un MultiRotor"),
+            ("🔧", "Simuler un défaut de fissure"),
+            ("🗺", "Qu'est-ce que la carte UCS ?"),
+            ("📐", "Calculer l'ISO 1940"),
+            ("🌊", "Comprendre l'oil whirl/whip"),
+            ("🔬", "Modes FW vs BW — différence ?"),
         ]
         cols = st.columns(2)
-        for i, qp in enumerate(quick_prompts):
+        for i, (icon, qp) in enumerate(quick_prompts):
             with cols[i % 2]:
-                if st.button(
-                        qp[:55] + ("…" if len(qp) > 55 else ""),
-                        key="qp_{}".format(i),
-                        use_container_width=True):
-                    st.session_state["copilot_chat_history"].append(
-                        {"role": "user", "content": qp})
+                lbl = qp[:42] + ("…" if len(qp) > 42 else "")
+                if st.button(lbl, key="qp_new_{}".format(i), use_container_width=True):
+                    st.session_state["copilot_chat_history"].append({"role": "user", "content": qp})
                     st.session_state["copilot_pending_response"] = qp
                     st.rerun()
 
-    # ── Traitement de la réponse en attente ───────────────────────────────
+    # ── Traitement réponse en attente ─────────────────────────────────────
     if st.session_state.get("copilot_pending_response"):
         pending = st.session_state.pop("copilot_pending_response")
         context = _build_context()
         history = st.session_state["copilot_chat_history"][:-1]
-        with st.spinner("SmartRotor Copilot réfléchit…"):
+        with st.spinner("SmartRotor Copilot analyse votre question…"):
             response = _call_gemini(pending, context, history)
-        st.session_state["copilot_chat_history"].append(
-            {"role": "assistant", "content": response})
-        st.rerun()  # ◄─── LA CORRECTION EST ICI
+        st.session_state["copilot_chat_history"].append({"role": "assistant", "content": response})
+        st.rerun()
 
-    # ── Affichage de l'historique ──────────────────────────────────────────
-    chat_container = st.container()
-    with chat_container:
-        history = st.session_state.get("copilot_chat_history", [])
-        if not history:
-            st.markdown("""
-            <div style="text-align:center;padding:40px 20px;color:#9CA3AF;">
-              <div style="font-size:2.5em;margin-bottom:12px;">✨</div>
-              <div style="font-size:1.1em;font-weight:600;color:#6B7280;">
-                SmartRotor Copilot
-              </div>
-              <div style="font-size:0.9em;margin-top:6px;">
-                Posez une question ou choisissez une question rapide ci-dessus.
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            for msg in history:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
+    # ── Historique ────────────────────────────────────────────────────────
+    history = st.session_state.get("copilot_chat_history", [])
 
-    # ── Zone de saisie — TOUJOURS VISIBLE ─────────────────────────────────
+    if not history:
+        st.markdown("""
+        <div class="cop-empty-state">
+          <div class="cop-empty-orb">✨</div>
+          <div class="cop-empty-title">SmartRotor Copilot est prêt</div>
+          <div class="cop-empty-sub">
+            Posez une question en rotordynamique, demandez du code ROSS,
+            ou choisissez une question rapide ci-dessus.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for msg in history:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+    # ── Saisie permanente ──────────────────────────────────────────────────
     user_input = st.chat_input(
-        "Posez votre question sur la dynamique des rotors…",
+        "Posez votre question en dynamique des rotors…",
         key="copilot_chat_input"
     )
-
     if user_input:
-        st.session_state["copilot_chat_history"].append(
-            {"role": "user", "content": user_input})
+        st.session_state["copilot_chat_history"].append({"role": "user", "content": user_input})
         st.session_state["copilot_pending_response"] = user_input
         st.rerun()
 
 
 # =============================================================================
-# CALLBACK — Effacer l'historique
+# CALLBACK
 # =============================================================================
 def _cb_clear_history():
-    """Callback on_click : marque la demande d'effacement pour le prochain rendu."""
     st.session_state["copilot_clear_requested"] = True
 
 
 # =============================================================================
-# CONSTRUCTION DU CONTEXTE SESSION
+# CONTEXTE SESSION
 # =============================================================================
 def _build_context():
     rotor  = st.session_state.get("rotor")
@@ -334,16 +629,13 @@ def _build_context():
 
 
 # =============================================================================
-# APPEL API GEMINI
+# APPEL GEMINI
 # =============================================================================
 def _call_gemini(user_msg, context, history):
-    """Appel à l'API Google Gemini avec clé stockée en session."""
     if not GEMINI_OK:
         return _fallback(user_msg, context)
 
     api_key = st.session_state.get("copilot_api_key", "")
-
-    # Fallback sur st.secrets si pas de clé en session
     if not api_key:
         try:
             api_key = st.secrets.get("GEMINI_API_KEY", "")
@@ -353,18 +645,15 @@ def _call_gemini(user_msg, context, history):
     if not api_key:
         return (
             "⚠️ **Aucune clé API configurée.**\n\n"
-            "Veuillez saisir votre clé API Gemini dans le panneau de "
-            "configuration à gauche (champ **Clé API Google Gemini**).\n\n"
+            "Saisissez votre clé API Gemini dans le panneau de configuration.\n"
             "Obtenez une clé gratuite sur : https://aistudio.google.com/apikey\n\n"
-            "---\n"
-            "**Réponse hors-ligne :**\n\n"
+            "---\n**Réponse hors-ligne :**\n\n"
             + _fallback(user_msg, context)
         )
 
     try:
         genai.configure(api_key=api_key)
 
-        # Détection automatique du modèle disponible
         valid_models = []
         try:
             valid_models = [
@@ -377,7 +666,6 @@ def _call_gemini(user_msg, context, history):
         if not valid_models:
             valid_models = ["models/gemini-1.5-flash"]
 
-        # Priorité : flash > pro
         model_name = valid_models[0]
         for m in valid_models:
             if "flash" in m:
@@ -387,40 +675,24 @@ def _call_gemini(user_msg, context, history):
                 model_name = m
 
         system_prompt = (
-            "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
-            "rotors, mécanique vibratoire et spécialiste absolu de la "
-            "bibliothèque Python ROSS.\n\n"
-            "DOMAINES D'EXPERTISE :\n"
-            "- Modélisation ROSS (ShaftElement, DiskElement, BearingElement, "
-            "GearElement, MultiRotor)\n"
-            "- Analyses : modale, diagramme de Campbell, réponse au balourd, "
-            "intégration temporelle, détection de défauts\n"
-            "- Phénomènes avancés : orbites, instabilités (whirl/whip), paliers hydrodynamiques\n"
-            "- Normes & références : API 684, ISO 1940, ISO 7919-3\n"
-            "- Outils & concepts : Carte UCS, systèmes MultiRotor\n\n"
-            "RÈGLES DE RÉPONSE :\n"
-            "1. Sois précis, scientifique et pédagogique. Structure tes réponses en Markdown "
-            "(titres, listes, tableaux si pertinent).\n"
-            "2. Fournis systématiquement du code ROSS fonctionnel, commenté et exécutable "
-            "lorsque cela éclaire la réponse. Utilise les balises ```python.\n"
-            "3. Personnalise chaque réponse en t'appuyant explicitement sur les paramètres "
-            "du rotor fournis dans le contexte ci-dessous.\n"
-            "4. POLITIQUE LINGUISTIQUE : Réponds par défaut en français. Si l'utilisateur "
-            "s'exprime dans une autre langue ou demande explicitement une réponse dans une "
-            "langue spécifique, adapte-toi immédiatement à sa demande. Conserve la même "
-            "rigueur technique, la structure Markdown et la terminologie internationale "
-            "(ex. : whirl/whip, Campbell, UCS, mode shape) quelle que soit la langue utilisée.\n\n"
-            "CONTEXTE ACTUEL DU ROTOR :\n"
+            "Tu es SmartRotor Copilot, ingénieur expert en dynamique des rotors "
+            "et spécialiste de la bibliothèque Python ROSS.\n\n"
+            "DOMAINES : Modélisation ROSS (ShaftElement, DiskElement, BearingElement, "
+            "GearElement, MultiRotor), analyses modale/Campbell/balourd/temporelle/défauts, "
+            "paliers hydrodynamiques, normes API 684 / ISO 1940 / ISO 7919-3, carte UCS.\n\n"
+            "RÈGLES : Précis, scientifique, pédagogique. Markdown structuré. "
+            "Code ROSS fonctionnel commenté dans ```python. "
+            "Personnalise avec le contexte rotor ci-dessous. "
+            "Langue : français par défaut, adapte-toi à la langue de l'utilisateur.\n\n"
+            "CONTEXTE ROTOR ACTUEL :\n"
             + json.dumps(context, ensure_ascii=False, indent=2)
         )
-        
-        model = genai.GenerativeModel(model_name)
 
+        model = genai.GenerativeModel(model_name)
         gemini_history = [
             {"role": "user",  "parts": [system_prompt]},
             {"role": "model", "parts": [
-                "C'est bien noté. Je suis SmartRotor Copilot, prêt à analyser "
-                "vos rotors et générer du code ROSS !"
+                "Compris ! Je suis SmartRotor Copilot, prêt à analyser vos rotors et générer du code ROSS."
             ]}
         ]
         for h in history[-8:]:
@@ -433,24 +705,19 @@ def _call_gemini(user_msg, context, history):
 
     except Exception as e:
         err_str = str(e)
-        # Clé invalide
-        if "API_KEY" in err_str.upper() or "401" in err_str or \
-                "403" in err_str or "invalid" in err_str.lower():
+        if any(k in err_str.upper() for k in ["API_KEY", "401", "403", "INVALID"]):
             return (
-                "❌ **Clé API invalide ou expirée.**\n\n"
-                "Vérifiez votre clé dans le panneau de configuration.\n\n"
-                "---\n**Réponse hors-ligne :**\n\n"
-                + _fallback(user_msg, context)
+                "❌ **Clé API invalide ou expirée.** Vérifiez dans le panneau de configuration.\n\n"
+                "---\n**Réponse hors-ligne :**\n\n" + _fallback(user_msg, context)
             )
         return (
-            "⚠️ **Erreur Gemini :** `{}`\n\n---\n"
-            "**Réponse hors-ligne :**\n\n".format(err_str)
+            "⚠️ **Erreur Gemini :** `{}`\n\n---\n**Réponse hors-ligne :**\n\n".format(err_str)
             + _fallback(user_msg, context)
         )
 
 
 # =============================================================================
-# FALLBACK OFFLINE
+# FALLBACK HORS-LIGNE
 # =============================================================================
 def _fallback(user_msg, context):
     msg_lower    = user_msg.lower()
@@ -458,129 +725,90 @@ def _fallback(user_msg, context):
 
     ctx_info = ""
     if rotor_loaded:
-        ctx_info = "\n\n---\n*Rotor actuel : {} nœuds, {} kg*".format(
-            context.get("n_nodes", "?"),
-            context.get("mass_kg", "?"))
+        ctx_info = "\n\n---\n*Rotor : {} nœuds, {} kg*".format(
+            context.get("n_nodes","?"), context.get("mass_kg","?"))
         if context.get("modal"):
-            fn_list = context["modal"]["fn_hz"]
             ctx_info += "\n\nModes propres :\n"
-            for i, (f, ld) in enumerate(
-                    zip(fn_list, context["modal"]["log_dec"])):
-                status = "⚠️ INSTABLE" if ld <= 0 else (
-                    "🟢 API OK" if ld >= 0.1 else "🟡 Marginal")
-                ctx_info += "- M{} : {:.2f} Hz | δ={:.4f} | {}\n".format(
-                    i+1, f, ld, status)
+            for i, (f, ld) in enumerate(zip(context["modal"]["fn_hz"], context["modal"]["log_dec"])):
+                s = "⚠️ INSTABLE" if ld <= 0 else ("✅ OK" if ld >= 0.1 else "🟡 Marginal")
+                ctx_info += "- M{} : {:.2f} Hz | δ={:.4f} | {}\n".format(i+1, f, ld, s)
 
-    if any(k in msg_lower for k in ["créer", "premier rotor", "modélis"]):
-        return (
+    responses = {
+        ("créer", "rotor", "modélis"): (
             "## Créer un rotor avec ROSS\n\n"
             "```python\nimport ross as rs\nimport numpy as np\n\n"
             "steel = rs.Material(name='Steel', rho=7810, E=211e9, G_s=81.2e9)\n"
-            "shaft = [rs.ShaftElement(L=0.25, idl=0.0, odl=0.05, "
-            "material=steel) for _ in range(6)]\n"
+            "shaft = [rs.ShaftElement(L=0.25, idl=0.0, odl=0.05, material=steel)\n"
+            "         for _ in range(6)]\n"
             "disk  = rs.DiskElement(n=3, m=15.0, Id=0.025, Ip=0.047)\n"
             "b0    = rs.BearingElement(n=0, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n"
             "b6    = rs.BearingElement(n=6, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n"
             "rotor = rs.Rotor(shaft, [disk], [b0, b6])\n"
             "print('Masse : {:.2f} kg'.format(rotor.m))\n```"
-            + ctx_info)
-
-    if "campbell" in msg_lower:
-        return (
+        ),
+        ("campbell",): (
             "## Diagramme de Campbell\n\n"
-            "Superpose fréquences propres fn(Ω) et droites harmoniques kX.\n\n"
-            "- **Intersection** fn avec 1X → vitesse critique\n"
-            "- **API 684** : marge ≥ 15% obligatoire\n"
-            "- **FW** (Forward) : fn croît avec Ω\n"
-            "- **BW** (Backward) : fn décroît avec Ω\n\n"
+            "Superpose fréquences propres fn(Ω) et droites harmoniques kX.\n"
+            "- Intersection fn ↔ 1X → **vitesse critique**\n"
+            "- **API 684** : marge ≥ 15 % obligatoire\n"
+            "- **FW** : fn croît avec Ω | **BW** : fn décroît\n\n"
             "```python\nspeeds = np.linspace(0, 10000*np.pi/30, 100)\n"
             "camp = rotor.run_campbell(speeds, frequencies=12)\n"
             "camp.plot()\n```"
-            + ctx_info)
-
-    if any(k in msg_lower for k in ["log dec", "instabilit", "stabilit"]):
-        return (
-            "## Log Décrément et Stabilité\n\n"
-            "| δ | Statut | API 684 |\n"
-            "|---|--------|---------|\n"
-            "| δ > 0.3 | Très stable | ✅ |\n"
-            "| 0.1 < δ ≤ 0.3 | Stable | ✅ |\n"
-            "| 0 < δ ≤ 0.1 | Marginal | ⚠️ |\n"
-            "| **δ ≤ 0** | **INSTABLE** | **❌** |\n\n"
-            "**Cause principale :** raideur croisée Kxy des paliers HD.\n\n"
-            "```python\nmodal = rotor.run_modal(speed=3000*np.pi/30)\n"
-            "print(modal.log_dec[:6])\n```"
-            + ctx_info)
-
-    if any(k in msg_lower for k in ["api 684", "conformit", "norme"]):
-        return (
+        ),
+        ("log dec", "instabilit", "stabilit"): (
+            "## Log Décrément et stabilité\n\n"
+            "| δ | Statut | API 684 |\n|---|--------|---------|\n"
+            "| > 0.3 | Très stable | ✅ |\n"
+            "| 0.1–0.3 | Stable | ✅ |\n"
+            "| 0–0.1 | Marginal | ⚠️ |\n"
+            "| **≤ 0** | **INSTABLE** | **❌** |\n\n"
+            "```python\nmodal = rotor.run_modal(speed=3000*np.pi/30)\nprint(modal.log_dec[:6])\n```"
+        ),
+        ("api 684", "conformit", "norme"): (
             "## Vérification API 684\n\n"
-            "**Critères :**\n"
             "1. Vc hors de [0.85·Nop, 1.15·Nop]\n"
             "2. Log Dec ≥ 0.1 pour tous les modes\n\n"
-            "```python\nop_rpm = 3000\n"
-            "modal  = rotor.run_modal(speed=0)\n"
-            "vc_rpm = modal.wn / (2*np.pi) * 60\n"
-            "for i, (vc, ld) in enumerate(zip(vc_rpm[:6], modal.log_dec[:6])):\n"
-            "    ok = (vc < op_rpm*0.85 or vc > op_rpm*1.15) and ld >= 0.1\n"
-            "    print('M{} : {:.0f} RPM | δ={:.3f} | {}'.format(\n"
-            "        i+1, vc, ld, 'OK' if ok else 'NON CONFORME'))\n```"
-            + ctx_info)
-
-    if any(k in msg_lower for k in ["iso 1940", "balourd", "déséquilibr"]):
-        return (
-            "## ISO 1940 — Balourd Résiduel\n\n"
+            "```python\nop = 3000\nm = rotor.run_modal(speed=0)\n"
+            "for i, (vc, ld) in enumerate(zip(m.wn[:6]/(2*np.pi)*60, m.log_dec[:6])):\n"
+            "    ok = (vc < op*0.85 or vc > op*1.15) and ld >= 0.1\n"
+            "    print('M{} : {:.0f} RPM | δ={:.3f} | {}'.format(i+1, vc, ld, 'OK' if ok else 'NON'))\n```"
+        ),
+        ("iso 1940", "balourd"): (
+            "## ISO 1940 — Balourd résiduel\n\n"
             "**Uper = m·G / (1000·ω)**\n\n"
-            "| Grade | Application | Uper typique |\n"
-            "|-------|-------------|---------------|\n"
-            "| G0.4 | Turbines HP, gyroscopes | Très faible |\n"
-            "| G2.5 | Compresseurs, turbines | Standard |\n"
-            "| G6.3 | Machines-outils | Industriel |\n\n"
-            "```python\nop_rpm = 3000\nomega  = op_rpm * np.pi / 30\n"
-            "G      = 2.5  # Grade ISO\n"
-            "Uper   = rotor.m * G / (1000 * omega)\n"
-            "print('Uper G2.5 = {:.6f} kg.m'.format(Uper))\n```"
-            + ctx_info)
-
-    if any(k in msg_lower for k in ["palier hydro", "fluid film", "oil whirl"]):
-        return (
-            "## Paliers Hydrodynamiques\n\n"
-            "Coefficients : **Kxx, Kyy** (stabilisants) · "
-            "**Kxy** (déstabilisant si > 0)\n\n"
+            "| Grade | Application |\n|-------|-------------|\n"
+            "| G0.4 | Turbines HP, gyroscopes |\n"
+            "| G2.5 | Compresseurs, turbines standard |\n"
+            "| G6.3 | Machines-outils |\n\n"
+            "```python\nomega = 3000*np.pi/30\n"
+            "Uper  = rotor.m * 2.5 / (1000*omega)\nprint(f'Uper G2.5 = {Uper:.6f} kg.m')\n```"
+        ),
+        ("palier hydro", "fluid film", "oil whirl", "oil whip"): (
+            "## Paliers hydrodynamiques\n\n"
+            "- **Kxy > 0** → déstabilisant (forces fluides)\n"
             "- Oil whirl ≈ **0.46·Ω** (sous-synchrone)\n"
             "- Oil whip si fn_rotor ≈ 0.46·Ω → instabilité explosive\n\n"
-            "```python\nbearing = rs.BearingElement(\n"
-            "    n=0, kxx=1e7, kyy=5e6,\n"
-            "    kxy=2e6, kyx=-2e6,  # couplage déstabilisant\n"
-            "    cxx=2000, cyy=2000)\n```\n\n"
-            "**Paliers tilting-pad** : Kxy ≈ 0 → plus stable."
-            + ctx_info)
-
-    if any(k in msg_lower for k in ["multirotor", "gear", "engrenage"]):
-        return (
+            "```python\nb = rs.BearingElement(n=0, kxx=1e7, kyy=5e6,\n"
+            "    kxy=2e6, kyx=-2e6, cxx=2000, cyy=2000)\n```"
+        ),
+        ("multirotor", "gear", "engrenage"): (
             "## MultiRotor & GearElement\n\n"
-            "**Fréquence d'engrènement :** fe = N1·z1/60\n\n"
-            "```python\ngear = rs.GearElement(\n"
-            "    n=3, m=14.37, Id=0.068, Ip=0.136,\n"
-            "    width=0.07, n_teeth=37,\n"
-            "    base_diameter=0.19, pressure_angle=22.5)\n\n"
-            "multi = rs.MultiRotor(rotors=[r1, r2], "
-            "gear_mesh_stiffness=1e8)\n"
-            "camp  = multi.run_campbell(\n"
-            "    rs.Q_(np.linspace(0, 5000, 50), 'RPM'),\n"
-            "    frequencies=12)\n```"
-            + ctx_info)
+            "**fe = N1·z1/60** · Rapport i = z1/z2\n\n"
+            "```python\ngear = rs.GearElement(\n    n=3, m=14.37, Id=0.068, Ip=0.136,\n"
+            "    width=0.07, n_teeth=37, base_diameter=0.19, pressure_angle=22.5)\n"
+            "multi = rs.MultiRotor(rotors=[r1, r2], gear_mesh_stiffness=1e8)\n```"
+        ),
+    }
 
-    # Réponse générique
+    for keys, resp in responses.items():
+        if any(k in msg_lower for k in keys):
+            return resp + ctx_info
+
     return (
         "Je suis **SmartRotor Copilot**, spécialisé en dynamique des rotors.\n\n"
-        "Votre question : *{}*\n\n"
-        "Je peux vous aider avec :\n"
-        "- Création et modélisation ROSS\n"
-        "- Analyse modale, Campbell, balourd, temporelle\n"
-        "- Défauts (fissure, désalignement, frottement)\n"
-        "- Normes API 684, ISO 1940\n"
-        "- Carte UCS, paliers HD, MultiRotor\n\n"
-        "Configurez votre clé API Gemini pour des réponses personnalisées."
+        "Je peux vous aider avec : modélisation ROSS, analyse modale, Campbell, "
+        "balourd, défauts, normes API 684 / ISO 1940, paliers HD, MultiRotor.\n\n"
+        "Configurez votre clé API Gemini pour des réponses complètes et personnalisées."
         + ctx_info
-    ).format(user_msg)
+    )
