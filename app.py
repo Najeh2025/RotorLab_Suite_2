@@ -284,92 +284,162 @@ def render_top_nav():
 # Aucune autre fonction n'est modifiée
 # =========================================================
 
+# =============================================================================
+# SNIPPET — Remplace UNIQUEMENT render_model_tree() dans app.py
+# Aucune autre fonction n'est modifiée.
+# =============================================================================
+
 def render_model_tree():
     active = st.session_state.get("active_node", "shaft")
 
-    # CSS UNIQUEMENT pour les boutons secondaires du tree
-    # kind="secondary" est l'attribut Streamlit natif — pas de data-testid
-    # → ne touche PAS aux boutons primary (bleus)
+    # ── CSS ciblé : uniquement le panneau arbre ───────────────────────────
     st.markdown("""
     <style>
+
+    /* ════════════════════════════════════════════════════════════════════
+       TITRES DE SECTIONS — plus grands, hiérarchie claire sur fond sombre
+       ════════════════════════════════════════════════════════════════════ */
+    .rl-tree-section {
+        display        : flex;
+        align-items    : center;
+        gap            : 7px;
+        padding        : 14px 12px 5px 12px;
+        font-size      : 0.72em;          /* was 0.68em */
+        font-weight    : 800;
+        color          : #93C5FD;         /* bleu clair lisible sur fond sombre */
+        text-transform : uppercase;
+        letter-spacing : 0.10em;
+        border-left    : 3px solid rgba(147,197,253,0.35);
+        margin         : 4px 0 2px -1px;
+        user-select    : none;
+    }
+    .rl-tree-section::before {
+        content    : "";
+        display    : inline-block;
+        width      : 18px;
+        height     : 1px;
+        background : rgba(147,197,253,0.35);
+        flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       ITEMS — boutons secondaires dans le panneau arbre
+       ════════════════════════════════════════════════════════════════════ */
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"]
         > button[kind="secondary"] {
-        text-align      : left !important;
-        justify-content : flex-start !important;
-        font-size       : 0.82em !important;
-        font-weight     : 400 !important;
-        background      : transparent !important;
-        border          : none !important;
-        border-left     : 3px solid transparent !important;
-        border-radius   : 0 !important;
-        padding         : 5px 8px 5px 18px !important;
-        margin          : 1px 0 !important;
-        box-shadow      : none !important;
-        color           : #1A1A2E !important;
+        text-align       : left           !important;
+        justify-content  : flex-start     !important;
+        font-size        : 0.83em         !important;
+        font-weight      : 500            !important;
+        background       : transparent    !important;
+        border           : none           !important;
+        border-left      : 3px solid transparent !important;
+        border-radius    : 0 6px 6px 0    !important;
+        padding          : 6px 10px 6px 16px !important;
+        margin           : 1px 0          !important;
+        box-shadow       : none           !important;
+        color            : #9EB5CC        !important;
+        letter-spacing   : 0.01em         !important;
+        transition       : background 0.12s, border-color 0.12s, color 0.12s !important;
     }
     div[data-testid="stVerticalBlock"]
         div[data-testid="stButton"]
         > button[kind="secondary"]:hover {
-        background       : rgba(31,92,139,0.09) !important;
-        border-left-color: rgba(31,92,139,0.4) !important;
-        color            : #1F5C8B !important;
+        background       : rgba(147,197,253,0.10) !important;
+        border-left-color: rgba(147,197,253,0.50) !important;
+        color            : #D6E8FA               !important;
     }
+
+    /* ════════════════════════════════════════════════════════════════════
+       SÉPARATEUR INTERNE
+       ════════════════════════════════════════════════════════════════════ */
+    .rl-tree-sep {
+        height     : 1px;
+        background : rgba(147,197,253,0.12);
+        margin     : 10px 12px;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       BOUTON RESET — en bas du panneau
+       ════════════════════════════════════════════════════════════════════ */
+    .rl-tree-reset-wrap {
+        padding    : 8px 10px 12px;
+        margin-top : 6px;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
+    # ── Mapping node → onglet M1 ──────────────────────────────────────────
+    _node_to_tab = {
+        "material"  : "🧱 Matériau",
+        "parameters": "🧱 Matériau",
+        "shaft"     : "📏 Arbre",
+        "disks"     : "💿 Disques",
+        "bearings"  : "⚙️ Paliers",
+    }
+
+    # ── Rendu de l'arbre ──────────────────────────────────────────────────
     for section in MODEL_TREE:
         st.markdown(
-            '<div class="rl-tree-section">{} {}</div>'.format(
-                section["icon"], section["label"]),
-            unsafe_allow_html=True
+            '<div class="rl-tree-section">{label}</div>'.format(
+                label=section["label"]
+            ),
+            unsafe_allow_html=True,
         )
+
         for item in section["children"]:
             is_active = (item["id"] == active)
             is_new    = item["module"] in ("M5", "M8")
-            new_tag   = " [NEW]" if is_new else ""
+            new_tag   = " · NEW" if is_new else ""
 
             if is_active:
+                # Élément actif : rendu HTML (pas de bouton Streamlit)
                 st.markdown(
-                    '<div style="background:rgba(31,92,139,0.10);'
-                    'border-left:3px solid #1F5C8B;'
-                    'padding:5px 8px 5px 18px;font-size:0.82em;'
-                    'font-weight:600;color:#1F5C8B;margin:1px 0;">'
-                    '{} &nbsp;{}{}</div>'.format(
-                        item["icon"], item["label"], new_tag),
-                    unsafe_allow_html=True
+                    '<div style="'
+                    'background   : rgba(31,92,139,0.30);'
+                    'border-left  : 3px solid #60A5FA;'
+                    'border-radius: 0 6px 6px 0;'
+                    'padding      : 6px 10px 6px 14px;'
+                    'font-size    : 0.83em;'
+                    'font-weight  : 700;'
+                    'color        : #EFF6FF;'
+                    'margin       : 1px 0;'
+                    'letter-spacing: 0.01em;'
+                    '">'
+                    '{icon}&nbsp;&nbsp;{label}{new}'
+                    '</div>'.format(
+                        icon=item["icon"],
+                        label=item["label"],
+                        new=new_tag,
+                    ),
+                    unsafe_allow_html=True,
                 )
             else:
                 node_id = item["id"]
                 module  = item["module"]
                 st.button(
-                    "{}  {}{}".format(item["icon"], item["label"], new_tag),
+                    "{icon}  {label}{new}".format(
+                        icon=item["icon"],
+                        label=item["label"],
+                        new=new_tag,
+                    ),
                     key="tree_{}".format(item["id"]),
                     use_container_width=True,
                     on_click=_cb_tree,
                     args=(node_id, module),
                 )
 
-    # ── Exemples et actions (sans le titre "Actions rapides") ────────────
-    st.markdown("---")
-
-    if ROSS_AVAILABLE:
-        st.caption("📂 Exemples")
-        st.button(
-            "📂 Compresseur centrifuge",
-            use_container_width=True,
-            key="tree_comp",
-            on_click=_cb_load_compressor,
-        )
-
+    # ── Séparateur + Bouton Réinitialiser ─────────────────────────────────
     if st.session_state.get("rotor") is not None:
+        st.markdown('<div class="rl-tree-sep"></div>', unsafe_allow_html=True)
         st.button(
-            "🗑️ Réinitialiser",
+            "🗑️  Réinitialiser le modèle",
             use_container_width=True,
             key="tree_reset",
             on_click=_cb_reset_model,
         )
-
 # =============================================================================
 # LOG BAR
 # =============================================================================
