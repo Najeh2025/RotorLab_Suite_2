@@ -279,19 +279,40 @@ def _render_settings_panel(compact=True):
         label_visibility="collapsed",
     )
 
+# <-- NOUVEAU : Menu de sélection du modèle
+    model_options = [
+        "gemini-1.5-flash", 
+        "gemini-1.5-pro", 
+        "gemini-2.0-flash", # (Si disponible sur votre clé)
+        "gemini-1.0-pro"
+    ]
+    # On récupère le choix actuel, ou on force le premier par défaut
+    current_model = st.session_state.get("copilot_model_choice", model_options[0])
+    # Sécurité au cas où current_model ne serait plus dans la liste
+    index_model = model_options.index(current_model) if current_model in model_options else 0
+    
+    selected_model = st.selectbox(
+        "Modèle IA",
+        options=model_options,
+        index=index_model,
+        help="Changez de modèle si vous atteignez la limite de requêtes (Quota).",
+        key="copilot_model_select"
+    )
+
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Valider la clé", key="copilot_key_save",
-                     use_container_width=True, type="primary"):
-            if new_key.strip():
-                st.session_state["copilot_api_key"] = new_key.strip()
-                st.success("Clé sauvegardée !")
-            else:
-                st.warning("Saisissez une clé.")
+        # On met à jour la clé ET le modèle lors du clic
+        def _cb_save_config():
+            if st.session_state["copilot_key_input"].strip():
+                st.session_state["copilot_api_key"] = st.session_state["copilot_key_input"].strip()
+            st.session_state["copilot_model_choice"] = st.session_state["copilot_model_select"]
+
+        st.button("Enregistrer", key="copilot_key_save",
+                     use_container_width=True, type="primary", on_click=_cb_save_config)
     with c2:
-        # On utilise on_click pour déclencher le nettoyage AVANT le rechargement de la page
-        if st.button("Effacer", key="copilot_key_clear", use_container_width=True, on_click=_cb_clear_api_key):
-            st.info("Clé supprimée.")
+        if st.button("Effacer Clé", key="copilot_key_clear",
+                     use_container_width=True, on_click=_cb_clear_api_key):
+            pass # Le callback s'occupe de tout
 
     if api_key and GEMINI_OK:
         st.markdown("""
