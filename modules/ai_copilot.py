@@ -311,38 +311,32 @@ def _render_chat_area():
     _render_chat_area_inner()
 
 def _render_chat_area_inner():
+    # ── 1. Effacement si demandé ──────────────────────────────────────────
     if st.session_state.get("copilot_clear_requested"):
         st.session_state["copilot_chat_history"]     = []
         st.session_state["copilot_pending_response"] = None
         st.session_state["copilot_is_processing"]    = False
         st.session_state["copilot_clear_requested"]  = False
 
-    pending = st.session_state.get("copilot_pending_response")
-
-    if pending and not st.session_state.get("copilot_is_processing", False):
-        st.session_state["copilot_is_processing"]    = True
-        st.session_state["copilot_pending_response"] = None
-
-        context = _build_context()
-        history = st.session_state["copilot_chat_history"][:-1]
-
-        with st.spinner("SmartRotor Copilot analyse votre question…"):
-            response = _call_gemini(pending, context, history)
-
-        st.session_state["copilot_chat_history"].append(
-            {"role": "assistant", "content": response}
-        )
-        st.session_state["copilot_is_processing"] = False
-        st.rerun()
-
     history = st.session_state.get("copilot_chat_history", [])
-    
+
+    # ── 2. En-tête discret (Bouton Nouveau Chat) ──────────────────────────
     if history:
         col_space, col_clear = st.columns([5, 1])
         with col_clear:
             st.button("✨ Nouveau Chat", key="copilot_clear_btn", use_container_width=True, on_click=_cb_clear_history)
 
+    # ── 3. Style CSS avancé ───────────────────────────────────────────────
+    st.markdown("""
+    <style>
+    .stChatMessage { padding: 1.2rem 1.5rem !important; border-radius: 12px; margin-bottom: 12px; }
+    .stChatMessageContent { font-size: 1.05em; line-height: 1.6; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── 4. DESSIN DE L'HISTORIQUE EN PREMIER ──────────────────────────────
     if not history:
+        # ÉCRAN D'ACCUEIL (inchangé)
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; padding-top: 10vh; padding-bottom: 6vh; text-align: center;">
             <div style="font-size: 3.8em; font-weight: 600; line-height: 1.1; letter-spacing: -1.5px;">
@@ -363,20 +357,42 @@ def _render_chat_area_inner():
             (c3, "⚖️ Audit API 684", "Rédiger un audit de conformité API 684 basé sur les données actuelles"),
             (c4, "💧 Stabilisation", "Comment stabiliser ce rotor (Log Decrétement négatif) ?")
         ]
-        
         for col, label, prompt in prompts_data:
             with col:
                 st.button(label, help=prompt, key=f"qp_hero_{label}", use_container_width=True, on_click=_cb_quick_prompt, args=(prompt,))
     else:
+        # AFFICHAGE DE LA CONVERSATION
         for msg in history:
             avatar = "🧑‍💻" if msg["role"] == "user" else "✨"
             with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
+    # ── 5. TRAITEMENT DE LA QUESTION EN ATTENTE (DÉPLACÉ ICI) ─────────────
+    pending = st.session_state.get("copilot_pending_response")
+
+    if pending and not st.session_state.get("copilot_is_processing", False):
+        st.session_state["copilot_is_processing"]    = True
+        st.session_state["copilot_pending_response"] = None
+
+        context = _build_context()
+        api_history = st.session_state["copilot_chat_history"][:-1]
+
+        # MAGIE ICI : On ouvre une bulle "assistant" juste pour y mettre le spinner !
+        with st.chat_message("assistant", avatar="✨"):
+            with st.spinner("SmartRotor Copilot analyse votre question…"):
+                response = _call_gemini(pending, context, api_history)
+
+        # Une fois fini, on sauvegarde et on relance
+        st.session_state["copilot_chat_history"].append(
+            {"role": "assistant", "content": response}
+        )
+        st.session_state["copilot_is_processing"] = False
+        st.rerun()
+
+    # ── 6. Saisie permanente (Input) ──────────────────────────────────────
     user_input = st.chat_input("Posez votre question en dynamique des rotors…", key="copilot_chat_input")
     if user_input:
         _enqueue_prompt(user_input)
-
 
 # =============================================================================
 # CALLBACKS
