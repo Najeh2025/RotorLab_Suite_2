@@ -393,6 +393,7 @@ def _render_chat_area_inner():
     user_input = st.chat_input("Posez votre question en dynamique des rotors…", key="copilot_chat_input")
     if user_input:
         _enqueue_prompt(user_input)
+        st.rerun()
 
 # =============================================================================
 # CALLBACKS
