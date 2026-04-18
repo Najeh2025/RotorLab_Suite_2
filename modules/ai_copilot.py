@@ -314,9 +314,8 @@ def _render_chat_area_inner():
     # ── 1. Effacement si demandé ──────────────────────────────────────────
     if st.session_state.get("copilot_clear_requested"):
         st.session_state["copilot_chat_history"]     = []
-        st.session_state["copilot_pending_response"] = None
-        st.session_state["copilot_is_processing"]    = False
         st.session_state["copilot_clear_requested"]  = False
+        st.session_state["copilot_is_processing"]    = False # Sécurité
 
     history = st.session_state.get("copilot_chat_history", [])
 
@@ -334,7 +333,7 @@ def _render_chat_area_inner():
     </style>
     """, unsafe_allow_html=True)
 
-    # ── 4. DESSIN DE L'HISTORIQUE EN PREMIER ──────────────────────────────
+    # ── 4. DESSIN DE L'HISTORIQUE ET DE L'ACCUEIL ─────────────────────────
     if not history:
         # ÉCRAN D'ACCUEIL (inchangé)
         st.markdown("""
@@ -359,7 +358,13 @@ def _render_chat_area_inner():
         ]
         for col, label, prompt in prompts_data:
             with col:
-                st.button(label, help=prompt, key=f"qp_hero_{label}", use_container_width=True, on_click=_cb_quick_prompt, args=(prompt,))
+                # Les quick prompts ne passent plus par un callback compliqué
+                # Ils injectent directement la question dans le chat_input virtuel via st.button
+                if st.button(label, help=prompt, key=f"qp_hero_{label}", use_container_width=True):
+                     # Simuler l'envoi d'une question
+                     st.session_state["copilot_chat_history"].append({"role": "user", "content": prompt})
+                     # Forcer le rechargement immédiat
+                     st.rerun()
     else:
         # AFFICHAGE DE LA CONVERSATION
         for msg in history:
@@ -367,33 +372,28 @@ def _render_chat_area_inner():
             with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
-    # ── 5. TRAITEMENT DE LA QUESTION EN ATTENTE (DÉPLACÉ ICI) ─────────────
-    pending = st.session_state.get("copilot_pending_response")
-
-    if pending and not st.session_state.get("copilot_is_processing", False):
-        st.session_state["copilot_is_processing"]    = True
-        st.session_state["copilot_pending_response"] = None
-
-        context = _build_context()
-        api_history = st.session_state["copilot_chat_history"][:-1]
-
-        # MAGIE ICI : On ouvre une bulle "assistant" juste pour y mettre le spinner !
+    # ── 5. SAISIE UTILISATEUR & TRAITEMENT IMMÉDIAT ───────────────────────
+    
+    # 1. On affiche la zone de saisie
+    user_input = st.chat_input("Posez votre question en dynamique des rotors…", key="copilot_chat_input")
+    
+    # 2. Si l'utilisateur vient de taper une question (ou cliqué sur Entrée)
+    if user_input:
+        # On affiche IMMÉDIATEMENT la question de l'utilisateur à l'écran
+        st.session_state["copilot_chat_history"].append({"role": "user", "content": user_input})
+        with st.chat_message("user", avatar="🧑‍💻"):
+            st.markdown(user_input)
+            
+        # On affiche IMMÉDIATEMENT la roue de chargement de l'IA
         with st.chat_message("assistant", avatar="✨"):
             with st.spinner("SmartRotor Copilot analyse votre question…"):
-                response = _call_gemini(pending, context, api_history)
-
-        # Une fois fini, on sauvegarde et on relance
-        st.session_state["copilot_chat_history"].append(
-            {"role": "assistant", "content": response}
-        )
-        st.session_state["copilot_is_processing"] = False
-        st.rerun()
-
-    # ── 6. Saisie permanente (Input) ──────────────────────────────────────
-    user_input = st.chat_input("Posez votre question en dynamique des rotors…", key="copilot_chat_input")
-    if user_input:
-        _enqueue_prompt(user_input)
-        st.rerun()
+                context = _build_context()
+                api_history = st.session_state["copilot_chat_history"][:-1]
+                response = _call_gemini(user_input, context, api_history)
+                st.markdown(response) # On affiche la réponse une fois prête
+                
+        # On sauvegarde la réponse de l'IA dans l'historique
+        st.session_state["copilot_chat_history"].append({"role": "assistant", "content": response})
 
 # =============================================================================
 # CALLBACKS
