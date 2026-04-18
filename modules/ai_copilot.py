@@ -440,149 +440,117 @@ def _render_chat_area():
 
 def _render_chat_area_inner():
     """
-    Logique principale du chat.
-
-    Ordre d'exécution à chaque cycle Streamlit :
-      1. Effacement si demandé
-      2. Traitement du prompt en attente  ← UNIQUE point d'appel API
-         (protégé par le verrou is_processing)
-      3. Affichage de l'historique
-      4. Zone de saisie / boutons quick-prompt
-         → ils écrivent dans pending_response mais N'appellent PAS l'API
+    Logique principale du chat avec UI style Gemini/ChatGPT.
     """
-
     # ── 1. Effacement si demandé ──────────────────────────────────────────
     if st.session_state.get("copilot_clear_requested"):
-        st.session_state["copilot_chat_history"]    = []
+        st.session_state["copilot_chat_history"]     = []
         st.session_state["copilot_pending_response"] = None
         st.session_state["copilot_is_processing"]    = False
         st.session_state["copilot_clear_requested"]  = False
 
     # ── 2. Traitement du prompt en attente ────────────────────────────────
-    #
-    # RÈGLES ANTI-GHOST-CALL :
-    #   a) On récupère le prompt et on vide pending AVANT d'appeler l'API.
-    #      Si Streamlit relance le script entre-temps, pending est vide →
-    #      aucun second appel.
-    #   b) Le verrou is_processing bloque tout appel parasite déclenché par
-    #      un rerun survenant pendant l'appel HTTP à Gemini.
-    #   c) On écrit la réponse dans session_state puis on rerun UNE SEULE
-    #      FOIS pour afficher — Streamlit ne re-questionne pas l'API.
-    #
     pending = st.session_state.get("copilot_pending_response")
 
     if pending and not st.session_state.get("copilot_is_processing", False):
-        # Acquérir le verrou et vider le pending AVANT l'appel HTTP
         st.session_state["copilot_is_processing"]    = True
-        st.session_state["copilot_pending_response"] = None   # ← vider ici
+        st.session_state["copilot_pending_response"] = None
 
         context = _build_context()
-        history = st.session_state["copilot_chat_history"][:-1]  # sans le msg user déjà ajouté
+        history = st.session_state["copilot_chat_history"][:-1]
 
         with st.spinner("SmartRotor Copilot analyse votre question…"):
             response = _call_gemini(pending, context, history)
 
-        # Stocker la réponse et relâcher le verrou
         st.session_state["copilot_chat_history"].append(
             {"role": "assistant", "content": response}
         )
         st.session_state["copilot_is_processing"] = False
-
-        # Un seul rerun pour afficher la réponse — l'API ne sera plus appelée
         st.rerun()
 
-    # ── 3. Bouton Effacer ─────────────────────────────────────────────────
-    col_title, col_clear = st.columns([5, 1])
-    with col_title:
-        st.markdown(
-            '<div style="padding:6px 0 4px;font-size:0.82em;font-weight:700;'
-            'color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">'
-            '💬 Conversation</div>',
-            unsafe_allow_html=True,
-        )
-    with col_clear:
-        st.button(
-            "🗑 Effacer",
-            key="copilot_clear_btn",
-            use_container_width=True,
-            on_click=_cb_clear_history,
-            help="Effacer l'historique",
-        )
-
-    # ── 4. Questions rapides ──────────────────────────────────────────────
-    #
-    # IMPORTANT : on utilise on_click pour que la mise à jour du
-    # session_state se fasse dans la phase callback (avant le rendu),
-    # ce qui évite un st.rerun() explicite.  L'appel API se fera au
-    # prochain cycle, dans le bloc n°2 ci-dessus.
-    #
-    with st.expander("⚡ Questions rapides", expanded=False):
-        quick_prompts = [
-            "Créer un rotor avec ROSS",
-            "Comprendre le diagramme de Campbell",
-            "Interpréter le Log Décrément",
-            "Analyser la réponse au balourd",
-            "Paliers hydrodynamiques HD",
-            "Vérifier la conformité API 684",
-            "Modéliser un MultiRotor",
-            "Simuler un défaut de fissure",
-            "Qu'est-ce que la carte UCS ?",
-            "Calculer l'ISO 1940",
-            "Comprendre l'oil whirl/whip",
-            "Modes FW vs BW — différence ?",
-        ]
-        cols = st.columns(2)
-        for i, qp in enumerate(quick_prompts):
-            with cols[i % 2]:
-                lbl = qp[:42] + ("…" if len(qp) > 42 else "")
-                # on_click → pas de rerun manuel, pas d'appel API direct
-                st.button(
-                    lbl,
-                    key="qp_{}_v23".format(i),
-                    use_container_width=True,
-                    on_click=_cb_quick_prompt,
-                    args=(qp,),
-                )
-
-    # ── 5. Historique de la conversation ─────────────────────────────────
+    # ── 3. En-tête discret (Bouton Nouveau Chat) ──────────────────────────
     history = st.session_state.get("copilot_chat_history", [])
+    
+    if history:
+        # Affiché uniquement si la conversation a commencé
+        col_space, col_clear = st.columns([5, 1])
+        with col_clear:
+            st.button(
+                "✨ Nouveau Chat",
+                key="copilot_clear_btn",
+                use_container_width=True,
+                on_click=_cb_clear_history,
+                help="Effacer l'historique et recommencer"
+            )
 
+    # ── 4. Style CSS avancé pour le Chat ──────────────────────────────────
+    st.markdown("""
+    <style>
+    /* Rendre les bulles de chat plus confortables */
+    .stChatMessage {
+        padding: 1.2rem 1.5rem !important;
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
+    /* Typographie moderne pour le contenu */
+    .stChatMessageContent {
+        font-size: 1.05em;
+        line-height: 1.6;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── 5. Zone principale : Accueil OU Historique ────────────────────────
     if not history:
+        # ÉCRAN D'ACCUEIL STYLE GEMINI / CHATGPT
         st.markdown("""
-        <div style="display:flex;flex-direction:column;align-items:center;
-                    justify-content:center;padding:60px 30px;text-align:center;gap:12px;">
-          <div style="width:64px;height:64px;background:linear-gradient(135deg,#EBF4FB,#E3F2FD);
-                      border:2px solid #B5D4F4;border-radius:16px;
-                      display:flex;align-items:center;justify-content:center;
-                      font-size:1.8em;margin-bottom:4px;">✨</div>
-          <div style="font-size:1.0em;font-weight:700;color:#1F5C8B;">
-            SmartRotor Copilot est prêt
-          </div>
-          <div style="font-size:0.82em;color:#9CA3AF;line-height:1.5;max-width:300px;">
-            Posez une question en rotordynamique, demandez du code ROSS,
-            ou choisissez une question rapide ci-dessus.
-          </div>
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; padding-top: 12vh; padding-bottom: 6vh; text-align: center;">
+            <div style="font-size: 3.8em; font-weight: 600; line-height: 1.1; letter-spacing: -1.5px;">
+                <span style="background: -webkit-linear-gradient(135deg, #1F5C8B, #7B1FA2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Bonjour.</span>
+            </div>
+            <div style="font-size: 2.2em; font-weight: 500; color: #8A9BB0; line-height: 1.2; letter-spacing: -0.5px; margin-top: 8px;">
+                Comment puis-je optimiser votre rotor aujourd'hui ?
+            </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # Grille de questions rapides (cartes de démarrage)
+        st.markdown("<div style='text-align: center; color: #6B7280; font-size: 0.85em; margin-bottom: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;'>Suggestions pour démarrer</div>", unsafe_allow_html=True)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        prompts_data = [
+            (col1, "🏗️ Modélisation", "Créer un rotor avec ROSS"),
+            (col2, "📈 Campbell", "Comprendre le diagramme de Campbell"),
+            (col3, "⚖️ Normes API", "Vérifier la conformité API 684"),
+            (col4, "💧 Instabilités", "Comprendre l'oil whirl/whip")
+        ]
+        
+        for col, label, prompt in prompts_data:
+            with col:
+                st.button(
+                    label,
+                    help=prompt, # Le vrai prompt envoyé s'affiche au survol
+                    key=f"qp_hero_{label}",
+                    use_container_width=True,
+                    on_click=_cb_quick_prompt,
+                    args=(prompt,)
+                )
     else:
+        # AFFICHAGE DE LA CONVERSATION EN COURS
         for msg in history:
-            with st.chat_message(msg["role"]):
+            # Attribution d'avatars spécifiques pour différencier l'humain de l'IA
+            avatar = "🧑‍💻" if msg["role"] == "user" else "✨"
+            with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
-    # ── 6. Saisie permanente ──────────────────────────────────────────────
-    #
-    # st.chat_input n'émet un résultat que lorsque l'utilisateur appuie
-    # sur Entrée — jamais lors d'un simple rerun de Streamlit.
-    # C'est donc un déclencheur intrinsèquement sûr.
-    #
+    # ── 6. Saisie permanente (Input) ──────────────────────────────────────
     user_input = st.chat_input(
         "Posez votre question en dynamique des rotors…",
         key="copilot_chat_input",
     )
     if user_input:
         _enqueue_prompt(user_input)
-        st.rerun()
-
+        # st.rerun() supprimé car nativement géré par st.chat_input !
 
 # =============================================================================
 # CALLBACKS — modifient uniquement session_state, n'appellent JAMAIS l'API
