@@ -292,10 +292,18 @@ def _render_settings_panel(compact=True):
             else:
                 st.warning("Saisissez une clé.")
     with c2:
-        if st.button("Effacer", key="copilot_key_clear",
-                     use_container_width=True):
+        if st.button("Effacer", key="copilot_key_clear", use_container_width=True):
+            # 1. On vide la variable de stockage utilisée par le cerveau de l'IA
             st.session_state["copilot_api_key"] = ""
+            
+            # 2. On vide EXPLICITEMENT le tampon du widget (la zone de texte)
+            # On utilise le nom défini dans le paramètre 'key' du text_input
+            st.session_state["copilot_key_input"] = "" 
+            
             st.info("Clé supprimée.")
+            
+            # 3. On force un rerun pour que le champ apparaisse vide instantanément
+            st.rerun()
 
     if api_key and GEMINI_OK:
         st.markdown("""
