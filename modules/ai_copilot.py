@@ -281,10 +281,9 @@ def _render_settings_panel(compact=True):
 
 # <-- NOUVEAU : Menu de sélection du modèle
     model_options = [
-        "gemini-1.5-flash", 
-        "gemini-1.5-pro", 
-        "gemini-2.0-flash", # (Si disponible sur votre clé)
-        "gemini-1.0-pro"
+        "gemini-1.5-flash",        # (Celui qui fonctionne déjà)
+        "gemini-1.5-pro-latest",   # <-- Ajout de '-latest' pour forcer la reconnaissance
+        "gemini-pro",              # <-- C'est le nom exact pour Gemini 1.0 Pro
     ]
     # On récupère le choix actuel, ou on force le premier par défaut
     current_model = st.session_state.get("copilot_model_choice", model_options[0])
@@ -739,6 +738,16 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
                 "La limite de requêtes gratuites a été atteinte. "
                 "Patientez quelques secondes puis réessayez, ou "
                 "passez sur un plan payant sur https://ai.dev/rate-limit\n\n"
+                "---\n**Réponse hors-ligne :**\n\n"
+                + _fallback(user_msg, context)
+            )
+            # ... (dans _call_gemini, section except)
+        if "404" in err_str and "models/" in err_str:
+            return (
+                "⚠️ **Modèle IA non trouvé ou non supporté.**\n\n"
+                f"Le modèle sélectionné (`{model_name}`) n'est pas disponible pour votre clé API "
+                "ou nécessite une mise à jour de la bibliothèque. Veuillez sélectionner **gemini-1.5-flash** "
+                "dans les paramètres (⚙️ Configuration Gemini).\n\n"
                 "---\n**Réponse hors-ligne :**\n\n"
                 + _fallback(user_msg, context)
             )
