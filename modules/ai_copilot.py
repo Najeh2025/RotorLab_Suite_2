@@ -261,7 +261,8 @@ def _render_settings_panel(compact=True):
     if not compact:
         _render_cop_hero()
 
-    # ── Configuration clé API ─────────────────────────────────────────────
+
+# ── Configuration clé API & Modèle ────────────────────────────────────
     st.markdown("""
     <div class="cop-config-wrap">
       <div class="cop-config-header">🔑 Configuration Gemini</div>
@@ -271,50 +272,35 @@ def _render_settings_panel(compact=True):
     api_key = st.session_state.get("copilot_api_key", "")
     new_key = st.text_input(
         "Clé API Google Gemini",
-        value="",
+        value=api_key,
         type="password",
         placeholder="AIza...",
         help="https://aistudio.google.com/apikey — gratuit",
         key="copilot_key_input",
-        label_visibility="collapsed",
     )
 
-# <-- NOUVEAU : Menu de sélection du modèle
-    # <-- NOUVEAU : Récupération dynamique des modèles autorisés
+    # NOUVEAU : Récupération dynamique des modèles autorisés (UNIQUE version)
     model_options = []
     
-    # Si une clé est présente, on demande à Google sa propre liste de modèles
     if api_key and GEMINI_OK:
         try:
             genai.configure(api_key=api_key)
             for m in genai.list_models():
                 if "generateContent" in m.supported_generation_methods:
-                    # On nettoie le préfixe "models/" pour l'affichage
                     clean_name = m.name.replace("models/", "")
                     model_options.append(clean_name)
         except Exception:
             pass
 
-    # Fallback de sécurité si la liste est vide (pas de clé ou erreur réseau)
+    # Fallback si la liste est vide
     if not model_options:
-        model_options = ["gemini-1.5-flash", "gemini-1.0-pro"]
+        model_options = ["gemini-1.5-flash", "gemini-1.5-pro-latest", "gemini-pro"]
 
-    # On récupère le choix actuel, ou on force le premier de la liste dynamique
+    # On récupère le choix actuel, ou on force le premier de la liste
     current_model = st.session_state.get("copilot_model_choice", model_options[0])
     index_model = model_options.index(current_model) if current_model in model_options else 0
     
-    selected_model = st.selectbox(
-        "Modèle IA",
-        options=model_options,
-        index=index_model,
-        help="Changez de modèle si vous atteignez la limite de requêtes (Quota).",
-        key="copilot_model_select"
-    )
-    # On récupère le choix actuel, ou on force le premier par défaut
-    current_model = st.session_state.get("copilot_model_choice", model_options[0])
-    # Sécurité au cas où current_model ne serait plus dans la liste
-    index_model = model_options.index(current_model) if current_model in model_options else 0
-    
+    # LE SEUL ET UNIQUE SELECTBOX
     selected_model = st.selectbox(
         "Modèle IA",
         options=model_options,
@@ -323,20 +309,22 @@ def _render_settings_panel(compact=True):
         key="copilot_model_select"
     )
 
+    # ── Boutons d'action ──────────────────────────────────────────────────
     c1, c2 = st.columns(2)
     with c1:
-        # On met à jour la clé ET le modèle lors du clic
         def _cb_save_config():
             if st.session_state["copilot_key_input"].strip():
                 st.session_state["copilot_api_key"] = st.session_state["copilot_key_input"].strip()
+            # On sauvegarde le choix du modèle
             st.session_state["copilot_model_choice"] = st.session_state["copilot_model_select"]
 
         st.button("Enregistrer", key="copilot_key_save",
                      use_container_width=True, type="primary", on_click=_cb_save_config)
     with c2:
-        if st.button("Effacer Clé", key="copilot_key_clear",
-                     use_container_width=True, on_click=_cb_clear_api_key):
-            pass # Le callback s'occupe de tout
+        st.button("Effacer Clé", key="copilot_key_clear",
+                     use_container_width=True, on_click=_cb_clear_api_key)
+
+    # (Laissez la suite de la fonction inchangée : if api_key and GEMINI_OK, etc.)
 
     if api_key and GEMINI_OK:
         st.markdown("""
