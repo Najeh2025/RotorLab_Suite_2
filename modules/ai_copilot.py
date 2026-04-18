@@ -280,11 +280,36 @@ def _render_settings_panel(compact=True):
     )
 
 # <-- NOUVEAU : Menu de sélection du modèle
-    model_options = [
-        "gemini-1.5-flash",        # (Celui qui fonctionne déjà)
-        "gemini-1.5-pro-latest",   # <-- Ajout de '-latest' pour forcer la reconnaissance
-        "gemini-pro",              # <-- C'est le nom exact pour Gemini 1.0 Pro
-    ]
+    # <-- NOUVEAU : Récupération dynamique des modèles autorisés
+    model_options = []
+    
+    # Si une clé est présente, on demande à Google sa propre liste de modèles
+    if api_key and GEMINI_OK:
+        try:
+            genai.configure(api_key=api_key)
+            for m in genai.list_models():
+                if "generateContent" in m.supported_generation_methods:
+                    # On nettoie le préfixe "models/" pour l'affichage
+                    clean_name = m.name.replace("models/", "")
+                    model_options.append(clean_name)
+        except Exception:
+            pass
+
+    # Fallback de sécurité si la liste est vide (pas de clé ou erreur réseau)
+    if not model_options:
+        model_options = ["gemini-1.5-flash", "gemini-1.0-pro"]
+
+    # On récupère le choix actuel, ou on force le premier de la liste dynamique
+    current_model = st.session_state.get("copilot_model_choice", model_options[0])
+    index_model = model_options.index(current_model) if current_model in model_options else 0
+    
+    selected_model = st.selectbox(
+        "Modèle IA",
+        options=model_options,
+        index=index_model,
+        help="Changez de modèle si vous atteignez la limite de requêtes (Quota).",
+        key="copilot_model_select"
+    )
     # On récupère le choix actuel, ou on force le premier par défaut
     current_model = st.session_state.get("copilot_model_choice", model_options[0])
     # Sécurité au cas où current_model ne serait plus dans la liste
