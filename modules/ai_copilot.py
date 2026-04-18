@@ -677,25 +677,8 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
     try:
         genai.configure(api_key=api_key)
 
-        # Sélection du modèle
-        try:
-            models = [
-                m.name for m in genai.list_models()
-                if "generateContent" in m.supported_generation_methods
-            ]
-        except Exception:
-            models = ["models/gemini-1.5-flash"]
-
-        if not models:
-            models = ["models/gemini-1.5-flash"]
-
-        model_name = models[0]
-        for m in models:
-            if "flash" in m:
-                model_name = m
-                break
-            elif "pro" in m and "vision" not in m:
-                model_name = m
+        # <-- NOUVEAU : Utilisation du modèle choisi
+        model_name = st.session_state.get("copilot_model_choice", "gemini-1.5-flash")
 
         system_prompt = (
                 "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
