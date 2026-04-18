@@ -179,12 +179,9 @@ def _init_copilot_state():
     defaults = {
         "copilot_chat_history":    [],
         "copilot_api_key":         "",
+        "copilot_model_choice":    "gemini-1.5-flash", # <-- NOUVEAU
         "copilot_clear_requested": False,
-        # ── Anti ghost-call ──────────────────────────────────────────────
-        # None  → rien à traiter
-        # str   → prompt en attente d'un appel API
         "copilot_pending_response": None,
-        # True  → un appel API est déjà en cours, bloquer tout nouveau départ
         "copilot_is_processing":    False,
     }
     for key, val in defaults.items():
