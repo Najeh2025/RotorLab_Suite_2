@@ -1,12 +1,6 @@
 # =============================================================================
-# modules/ai_copilot.py — SmartRotor Copilot v3.0 (Expert Edition)
+# modules/ai_copilot.py — SmartRotor Copilot v3.1 (Fix quick prompts)
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
-#
-# v3.0 — Nouvelles fonctionnalités :
-#   • Interface utilisateur immersive type Modern LLM
-#   • Sélecteur dynamique de modèles Gemini (Anti-Quota/404)
-#   • Expert Diagnostic Vibratoire & Audit API 684
-#   • Hardening absolu contre les rechargements Streamlit
 # =============================================================================
 
 import streamlit as st
@@ -24,7 +18,6 @@ except ImportError:
 # =============================================================================
 _COPILOT_CSS = """
 <style>
-/* ── Hero Copilot ────────────────────────────────────────────────────── */
 .cop-hero {
     background: linear-gradient(135deg, #0F1923 0%, #153F62 55%, #1F5C8B 100%);
     border-radius: 12px 12px 0 0;
@@ -61,7 +54,6 @@ _COPILOT_CSS = """
 .cop-hero-tag.warn   { background: rgba(245,124,0,0.25); border-color: rgba(245,124,0,0.5);   color: #FFB74D; }
 .cop-hero-tag.err    { background: rgba(192,0,0,0.25);   border-color: rgba(192,0,0,0.5);     color: #FF8F8F; }
 
-/* ── Panneau Config ──────────────────────────────────────────────────── */
 .cop-config-wrap {
     background: #F7F9FC;
     border: 1.5px solid #D0D8E4;
@@ -99,7 +91,6 @@ _COPILOT_CSS = """
 .cop-key-dot.ok  { background: #22863A; }
 .cop-key-dot.off { background: #F57C00; }
 
-/* ── Contexte rotor ──────────────────────────────────────────────────── */
 .cop-ctx-wrap { background: #FFFFFF; border: 1.5px solid #D0D8E4; border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
 .cop-ctx-header { background: linear-gradient(90deg, #0F2D4A, #1F5C8B); color: #FFFFFF; padding: 8px 14px; font-size: 0.76em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
 .cop-ctx-body { padding: 10px 12px; }
@@ -111,7 +102,6 @@ _COPILOT_CSS = """
 .cop-ctx-val.err  { color: #C00000; }
 .cop-ctx-val.warn { color: #C55A11; }
 
-/* ── Style du Chat ───────────────────────────────────────────────────── */
 .stChatMessage { padding: 1.2rem 1.5rem !important; border-radius: 12px; margin-bottom: 12px; }
 .stChatMessageContent { font-size: 1.05em; line-height: 1.6; }
 </style>
@@ -122,12 +112,14 @@ _COPILOT_CSS = """
 # =============================================================================
 def _init_copilot_state():
     defaults = {
-        "copilot_chat_history":    [],
-        "copilot_api_key":         "",
-        "copilot_model_choice":    "",
-        "copilot_clear_requested": False,
-        "copilot_pending_response": None,
-        "copilot_is_processing":    False,
+        "copilot_chat_history":       [],
+        "copilot_api_key":            "",
+        "copilot_model_choice":       "",
+        "copilot_clear_requested":    False,
+        "copilot_pending_response":   None,
+        "copilot_is_processing":      False,
+        # ── NOUVEAU : flag pour les boutons rapides ──
+        "copilot_pending_quick_prompt": None,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -218,7 +210,6 @@ def _render_settings_panel(compact=True):
         key="copilot_key_input",
     )
 
-    # Récupération dynamique des modèles
     model_options = []
     if api_key and GEMINI_OK:
         try:
@@ -231,17 +222,17 @@ def _render_settings_panel(compact=True):
 
     if not model_options:
         model_options = [
-            "gemini-2.0-flash", 
-            "gemini-2.0-flash-lite", 
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
             "gemini-2.5-flash"
         ]
 
     current_model = st.session_state.get("copilot_model_choice", "")
     if not current_model or current_model not in model_options:
         current_model = model_options[0]
-        
+
     index_model = model_options.index(current_model)
-    
+
     st.selectbox(
         "Modèle IA",
         options=model_options,
@@ -257,10 +248,10 @@ def _render_settings_panel(compact=True):
         st.button("Effacer", key="copilot_key_clear", use_container_width=True, on_click=_cb_clear_api_key)
 
     if api_key and GEMINI_OK:
-        st.markdown(f"""
+        st.markdown("""
         <div class="cop-key-status ok"><div class="cop-key-dot ok"></div>
-          Connecté · {api_key[:4]}...{api_key[-4:]}
-        </div>""", unsafe_allow_html=True)
+          Connecté · {}...{}
+        </div>""".format(api_key[:4], api_key[-4:]), unsafe_allow_html=True)
     elif not GEMINI_OK:
         st.markdown('<div class="cop-key-status off"><div class="cop-key-dot off"></div>google-generativeai non installé</div>', unsafe_allow_html=True)
     else:
@@ -268,7 +259,6 @@ def _render_settings_panel(compact=True):
 
     st.markdown("</div></div>", unsafe_allow_html=True)
 
-    # ── Contexte rotor ────────────────────────────────────────────────────
     context = _build_context()
     rotor   = st.session_state.get("rotor")
 
@@ -279,10 +269,10 @@ def _render_settings_panel(compact=True):
     """, unsafe_allow_html=True)
 
     if rotor:
-        st.markdown(f"""
-        <div class="cop-ctx-row"><span class="cop-ctx-label">Nœuds / DDL</span><span class="cop-ctx-val ok">{context.get('n_nodes')} / {context.get('ndof')}</span></div>
-        <div class="cop-ctx-row"><span class="cop-ctx-label">Masse totale</span><span class="cop-ctx-val">{context.get('mass_kg'):.2f} kg</span></div>
-        """, unsafe_allow_html=True)
+        st.markdown("""
+        <div class="cop-ctx-row"><span class="cop-ctx-label">Nœuds / DDL</span><span class="cop-ctx-val ok">{} / {}</span></div>
+        <div class="cop-ctx-row"><span class="cop-ctx-label">Masse totale</span><span class="cop-ctx-val">{:.2f} kg</span></div>
+        """.format(context.get('n_nodes'), context.get('ndof'), context.get('mass_kg', 0)), unsafe_allow_html=True)
     else:
         st.markdown('<div class="cop-ctx-row"><span class="cop-ctx-label">Rotor</span><span class="cop-ctx-val err">Non chargé</span></div>', unsafe_allow_html=True)
     st.markdown("</div></div>", unsafe_allow_html=True)
@@ -294,42 +284,45 @@ def _render_settings_panel(compact=True):
         mode_rows = ""
         for i, (f, ld) in enumerate(zip(fn_list, ld_list)):
             dot_cls = "err" if ld <= 0 else "warn" if ld < 0.1 else "ok"
-            mode_rows += f'<div class="cop-ctx-row"><span style="color:#6B7280;font-size:0.75em;">M{i+1}</span><span style="font-weight:700;">{f:.2f} Hz</span><span style="color:#6B7280;">δ={ld:.4f}</span><div class="cop-key-dot {dot_cls}"></div></div>'
+            mode_rows += '<div class="cop-ctx-row"><span style="color:#6B7280;font-size:0.75em;">M{}</span><span style="font-weight:700;">{:.2f} Hz</span><span style="color:#6B7280;">δ={:.4f}</span><div class="cop-key-dot {}"></div></div>'.format(i+1, f, ld, dot_cls)
         st.markdown(mode_rows, unsafe_allow_html=True)
         n_inst = context["modal"]["n_instable"]
         if n_inst > 0:
-            st.error(f"⚠️ {n_inst} mode(s) INSTABLE(S) détecté(s) !")
+            st.error("⚠️ {} mode(s) INSTABLE(S) détecté(s) !".format(n_inst))
         st.markdown("</div></div>", unsafe_allow_html=True)
 
     if context.get("api684"):
         score = context["api684"]["score"]
         cls   = "ok" if score >= 80 else "warn" if score >= 50 else "off"
-        st.markdown(f'<div class="cop-key-status {cls}" style="margin-top:8px;"><div class="cop-key-dot {cls}"></div>API 684 — Score {score:.0f}%</div>', unsafe_allow_html=True)
+        st.markdown('<div class="cop-key-status {}" style="margin-top:8px;"><div class="cop-key-dot {}"></div>API 684 — Score {:.0f}%</div>'.format(cls, cls, score), unsafe_allow_html=True)
+
 
 # =============================================================================
-# ZONE DE CHAT (INTERFACE MODERN LLM)
+# ZONE DE CHAT
 # =============================================================================
 def _render_chat_area():
     st.markdown(_COPILOT_CSS, unsafe_allow_html=True)
     _render_cop_hero()
     _render_chat_area_inner()
 
+
 def _render_chat_area_inner():
     # ── 1. Effacement si demandé ──────────────────────────────────────────
     if st.session_state.get("copilot_clear_requested"):
-        st.session_state["copilot_chat_history"]     = []
-        st.session_state["copilot_clear_requested"]  = False
-        st.session_state["copilot_is_processing"]    = False # Sécurité
+        st.session_state["copilot_chat_history"]      = []
+        st.session_state["copilot_clear_requested"]   = False
+        st.session_state["copilot_is_processing"]     = False
+        st.session_state["copilot_pending_quick_prompt"] = None
 
     history = st.session_state.get("copilot_chat_history", [])
 
-    # ── 2. En-tête discret (Bouton Nouveau Chat) ──────────────────────────
+    # ── 2. Bouton Nouveau Chat ────────────────────────────────────────────
     if history:
         col_space, col_clear = st.columns([5, 1])
         with col_clear:
-            st.button("✨ Nouveau Chat", key="copilot_clear_btn", use_container_width=True, on_click=_cb_clear_history)
+            st.button("✨ Nouveau Chat", key="copilot_clear_btn",
+                      use_container_width=True, on_click=_cb_clear_history)
 
-    # ── 3. Style CSS avancé ───────────────────────────────────────────────
     st.markdown("""
     <style>
     .stChatMessage { padding: 1.2rem 1.5rem !important; border-radius: 12px; margin-bottom: 12px; }
@@ -337,9 +330,8 @@ def _render_chat_area_inner():
     </style>
     """, unsafe_allow_html=True)
 
-    # ── 4. DESSIN DE L'HISTORIQUE ET DE L'ACCUEIL ─────────────────────────
+    # ── 3. Écran d'accueil ou historique ─────────────────────────────────
     if not history:
-        # ÉCRAN D'ACCUEIL (inchangé)
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; padding-top: 10vh; padding-bottom: 6vh; text-align: center;">
             <div style="font-size: 3.8em; font-weight: 600; line-height: 1.1; letter-spacing: -1.5px;">
@@ -352,76 +344,104 @@ def _render_chat_area_inner():
         """, unsafe_allow_html=True)
 
         st.markdown("<div style='text-align: center; color: #6B7280; font-size: 0.85em; margin-bottom: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;'>Suggestions pour démarrer</div>", unsafe_allow_html=True)
-        
+
         c1, c2, c3, c4 = st.columns(4)
         prompts_data = [
-            (c1, "🏗️ Modélisation", "Créer un rotor avec ROSS en Python"),
+            (c1, "🏗️ Modélisation",  "Créer un rotor avec ROSS en Python"),
             (c2, "🩺 Diagnostic M7", "Diagnostiquer une forte composante vibratoire à 2X la vitesse de rotation"),
             (c3, "⚖️ Audit API 684", "Rédiger un audit de conformité API 684 basé sur les données actuelles"),
             (c4, "💧 Stabilisation", "Comment stabiliser ce rotor (Log Decrétement négatif) ?")
         ]
         for col, label, prompt in prompts_data:
             with col:
-                # Les quick prompts ne passent plus par un callback compliqué
-                # Ils injectent directement la question dans le chat_input virtuel via st.button
-                if st.button(label, help=prompt, key=f"qp_hero_{label}", use_container_width=True):
-                     # Simuler l'envoi d'une question
-                     st.session_state["copilot_chat_history"].append({"role": "user", "content": prompt})
-                     # Forcer le rechargement immédiat
-                     st.rerun()
+                if st.button(label, help=prompt, key="qp_hero_{}".format(label),
+                             use_container_width=True):
+                    # ── FIX : on stocke le prompt dans un flag dédié ──
+                    st.session_state["copilot_chat_history"].append(
+                        {"role": "user", "content": prompt})
+                    st.session_state["copilot_pending_quick_prompt"] = prompt
+                    st.rerun()
+
     else:
-        # AFFICHAGE DE LA CONVERSATION
+        # Affichage de la conversation
         for msg in history:
             avatar = "🧑‍💻" if msg["role"] == "user" else "✨"
             with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
-    # ── 5. SAISIE UTILISATEUR & TRAITEMENT IMMÉDIAT ───────────────────────
-    
-    # 1. On affiche la zone de saisie
-    user_input = st.chat_input("Posez votre question en dynamique des rotors…", key="copilot_chat_input")
-    
-    # 2. Si l'utilisateur vient de taper une question (ou cliqué sur Entrée)
-    if user_input:
-        # On affiche IMMÉDIATEMENT la question de l'utilisateur à l'écran
-        st.session_state["copilot_chat_history"].append({"role": "user", "content": user_input})
+    # ── 4. Traitement d'un prompt rapide en attente ───────────────────────
+    # Ce bloc s'exécute APRÈS le rerun déclenché par le bouton rapide.
+    # À ce stade, le dernier message de l'historique est le message
+    # utilisateur, mais aucune réponse IA n'a encore été générée.
+    pending_quick = st.session_state.get("copilot_pending_quick_prompt")
+    if pending_quick:
+        # Remettre le flag à None avant l'appel (évite les boucles infinies)
+        st.session_state["copilot_pending_quick_prompt"] = None
+
+        # Afficher le message utilisateur qu'on vient d'ajouter
         with st.chat_message("user", avatar="🧑‍💻"):
-            st.markdown(user_input)
-            
-        # On affiche IMMÉDIATEMENT la roue de chargement de l'IA
+            st.markdown(pending_quick)
+
+        # Appeler l'IA et afficher la réponse
         with st.chat_message("assistant", avatar="✨"):
             with st.spinner("SmartRotor Copilot analyse votre question…"):
-                context = _build_context()
+                context     = _build_context()
                 api_history = st.session_state["copilot_chat_history"][:-1]
-                response = _call_gemini(user_input, context, api_history)
-                st.markdown(response) # On affiche la réponse une fois prête
-                
-        # On sauvegarde la réponse de l'IA dans l'historique
-        st.session_state["copilot_chat_history"].append({"role": "assistant", "content": response})
-        st.rerun()  # ← CETTE LIGNE MANQUAIT
+                response    = _call_gemini(pending_quick, context, api_history)
+                st.markdown(response)
+
+        st.session_state["copilot_chat_history"].append(
+            {"role": "assistant", "content": response})
+        st.rerun()
+        return   # on sort pour ne pas afficher le chat_input inutilement
+
+    # ── 5. Saisie manuelle ────────────────────────────────────────────────
+    user_input = st.chat_input(
+        "Posez votre question en dynamique des rotors…",
+        key="copilot_chat_input")
+
+    if user_input:
+        st.session_state["copilot_chat_history"].append(
+            {"role": "user", "content": user_input})
+        with st.chat_message("user", avatar="🧑‍💻"):
+            st.markdown(user_input)
+
+        with st.chat_message("assistant", avatar="✨"):
+            with st.spinner("SmartRotor Copilot analyse votre question…"):
+                context     = _build_context()
+                api_history = st.session_state["copilot_chat_history"][:-1]
+                response    = _call_gemini(user_input, context, api_history)
+                st.markdown(response)
+
+        st.session_state["copilot_chat_history"].append(
+            {"role": "assistant", "content": response})
+        st.rerun()
+
 
 # =============================================================================
 # CALLBACKS
 # =============================================================================
 def _cb_clear_history():
-    st.session_state["copilot_clear_requested"] = True
+    st.session_state["copilot_clear_requested"]      = True
+    st.session_state["copilot_pending_quick_prompt"] = None
 
 def _cb_save_config():
-    st.session_state["copilot_api_key"] = st.session_state.get("copilot_key_input", "").strip()
+    st.session_state["copilot_api_key"]     = st.session_state.get("copilot_key_input", "").strip()
     st.session_state["copilot_model_choice"] = st.session_state.get("copilot_model_select", "")
 
 def _cb_clear_api_key():
-    st.session_state["copilot_api_key"] = ""
+    st.session_state["copilot_api_key"]   = ""
     st.session_state["copilot_key_input"] = ""
 
 def _cb_quick_prompt(prompt: str):
-    _enqueue_prompt(prompt)
+    st.session_state["copilot_chat_history"].append({"role": "user", "content": prompt})
+    st.session_state["copilot_pending_quick_prompt"] = prompt
 
 def _enqueue_prompt(prompt: str):
-    if st.session_state.get("copilot_is_processing", False) or st.session_state.get("copilot_pending_response"):
+    if st.session_state.get("copilot_is_processing", False):
         return
     st.session_state["copilot_chat_history"].append({"role": "user", "content": prompt})
-    st.session_state["copilot_pending_response"] = prompt
+    st.session_state["copilot_pending_quick_prompt"] = prompt
 
 
 # =============================================================================
@@ -434,9 +454,9 @@ def _build_context() -> dict:
 
     ctx = {"rotor_loaded": rotor is not None}
     if rotor:
-        ctx["n_nodes"]    = len(rotor.nodes)
-        ctx["mass_kg"]    = round(float(rotor.m), 2)
-        ctx["ndof"]       = rotor.ndof
+        ctx["n_nodes"] = len(rotor.nodes)
+        ctx["mass_kg"] = round(float(rotor.m), 2)
+        ctx["ndof"]    = rotor.ndof
 
     if modal:
         fn = modal.wn / (2 * np.pi)
@@ -450,7 +470,10 @@ def _build_context() -> dict:
 
     if df_api is not None and not df_api.empty:
         api_p = st.session_state.get("api_params", {})
-        ctx["api684"] = {"score": api_p.get("score", 0), "op_rpm": api_p.get("op_rpm", 0)}
+        ctx["api684"] = {
+            "score":  api_p.get("score", 0),
+            "op_rpm": api_p.get("op_rpm", 0)
+        }
 
     return ctx
 
@@ -464,7 +487,8 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
 
     api_key = st.session_state.get("copilot_api_key", "")
     if not api_key:
-        return ("⚠️ **Aucune clé API configurée.**\n\nSaisissez votre clé Gemini dans le panneau de configuration.\n\n---\n**Réponse hors-ligne :**\n\n" + _fallback(user_msg, context))
+        return ("⚠️ **Aucune clé API configurée.**\n\nSaisissez votre clé Gemini dans le panneau de configuration.\n\n---\n**Réponse hors-ligne :**\n\n"
+                + _fallback(user_msg, context))
 
     try:
         genai.configure(api_key=api_key)
@@ -474,31 +498,16 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
             "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
             "rotors, mécanique vibratoire et spécialiste absolu de la "
             "bibliothèque Python ROSS.\n\n"
-            
             "DOMAINES D'EXPERTISE :\n"
             "- Modélisation ROSS (ShaftElement, DiskElement, BearingElement, GearElement, MultiRotor)\n"
-            "- Analyses : modale, diagramme de Campbell, réponse au balourd, intégration temporelle, détection de défauts\n"
+            "- Analyses : modale, Campbell, réponse au balourd, intégration temporelle, détection de défauts\n"
             "- Phénomènes avancés : orbites, instabilités (whirl/whip), paliers hydrodynamiques\n"
-            "- Normes & références : API 684, ISO 1940, ISO 7919-3\n"
-            "- Outils & concepts : Carte UCS, systèmes MultiRotor\n\n"
-            
-            "RÔLES ACTIFS (DIAGNOSTIC & OPTIMISATION) :\n"
-            "- DIAGNOSTIC VIBRATOIRE : Si l'utilisateur décrit un symptôme (ex: forte vibration à 1X, 2X, ou composante sous-synchrone), "
-            "tu DOIS agir comme un analyste. Énumère les causes mécaniques les plus probables (balourd, désalignement, fissure, oil whirl, frottement) "
-            "et suggère quel module de RotorLab Suite utiliser pour vérifier cette hypothèse.\n"
-            "- OPTIMISATION DE STABILITÉ : Si le contexte fourni ou l'utilisateur indique des modes instables (Log Décrément négatif ou < 0.1), "
-            "tu DOIS proposer des solutions d'ingénierie concrètes pour stabiliser le rotor (ex: modifier l'amortissement direct Cxx/Cyy, "
-            "réduire les raideurs croisées Kxy, changer le type de palier pour des Tilting Pad, ou modifier la géométrie/masse).\n"
-            "- AUDIT NORMATIF : Si l'utilisateur demande une vérification API 684, utilise les données de marge de séparation et de Log Décrément "
-            "du contexte pour rédiger un mini-rapport de conformité.\n\n"
-            
-            "RÈGLES DE RÉPONSE :\n"
-            "1. Sois précis, scientifique et pédagogique. Structure tes réponses en Markdown (titres, listes, tableaux si pertinent).\n"
-            "2. Fournis systématiquement du code ROSS fonctionnel, commenté et exécutable lorsque cela éclaire la réponse. Utilise les balises ```python.\n"
-            "3. Personnalise chaque réponse en t'appuyant EXPLICITEMENT sur les paramètres du rotor fournis dans le contexte (masse, nombre de nœuds, fréquences propres, Log Dec).\n"
-            "4. POLITIQUE LINGUISTIQUE : Réponds par défaut en français. Si l'utilisateur s'exprime dans une autre langue, "
-            "adapte-toi immédiatement. Conserve la rigueur technique et la terminologie internationale (whirl/whip, Campbell, UCS, mode shape) quelle que soit la langue.\n\n"
-            
+            "- Normes : API 684, ISO 1940, ISO 7919-3\n\n"
+            "RÈGLES :\n"
+            "1. Réponses précises, structurées en Markdown.\n"
+            "2. Code ROSS fonctionnel avec balises ```python.\n"
+            "3. S'appuyer sur le contexte rotor fourni.\n"
+            "4. Répondre en français par défaut, s'adapter à la langue de l'utilisateur.\n\n"
             "CONTEXTE ACTUEL DU ROTOR :\n"
             + json.dumps(context, ensure_ascii=False, indent=2)
         )
@@ -519,16 +528,20 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
     except Exception as e:
         err_str = str(e)
         if "404" in err_str and "models/" in err_str:
-            return (f"⚠️ **Modèle IA non trouvé.** Le modèle `{model_name}` n'est pas disponible pour votre clé API. Sélectionnez 'gemini-1.5-flash' dans les paramètres.\n\n---\n**Réponse hors-ligne :**\n\n" + _fallback(user_msg, context))
+            return ("⚠️ **Modèle IA non trouvé.** Sélectionnez 'gemini-1.5-flash' dans les paramètres.\n\n---\n**Réponse hors-ligne :**\n\n"
+                    + _fallback(user_msg, context))
         if any(k in err_str.upper() for k in ["API_KEY", "401", "403", "INVALID"]):
-            return ("❌ **Clé API invalide ou expirée.**\n\n---\n**Réponse hors-ligne :**\n\n" + _fallback(user_msg, context))
+            return ("❌ **Clé API invalide ou expirée.**\n\n---\n**Réponse hors-ligne :**\n\n"
+                    + _fallback(user_msg, context))
         if "429" in err_str or "quota" in err_str.lower():
-            return ("⏳ **Quota Gemini dépassé.** Patientez quelques secondes ou changez de modèle IA dans la configuration.\n\n---\n**Réponse hors-ligne :**\n\n" + _fallback(user_msg, context))
-        return (f"⚠️ **Erreur Gemini :** `{err_str}`\n\n---\n**Réponse hors-ligne :**\n\n" + _fallback(user_msg, context))
+            return ("⏳ **Quota Gemini dépassé.** Patientez ou changez de modèle.\n\n---\n**Réponse hors-ligne :**\n\n"
+                    + _fallback(user_msg, context))
+        return ("⚠️ **Erreur Gemini :** `{}`\n\n---\n**Réponse hors-ligne :**\n\n".format(err_str)
+                + _fallback(user_msg, context))
 
 
 # =============================================================================
-# FALLBACK HORS-LIGNE (RÈGLES MÉTIERS EXPERTES)
+# FALLBACK HORS-LIGNE
 # =============================================================================
 def _fallback(user_msg: str, context: dict) -> str:
     msg_lower    = user_msg.lower()
@@ -536,47 +549,44 @@ def _fallback(user_msg: str, context: dict) -> str:
 
     ctx_info = ""
     if rotor_loaded:
-        ctx_info = "\n\n---\n*Rotor : {} nœuds, {} kg*".format(context.get("n_nodes", "?"), context.get("mass_kg", "?"))
+        ctx_info = "\n\n---\n*Rotor : {} nœuds, {} kg*".format(
+            context.get("n_nodes", "?"), context.get("mass_kg", "?"))
 
     responses = {
         ("2x", "vibration", "diagnosti", "symptôme"): (
             "## 🩺 Diagnostic Vibratoire (Expertise M7)\n\n"
-            "Une forte composante à **2X (deux fois la vitesse de rotation)** indique une asymétrie dans le rotor. Les causes principales sont :\n"
-            "1. **Désalignement des paliers ou de l'accouplement** (Crée de fortes charges radiales).\n"
-            "2. **Fissure transverse (Crack)** (La raideur de l'arbre varie 2 fois par tour sous l'effet de la gravité).\n"
-            "3. **Asymétrie géométrique** (ex: rotor à 2 pôles d'un générateur électrique).\n\n"
-            "*Action :* Ouvrez le **Module M7 (Défauts)** pour simuler une respiration de fissure et observer l'orbite interne."
+            "Une forte composante à **2X** indique une asymétrie. Causes principales :\n"
+            "1. **Désalignement** des paliers ou de l'accouplement.\n"
+            "2. **Fissure transverse** (raideur variable 2 fois/tour).\n"
+            "3. **Asymétrie géométrique** (ex: rotor à 2 pôles).\n\n"
+            "*Action :* Ouvrez le **Module M7** pour simuler et observer l'orbite."
         ),
-        ("stabilis", "log dec < 0", "instable"): (
-            "## 🛡️ Optimisation de la Stabilité (Expertise M3/M5)\n\n"
-            "Votre rotor présente un Log Décrément négatif (Instabilité). Voici comment corriger cela :\n"
-            "- **Réduire les forces déstabilisatrices :** Diminuez la raideur croisée ($K_{xy}$) des paliers hydrodynamiques.\n"
-            "- **Augmenter l'amortissement :** Augmentez l'amortissement direct ($C_{xx}$, $C_{yy}$) aux emplacements modaux (ventres de vibration).\n"
-            "- **Changer la technologie de palier :** Les paliers à patins oscillants (Tilting Pad Bearings) n'ont pas de raideur croisée et éliminent l'Oil Whirl.\n"
-            "- **Modification structurelle :** Réduisez la masse en porte-à-faux ou augmentez le diamètre de l'arbre pour repousser la première fréquence propre."
+        ("stabilis", "log dec", "instable"): (
+            "## 🛡️ Optimisation de la Stabilité\n\n"
+            "Solutions pour un Log Décrément négatif :\n"
+            "- Réduire la raideur croisée $K_{xy}$ des paliers HD.\n"
+            "- Augmenter l'amortissement direct $C_{xx}$, $C_{yy}$.\n"
+            "- Changer vers des paliers **Tilting Pad** (pas de $K_{xy}$).\n"
+            "- Modifier la géométrie pour repousser la première fréquence propre."
         ),
         ("api 684", "audit", "conformit"): (
             "## 📋 Audit Normatif API 684\n\n"
-            f"**Score actuel estimé : {context.get('api684', {}).get('score', 0)} %**\n\n"
-            "**Critères de validation :**\n"
-            "1. **Marge de séparation (Separation Margin) :** Les vitesses critiques (Vc) doivent être éloignées de la vitesse d'opération (Nop) d'au moins 16% à 26%.\n"
-            "2. **Stabilité :** Un Log Décrément minimal de $\\delta_a = 0.1$ est exigé pour tous les modes dans la plage de fonctionnement.\n\n"
-            "*Action :* Vérifiez le diagramme de Campbell (Module M3) pour visualiser les marges."
+            "**Critères :**\n"
+            "1. Marge de séparation ≥ 15-25% autour de Nop.\n"
+            "2. Log Décrément $\\delta \\geq 0.1$ pour tous les modes.\n\n"
+            "*Action :* Module M3 → onglet API 684."
         ),
         ("code", "script", "python", "ross"): (
-            "## 💻 Génération de Code ROSS\n\n"
+            "## 💻 Exemple de Code ROSS\n\n"
             "```python\nimport ross as rs\nimport numpy as np\n\n"
-            "# 1. Matériau et Arbre\n"
             "steel = rs.Material(name='Steel', rho=7810, E=211e9, G_s=81.2e9)\n"
-            "shaft = [rs.ShaftElement(L=0.25, idl=0.0, odl=0.05, material=steel) for _ in range(6)]\n\n"
-            "# 2. Disques et Paliers\n"
+            "shaft = [rs.ShaftElement(L=0.25, idl=0.0, odl=0.05, material=steel) for _ in range(6)]\n"
             "disk  = rs.DiskElement(n=3, m=15.0, Id=0.025, Ip=0.047)\n"
             "brg0  = rs.BearingElement(n=0, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n"
-            "brg6  = rs.BearingElement(n=6, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n\n"
-            "# 3. Assemblage et Analyse\n"
+            "brg6  = rs.BearingElement(n=6, kxx=1e7, kyy=1e7, cxx=500, cyy=500)\n"
             "rotor = rs.Rotor(shaft, [disk], [brg0, brg6])\n"
-            "campbell = rotor.run_campbell(speed_range=np.linspace(0, 1000, 50))\n"
-            "campbell.plot()\n```"
+            "modal = rotor.run_modal(speed=0)\n"
+            "print(modal.wn / (2*np.pi))  # fréquences propres en Hz\n```"
         ),
     }
 
