@@ -230,7 +230,11 @@ def _render_settings_panel(compact=True):
             pass
 
     if not model_options:
-        model_options = ["gemini-1.5-flash", "gemini-1.5-pro-latest", "gemini-pro"]
+        model_options = [
+            "gemini-2.0-flash", 
+            "gemini-2.0-flash-lite", 
+            "gemini-2.5-flash"
+        ]
 
     current_model = st.session_state.get("copilot_model_choice", "")
     if not current_model or current_model not in model_options:
@@ -464,7 +468,7 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
 
     try:
         genai.configure(api_key=api_key)
-        model_name = st.session_state.get("copilot_model_choice", "gemini-1.5-flash")
+        model_name = st.session_state.get("copilot_model_choice", "gemini-2.0-flash")
 
         system_prompt = (
             "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
