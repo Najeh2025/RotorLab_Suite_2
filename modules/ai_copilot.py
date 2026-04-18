@@ -394,7 +394,7 @@ def _render_chat_area_inner():
                 
         # On sauvegarde la réponse de l'IA dans l'historique
         st.session_state["copilot_chat_history"].append({"role": "assistant", "content": response})
-        st.rerun()  # ← CETTE LIGNE MANQUAIT
+    st.rerun()  # ← CETTE LIGNE MANQUAIT
 
 # =============================================================================
 # CALLBACKS
