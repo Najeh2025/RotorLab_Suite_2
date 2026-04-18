@@ -292,18 +292,9 @@ def _render_settings_panel(compact=True):
             else:
                 st.warning("Saisissez une clé.")
     with c2:
-        if st.button("Effacer", key="copilot_key_clear", use_container_width=True):
-            # 1. On vide la variable de stockage utilisée par le cerveau de l'IA
-            st.session_state["copilot_api_key"] = ""
-            
-            # 2. On vide EXPLICITEMENT le tampon du widget (la zone de texte)
-            # On utilise le nom défini dans le paramètre 'key' du text_input
-            st.session_state["copilot_key_input"] = "" 
-            
+        # On utilise on_click pour déclencher le nettoyage AVANT le rechargement de la page
+        if st.button("Effacer", key="copilot_key_clear", use_container_width=True, on_click=_cb_clear_api_key):
             st.info("Clé supprimée.")
-            
-            # 3. On force un rerun pour que le champ apparaisse vide instantanément
-            st.rerun()
 
     if api_key and GEMINI_OK:
         st.markdown("""
@@ -874,3 +865,10 @@ def _fallback(user_msg: str, context: dict) -> str:
         "Configurez votre clé API Gemini pour des réponses complètes et personnalisées."
         + ctx_info
     )
+
+
+def _cb_clear_api_key():
+    """Callback pour vider la clé API et réinitialiser le widget visuel."""
+    st.session_state["copilot_api_key"] = ""
+    st.session_state["copilot_key_input"] = ""
+    
