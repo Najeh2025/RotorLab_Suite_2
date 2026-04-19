@@ -254,15 +254,31 @@ def render_copilot(col_settings, col_graphics):
 
 
 def render_copilot_fullscreen():
-    """Mode plein écran copilot : héro pleine largeur, 2 colonnes dessous."""
+    """Mode plein écran copilot : layout fixe avec flexbox."""
     _init_copilot_state()
     st.markdown(_COPILOT_CSS, unsafe_allow_html=True)
-    _render_cop_hero()                        # ← sticky full-width au scroll
-    col1, col2 = st.columns([1, 2.8])
-    with col1:
-        _render_settings_panel(compact=False) # ← sticky via :has() CSS
-    with col2:
-        _render_chat_area_inner()             # ← zone scrollable + chat_input
+    
+    # Wrapper principal avec structure flexbox
+    st.markdown('<div class="cop-main-container">', unsafe_allow_html=True)
+    
+    # 1. HERO (fixe)
+    _render_cop_hero()
+    
+    # 2. ZONE DE CONTENU (sidebar + chat)
+    st.markdown('<div class="cop-content-wrapper">', unsafe_allow_html=True)
+    
+    # Colonne gauche (sidebar fixe)
+    st.markdown('<div class="cop-sidebar">', unsafe_allow_html=True)
+    _render_settings_panel(compact=False)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Colonne droite (chat scrollable)
+    st.markdown('<div class="cop-chat-zone">', unsafe_allow_html=True)
+    _render_chat_area_inner()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Fin content-wrapper
+    st.markdown('</div>', unsafe_allow_html=True)  # Fin main-container
 
 
 # =============================================================================
@@ -437,118 +453,108 @@ def _render_chat_area():
 
 
 def _render_chat_area_inner():
-    """Cœur de la zone de chat : messages scrollables + input fixe en bas."""
+    """Zone de chat avec messages scrollables + input fixe."""
 
-    # ── Effacement ───────────────────────────────────────────────────────
+    # Effacement
     if st.session_state.get("copilot_clear_requested"):
-        st.session_state["copilot_chat_history"]         = []
-        st.session_state["copilot_clear_requested"]      = False
-        st.session_state["copilot_is_processing"]        = False
-        st.session_state["copilot_pending_quick_prompt"] = None
+        st.session_state["copilot_chat_history"] = []
+        st.session_state["copilot_clear_requested"] = False
+        st.session_state["copilot_is_processing"] = False
+        st.rerun()
 
     history = st.session_state.get("copilot_chat_history", [])
 
-    # ── Bouton Nouveau Chat ───────────────────────────────────────────────
+    # Bouton Nouveau Chat
     if history:
-        _, col_clear = st.columns([5, 1])
+        col_space, col_clear = st.columns([5, 1])
         with col_clear:
-            st.button("✨ Nouveau Chat", key="copilot_clear_btn",
-                      use_container_width=True, on_click=_cb_clear_history)
+            if st.button("✨ Nouveau Chat", key="copilot_clear_btn",
+                        use_container_width=True, on_click=_cb_clear_history):
+                st.rerun()
 
-    # ── Écran d'accueil ───────────────────────────────────────────────────
+    # Wrapper pour messages scrollables
+    st.markdown('<div class="cop-messages-container" id="cop-messages">', 
+                unsafe_allow_html=True)
+
     if not history:
+        # Écran d'accueil
         st.markdown("""
         <div style="display:flex;flex-direction:column;justify-content:center;
-                    align-items:center;padding-top:10vh;padding-bottom:6vh;text-align:center;">
-          <div style="font-size:3.8em;font-weight:600;line-height:1.1;letter-spacing:-1.5px;">
-            <span style="background:-webkit-linear-gradient(135deg,#1F5C8B,#7B1FA2);
-                         -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-              Bonjour.</span>
-          </div>
-          <div style="font-size:2.2em;font-weight:500;color:#8A9BB0;
-                      line-height:1.2;letter-spacing:-0.5px;margin-top:8px;">
-            Comment puis-je optimiser votre rotor aujourd'hui ?
-          </div>
+                    align-items:center;padding:60px 20px;text-align:center;">
+            <div style="font-size:3.2em;font-weight:600;line-height:1.1;
+                        background:-webkit-linear-gradient(135deg,#1F5C8B,#7B1FA2);
+                        -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Bonjour.</div>
+            <div style="font-size:1.8em;font-weight:500;color:#8A9BB0;
+                        margin-top:12px;">
+                Comment puis-je optimiser votre rotor aujourd'hui ?
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown(
-            "<div style='text-align:center;color:#6B7280;font-size:0.85em;"
-            "margin-bottom:15px;font-weight:700;text-transform:uppercase;"
-            "letter-spacing:0.08em;'>Suggestions pour démarrer</div>",
-            unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center;color:#6B7280;"
+                    "font-size:0.80em;margin:20px 0;font-weight:700;"
+                    "text-transform:uppercase;letter-spacing:0.08em;'>"
+                    "Suggestions pour démarrer</div>", unsafe_allow_html=True)
 
         c1, c2, c3, c4 = st.columns(4)
         prompts_data = [
-            (c1, "🏗️ Modélisation",  "Créer un rotor avec ROSS en Python"),
-            (c2, "🩺 Diagnostic M7", "Diagnostiquer une forte composante vibratoire à 2X la vitesse de rotation"),
-            (c3, "⚖️ Audit API 684", "Rédiger un audit de conformité API 684 basé sur les données actuelles"),
-            (c4, "💧 Stabilisation", "Comment stabiliser ce rotor (Log Decrétement négatif) ?"),
+            (c1, "🏗️ Modélisation", "Créer un rotor avec ROSS en Python"),
+            (c2, "🩺 Diagnostic M7", "Diagnostiquer une vibration à 2X"),
+            (c3, "⚖️ Audit API 684", "Rédiger un audit de conformité"),
+            (c4, "💧 Stabilisation", "Stabiliser un rotor instable"),
         ]
         for col, label, prompt in prompts_data:
             with col:
-                if st.button(label, help=prompt,
-                             key="qp_hero_{}".format(label),
-                             use_container_width=True):
+                if st.button(label, help=prompt, key=f"qp_{label}",
+                            use_container_width=True):
                     st.session_state["copilot_chat_history"].append(
                         {"role": "user", "content": prompt})
-                    st.session_state["copilot_pending_quick_prompt"] = prompt
                     st.rerun()
-
     else:
-        # ── ZONE DE MESSAGES SCROLLABLE ───────────────────────────────────
-        # st.container(height=X) crée un bloc scrollable natif Streamlit.
-        # La hauteur est ajustée dynamiquement via JS injecté ci-dessous.
-        # Valeur initiale : 500 px (raisonnable sur tous les écrans).
-        msg_container = _make_scrollable_container(default_height=500)
+        # Affichage des messages
+        for msg in history:
+            avatar = "🧑‍" if msg["role"] == "user" else "✨"
+            with st.chat_message(msg["role"], avatar=avatar):
+                st.markdown(msg["content"])
 
-        with msg_container:
-            for msg in history:
-                avatar = "🧑‍💻" if msg["role"] == "user" else "✨"
-                with st.chat_message(msg["role"], avatar=avatar):
-                    st.markdown(msg["content"])
+    st.markdown('</div>', unsafe_allow_html=True)  # Fin messages container
 
-        # JS : adapte la hauteur du container au viewport et scroll en bas.
-        _inject_layout_js()
-
-    # ── Traitement d'un quick prompt en attente ───────────────────────────
-    pending = st.session_state.get("copilot_pending_quick_prompt")
-    if pending:
-        st.session_state["copilot_pending_quick_prompt"] = None
-        with st.chat_message("user", avatar="🧑‍💻"):
-            st.markdown(pending)
+    # Traitement pending response
+    if st.session_state.get("copilot_pending_response"):
+        pending = st.session_state["copilot_pending_response"]
+        st.session_state["copilot_pending_response"] = None
+        st.session_state["copilot_is_processing"] = True
+        
         with st.chat_message("assistant", avatar="✨"):
-            with st.spinner("SmartRotor Copilot analyse votre question…"):
+            with st.spinner("Analyse en cours…"):
                 response = _call_gemini(
                     pending, _build_context(),
                     st.session_state["copilot_chat_history"][:-1])
                 st.markdown(response)
+        
         st.session_state["copilot_chat_history"].append(
             {"role": "assistant", "content": response})
+        st.session_state["copilot_is_processing"] = False
         st.rerun()
         return
 
-    # ── Saisie manuelle ───────────────────────────────────────────────────
-    # st.chat_input est rendu par Streamlit HORS du container → reste fixe en bas.
+    # Input fixe en bas
+    st.markdown('<div class="cop-input-wrapper">', unsafe_allow_html=True)
     user_input = st.chat_input(
         "Posez votre question en dynamique des rotors…",
         key="copilot_chat_input")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if user_input:
         st.session_state["copilot_chat_history"].append(
             {"role": "user", "content": user_input})
-        with st.chat_message("user", avatar="🧑‍💻"):
-            st.markdown(user_input)
-        with st.chat_message("assistant", avatar="✨"):
-            with st.spinner("SmartRotor Copilot analyse votre question…"):
-                response = _call_gemini(
-                    user_input, _build_context(),
-                    st.session_state["copilot_chat_history"][:-1])
-                st.markdown(response)
-        st.session_state["copilot_chat_history"].append(
-            {"role": "assistant", "content": response})
+        st.session_state["copilot_pending_response"] = user_input
         st.rerun()
 
+    # Auto-scroll vers le bas après rendu
+    if history:
+        _inject_auto_scroll_js()
 
 # =============================================================================
 # HELPERS LAYOUT
