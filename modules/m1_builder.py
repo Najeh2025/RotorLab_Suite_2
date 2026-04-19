@@ -1,6 +1,6 @@
 # modules/m1_builder.py — Constructeur de Rotor (Module M1)
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
-# v3.1 — Correction st.modal + Templates + Sync df_base/df_live
+# v3.2 — Boutons taille uniforme + Popover pour templates
 # =============================================================================
 
 import streamlit as st
@@ -36,12 +36,12 @@ def render_m1(col_settings, col_graphics):
     with col_graphics:
         _render_graphics(active_node)
     
-    # Gestion des dialogs/expander après le rendu principal
+    # Gestion des dialogs/popover après le rendu principal
     _handle_modals()
 
 
 # =============================================================================
-# GESTION DES DIALOGS / EXPANDERS (remplace st.modal)
+# GESTION DES DIALOGS / POPOVER
 # =============================================================================
 def _handle_modals():
     """Gère l'affichage des confirmations et sélecteurs de template."""
@@ -69,9 +69,10 @@ def _handle_modals():
                     st.session_state["m1_show_unsaved_dialog"] = False
                     st.rerun()
     
-    # ── Dialog : Sélecteur de template ────────────────────────────────────
+    # ── POPOVER : Sélecteur de template (fenêtre popup) ───────────────────
     if st.session_state.get("m1_show_template_selector"):
-        with st.expander("🆕 Nouveau modèle — Sélectionnez un template", expanded=True):
+        # Utilisation de st.popover pour une fenêtre popup
+        with st.popover("🆕 Nouveau modèle — Sélectionnez un template", use_container_width=True):
             st.markdown("### Choisissez une configuration de départ :")
             
             template = st.radio(
@@ -120,10 +121,12 @@ def _render_settings(active_node: str):
         unsafe_allow_html=True
     )
 
-    # ── Gestion fichiers ──────────────────────────────────────────────────
+    # ── Gestion fichiers — BOUTONS DE MÊME TAILLE ─────────────────────────
     with st.expander("📁 Fichiers — Charger / Sauvegarder", expanded=False):
-        c1, c2 = st.columns(2)
-        with c1:
+        # Trois boutons sur une seule ligne de même taille
+        col_new, col_save, col_upload = st.columns(3)
+        
+        with col_new:
             if st.button("📄 Nouveau modèle", use_container_width=True, key="m1_new"):
                 # Vérifier si modifications non sauvegardées
                 if st.session_state.get("m1_has_unsaved_changes", False):
@@ -132,7 +135,7 @@ def _render_settings(active_node: str):
                     st.session_state["m1_show_template_selector"] = True
                 st.rerun()
                 
-        with c2:
+        with col_save:
             # ⚠️ Utiliser les versions _live pour l'export (données à jour)
             current_data = {
                 "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
@@ -151,32 +154,34 @@ def _render_settings(active_node: str):
                 on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
             )
             
-        uploaded = st.file_uploader(
-            "Charger un modele (.json)",
-            type=["json"],
-            label_visibility="collapsed",
-            key="m1_upload"
-        )
-        if uploaded is not None:
-            file_id = "{}_{}".format(uploaded.name, uploaded.size)
-            if st.session_state.get("m1_last_file_id") != file_id:
-                try:
-                    content = uploaded.read()
-                    data = json.loads(content.decode("utf-8"))
-                    if "shaft" not in data:
-                        st.error("Fichier JSON invalide : clé 'shaft' manquante.")
-                    else:
-                        _load_model_from_dict(data)
-                        st.session_state["m1_last_file_id"] = file_id
-                        st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
-                        st.session_state["m1_has_unsaved_changes"] = False
-                        st.rerun()
-                except json.JSONDecodeError as e:
-                    st.error(f"JSON malformé : {e}")
-                except Exception as e:
-                    st.error(f"Erreur lecture : {e}")
-            else:
-                st.info(f"📁 Fichier '{uploaded.name}' déjà chargé.")
+        with col_upload:
+            uploaded = st.file_uploader(
+                "📂 Charger (.json)",
+                type=["json"],
+                label_visibility="collapsed",  # Cache le label pour plus de propreté
+                key="m1_upload",
+                help="Sélectionnez un fichier JSON de modèle de rotor"
+            )
+            if uploaded is not None:
+                file_id = "{}_{}".format(uploaded.name, uploaded.size)
+                if st.session_state.get("m1_last_file_id") != file_id:
+                    try:
+                        content = uploaded.read()
+                        data = json.loads(content.decode("utf-8"))
+                        if "shaft" not in data:
+                            st.error("Fichier JSON invalide : clé 'shaft' manquante.")
+                        else:
+                            _load_model_from_dict(data)
+                            st.session_state["m1_last_file_id"] = file_id
+                            st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+                            st.session_state["m1_has_unsaved_changes"] = False
+                            st.rerun()
+                    except json.JSONDecodeError as e:
+                        st.error(f"JSON malformé : {e}")
+                    except Exception as e:
+                        st.error(f"Erreur lecture : {e}")
+                else:
+                    st.info(f"📁 Fichier '{uploaded.name}' déjà chargé.")
 
     # ── Rendu des onglets selon la session ────────────────────────────────
     _label_to_render = {
