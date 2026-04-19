@@ -129,58 +129,98 @@ def _handle_modals():
 # =============================================================================
 # PANNEAU SETTINGS
 # =============================================================================
+# =============================================================================
+# REMPLACEMENT — fonction _render_settings dans modules/m1_builder.py
+# =============================================================================
+
 def _render_settings(active_node: str):
-    # Injection CSS pour uniformiser les 3 boutons
+
     st.markdown("""
     <style>
-    .rl-file-manager { display: flex !important; flex-direction: column !important; gap: 10px !important; margin-bottom: 20px !important; width: 100% !important; }
-    .rl-file-manager > div, .rl-file-manager .stSelectbox, .rl-file-manager .stButton, .rl-file-manager .stFileUploader, .rl-file-manager .stDownloadButton { width: 100% !important; max-width: 100% !important; }
-    .rl-file-manager .stButton > button, .rl-file-manager .stDownloadButton > button { justify-content: flex-start !important; text-align: left !important; padding-left: 16px !important; width: 100% !important; }
-    .rl-file-manager .stFileUploader { border: 1px solid #D0D8E4 !important; border-radius: 8px !important; background-color: #FFFFFF !important; padding: 0 !important; height: 38px !important; min-height: 38px !important; }
-    .rl-file-manager .stFileUploader:hover { border-color: #1F5C8B !important; background-color: #F7F9FC !important; }
-    .rl-file-manager .stFileUploader button[data-testid="stBaseButton"] { display: none !important; }
-    .rl-file-manager .stFileUploader label { width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; padding: 0 16px !important; margin: 0 !important; font-weight: 600 !important; font-size: 0.95rem !important; color: #1A1A2E !important; cursor: pointer !important; background: transparent !important; border: none !important; }
-    .rl-file-manager .stFileUploader input[type="file"] { position: absolute !important; opacity: 0.01 !important; width: 100% !important; height: 100% !important; cursor: pointer !important; z-index: 10 !important; }
+    /* ── Boutons fichiers : pleine largeur, alignés à gauche ── */
+    [data-testid="stFileUploader"] {
+        border        : 1.5px solid #D0D8E4 !important;
+        border-radius : 8px !important;
+        padding       : 0 !important;
+        background    : #FFFFFF !important;
+        transition    : border-color .15s !important;
+    }
+    [data-testid="stFileUploader"]:hover {
+        border-color  : #1F5C8B !important;
+    }
+    /* Masquer les éléments visuels natifs de l'uploader */
+    [data-testid="stFileUploader"] section {
+        padding       : 0 !important;
+        border        : none !important;
+        background    : transparent !important;
+    }
+    [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {
+        display       : none !important;
+    }
+    /* Afficher uniquement le bouton "Browse files" stylisé */
+    [data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] {
+        width         : 100% !important;
+        justify-content: flex-start !important;
+        padding-left  : 16px !important;
+        border        : none !important;
+        background    : transparent !important;
+        font-size     : 0.95rem !important;
+        font-weight   : 600 !important;
+        color         : #1A1A2E !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
+        unsafe_allow_html=True
+    )
 
-    # ── Gestion des fichiers : 3 boutons verticaux identiques ────────────
-    st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════════════════════════
+    # BLOC FICHIERS — 4 éléments empilés, pleine largeur
+    # ══════════════════════════════════════════════════════════════════════
 
-    # 1. Template + Bouton Appliquer
-    st.markdown('<div style="font-weight:600; margin-bottom:6px; color:#1A1A2E;">🆕 Nouveau modèle</div>', unsafe_allow_html=True)
+    # ── 1. Sélecteur de template ──────────────────────────────────────────
+    st.markdown(
+        '<p style="font-weight:600;margin:0 0 4px;color:#1A1A2E;font-size:.9em;">'
+        '🆕 Nouveau modèle</p>',
+        unsafe_allow_html=True
+    )
     template_choice = st.selectbox(
-        "Sélectionner un template",
+        "template",
         options=["simple", "industrial", "api684", "empty"],
         format_func=lambda x: {
-            "simple": "🔹 Simple (Pédagogique)",
+            "simple":     "🔹 Simple (Pédagogique)",
             "industrial": "🔹 Industriel (Multi-étages)",
-            "api684": "🔹 API 684 (Référence normative)",
-            "empty": "🔹 Vide (Construction from scratch)"
+            "api684":     "🔹 API 684 (Référence normative)",
+            "empty":      "🔹 Vide (Construction from scratch)",
         }[x],
         index=0,
         key="m1_template_selector_main",
         label_visibility="collapsed"
     )
 
-    if st.button("✅ Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
+    # ── 2. Appliquer le template ──────────────────────────────────────────
+    if st.button(
+        "✅ Appliquer ce template",
+        use_container_width=True,
+        key="m1_btn_apply_template"
+    ):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
-            st.session_state["m1_pending_action"] = "apply_template"
+            st.session_state["m1_pending_action"]       = "apply_template"
         else:
             _init_tables(template=template_choice)
             st.session_state["m1_has_unsaved_changes"] = False
             st.toast("🎯 Template appliqué avec succès !", icon="✅")
         st.rerun()
 
-    # 2. Bouton Charger (Upload déguisé)
+    # ── 3. Charger un fichier JSON ────────────────────────────────────────
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
         key="m1_upload_main",
-        label_visibility="collapsed",
+        label_visibility="visible",
         help="Cliquez pour sélectionner un fichier JSON"
     )
 
@@ -188,29 +228,39 @@ def _render_settings(active_node: str):
         file_id = f"{uploaded.name}_{uploaded.size}"
         if st.session_state.get("m1_last_file_id") != file_id:
             try:
-                content = uploaded.read()
-                data = json.loads(content.decode("utf-8"))
-                if "shaft" not in 
+                data = json.loads(uploaded.read().decode("utf-8"))
+                if "shaft" not in data:
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
-                    st.session_state["m1_last_file_id"] = file_id
-                    st.session_state["m1_has_unsaved_changes"] = False
+                    # ── Synchroniser les bases ET les _live ──────────────
+                    st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
+                    st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
+                    st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
+                    # Incrémenter la génération pour forcer la recréation des éditeurs
+                    st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0) + 1
+                    st.session_state["m1_last_file_id"]         = file_id
+                    st.session_state["m1_has_unsaved_changes"]  = False
                     st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
+            except json.JSONDecodeError as e:
+                st.error(f"❌ JSON malformé : {e}")
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
 
-    # 3. Bouton Sauvegarder
+    # ── 4. Sauvegarder en JSON ────────────────────────────────────────────
     current_data = {
-        "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
-        "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
-        "bearings": st.session_state.get("_df_bear_live", st.session_state["df_bear"]).to_dict(orient="records"),
+        "name":     st.session_state.get("rotor_name", "rotor_export"),
         "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
-        "name": st.session_state.get("rotor_name", "rotor_export"),
+        "shaft":    st.session_state.get("_df_shaft_live",
+                    st.session_state["df_shaft"]).to_dict(orient="records"),
+        "disks":    st.session_state.get("_df_disk_live",
+                    st.session_state["df_disk"]).to_dict(orient="records"),
+        "bearings": st.session_state.get("_df_bear_live",
+                    st.session_state["df_bear"]).to_dict(orient="records"),
     }
     st.download_button(
-        "💾 Sauvegarder le modèle (.json)",
+        label="💾 Sauvegarder le modèle (.json)",
         data=json.dumps(current_data, indent=2, ensure_ascii=False),
         file_name=f"{st.session_state.get('rotor_name', 'rotor_model')}.json",
         mime="application/json",
@@ -219,65 +269,32 @@ def _render_settings(active_node: str):
         on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
     )
 
-    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("---")
 
-    # ── Navigation par onglets ────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════
+    # NAVIGATION ENTRE LES ONGLETS DE DÉFINITION DU ROTOR
+    # ══════════════════════════════════════════════════════════════════════
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
-        "📏 Arbre": _render_tab_shaft,
-        "💿 Disques": _render_tab_disk,
-        "⚙️ Paliers": _render_tab_bearing,
+        "📏 Arbre":    _render_tab_shaft,
+        "💿 Disques":  _render_tab_disk,
+        "⚙️ Paliers":  _render_tab_bearing,
     }
     current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
     _label_to_render.get(current, _render_tab_material)()
 
-    # ── Bouton Assembler ──────────────────────────────────────────────────
-    if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
+    st.markdown("---")
+
+    # ══════════════════════════════════════════════════════════════════════
+    # BOUTON ASSEMBLER
+    # ══════════════════════════════════════════════════════════════════════
+    if st.button(
+        "🚀 Assembler le rotor",
+        type="primary",
+        key="m1_build",
+        use_container_width=True
+    ):
         _assemble_rotor()
-# =============================================================================
-# ONGLET MATÉRIAU
-# =============================================================================
-def _render_tab_material():
-    st.markdown(
-        '<div class="rl-section-header">🧱 Matériau</div>',
-        unsafe_allow_html=True
-    )
-    mat_name = st.selectbox(
-        "Matériau :",
-        list(MATERIALS_DB.keys()),
-        index=list(MATERIALS_DB.keys()).index(
-            st.session_state.get("mat_name", "Acier standard (AISI 1045)")
-        ),
-        key="m1_mat_select",
-        on_change=lambda: st.session_state.update(m1_has_unsaved_changes=True)
-    )
-    st.session_state["mat_name"] = mat_name
-    props = MATERIALS_DB[mat_name]
-
-    if mat_name == "Personnalisé":
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            props["rho"] = st.number_input(
-                "ρ (kg/m³)", 500.0, 20000.0,
-                float(props["rho"]), key="m1_rho",
-                on_change=lambda: st.session_state.update(m1_has_unsaved_changes=True))
-        with c2:
-            props["E"] = st.number_input(
-                "E (GPa)", 1.0, 500.0,
-                float(props["E"]) / 1e9, key="m1_E",
-                on_change=lambda: st.session_state.update(m1_has_unsaved_changes=True)) * 1e9
-        with c3:
-            props["G_s"] = st.number_input(
-                "G_s (GPa)", 1.0, 200.0,
-                float(props["G_s"]) / 1e9, key="m1_Gs",
-                on_change=lambda: st.session_state.update(m1_has_unsaved_changes=True)) * 1e9
-    else:
-        c1, c2, c3 = st.columns(3)
-        c1.metric("ρ (kg/m³)", f"{props['rho']:.0f}")
-        c2.metric("E (GPa)", f"{props['E']/1e9:.1f}")
-        c3.metric("G_s (GPa)", f"{props['G_s']/1e9:.1f}")
-
 
 # =============================================================================
 # ONGLET ARBRE
