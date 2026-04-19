@@ -178,30 +178,29 @@ def _render_tab_shaft():
         "od : Ø externe. _L = côté gauche, _R = côté droit (arbre conique)."
     )
  
-    # ── CORRECTION : pas de key= → return value uniquement ──────────────
-    edited = st.data_editor(
-        st.session_state["df_shaft"],
+    # ── Génération : même base → même clé → diffs accumulés correctement ─
+    gen = st.session_state.get("m1_data_gen", 0)
+ 
+    result = st.data_editor(
+        st.session_state["df_shaft"],          # base STABLE, jamais écrasée ici
+        key=f"m1_shaft_editor_{gen}",          # clé stable tant que la base ne change pas
         num_rows="dynamic",
         use_container_width=True,
         column_config={
-            "L (m)":    st.column_config.NumberColumn(
-                "L (m)",    min_value=0.001, format="%.4f"),
-            "id_L (m)": st.column_config.NumberColumn(
-                "id_L (m)", min_value=0.0,   format="%.4f"),
-            "od_L (m)": st.column_config.NumberColumn(
-                "od_L (m)", min_value=0.001, format="%.4f"),
-            "id_R (m)": st.column_config.NumberColumn(
-                "id_R (m)", min_value=0.0,   format="%.4f"),
-            "od_R (m)": st.column_config.NumberColumn(
-                "od_R (m)", min_value=0.001, format="%.4f"),
+            "L (m)":    st.column_config.NumberColumn("L (m)",    min_value=0.001, format="%.4f"),
+            "id_L (m)": st.column_config.NumberColumn("id_L (m)", min_value=0.0,   format="%.4f"),
+            "od_L (m)": st.column_config.NumberColumn("od_L (m)", min_value=0.001, format="%.4f"),
+            "id_R (m)": st.column_config.NumberColumn("id_R (m)", min_value=0.0,   format="%.4f"),
+            "od_R (m)": st.column_config.NumberColumn("od_R (m)", min_value=0.001, format="%.4f"),
         }
     )
-    st.session_state["df_shaft"] = edited
+    # Stocker la valeur courante (base + diffs appliqués) pour l'assemblage
+    st.session_state["_df_shaft_live"] = result
  
-    n_el = len(st.session_state["df_shaft"])
+    n_el = len(result)
     st.caption(f"→ {n_el} éléments · {n_el + 1} nœuds (0 → {n_el})")
-
-
+ 
+ 
 # =============================================================================
 # ONGLET DISQUES
 # =============================================================================
@@ -215,25 +214,23 @@ def _render_tab_disk():
         "(données CAO ou catalogue constructeur)."
     )
  
-    # ── CORRECTION : pas de key= ─────────────────────────────────────────
-    edited = st.data_editor(
+    gen = st.session_state.get("m1_data_gen", 0)
+ 
+    result = st.data_editor(
         st.session_state["df_disk"],
+        key=f"m1_disk_editor_{gen}",
         num_rows="dynamic",
         use_container_width=True,
         column_config={
-            "nœud":       st.column_config.NumberColumn(
-                "Nœud",       min_value=0, step=1),
-            "Masse (kg)": st.column_config.NumberColumn(
-                "Masse (kg)", min_value=0.0, format="%.4f"),
-            "Id (kg.m²)": st.column_config.NumberColumn(
-                "Id (kg.m²)", min_value=0.0, format="%.6f"),
-            "Ip (kg.m²)": st.column_config.NumberColumn(
-                "Ip (kg.m²)", min_value=0.0, format="%.6f"),
+            "nœud":       st.column_config.NumberColumn("Nœud",       min_value=0, step=1),
+            "Masse (kg)": st.column_config.NumberColumn("Masse (kg)", min_value=0.0, format="%.4f"),
+            "Id (kg.m²)": st.column_config.NumberColumn("Id (kg.m²)", min_value=0.0, format="%.6f"),
+            "Ip (kg.m²)": st.column_config.NumberColumn("Ip (kg.m²)", min_value=0.0, format="%.6f"),
         }
     )
-    st.session_state["df_disk"] = edited
-
-
+    st.session_state["_df_disk_live"] = result
+ 
+ 
 # =============================================================================
 # ONGLET PALIERS
 # =============================================================================
@@ -244,29 +241,24 @@ def _render_tab_bearing():
     )
  
     if "df_bear" not in st.session_state:
-        import pandas as pd
         st.session_state["df_bear"] = pd.DataFrame(
             columns=["nœud", "Type", "kxx", "kyy", "kxy", "cxx", "cyy"]
         )
  
-    # ── Selectbox preset ─────────────────────────────────────────────────
-    from config import BEARING_PRESETS
+    # ── Preset : appliqué UNIQUEMENT au changement (bug précédent corrigé) ─
     preset = st.selectbox(
         "Preset :",
         ["-"] + list(BEARING_PRESETS.keys()),
         key="m1_preset"
     )
  
-    # ── CORRECTION BUG #1 : appliquer le preset UNIQUEMENT au changement ─
     preset_applied = st.session_state.get("m1_preset_applied", "-")
-    if preset != "-" and preset != preset_applied:
-        # Mémoriser pour ne pas réappliquer au prochain rerun
-        st.session_state["m1_preset_applied"] = preset
  
-        import pandas as pd
+    if preset != "-" and preset != preset_applied:
+        st.session_state["m1_preset_applied"] = preset
         p    = BEARING_PRESETS[preset]
         n_el = max(1, len(st.session_state.get("df_shaft", [])))
-        st.session_state["df_bear"] = pd.DataFrame([
+        new_bear = pd.DataFrame([
             {"nœud": 0,    "Type": "Palier",
              "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
              "cxx": p["cxx"], "cyy": p["cyy"]},
@@ -274,14 +266,21 @@ def _render_tab_bearing():
              "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
              "cxx": p["cxx"], "cyy": p["cyy"]},
         ])
+        # Mettre à jour la base ET incrémenter la génération
+        # → le widget repart de zéro avec les valeurs du preset
+        st.session_state["df_bear"]         = new_bear
+        st.session_state["_df_bear_live"]   = new_bear.copy()
+        st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0) + 1
  
     elif preset == "-":
-        # Réinitialise la mémorisation si l'utilisateur revient sur "-"
         st.session_state["m1_preset_applied"] = "-"
  
-    # ── CORRECTION BUG #2 : pas de key= sur data_editor ─────────────────
-    edited = st.data_editor(
+    # ── Éditeur avec clé stable pour la génération courante ──────────────
+    gen = st.session_state.get("m1_data_gen", 0)
+ 
+    result = st.data_editor(
         st.session_state["df_bear"].fillna(0.0),
+        key=f"m1_bear_editor_{gen}",
         num_rows="dynamic",
         use_container_width=True,
         column_config={
@@ -297,13 +296,12 @@ def _render_tab_bearing():
             "cyy": st.column_config.NumberColumn("cyy (N·s/m)", format="%.1f"),
         }
     )
-    st.session_state["df_bear"] = edited
+    st.session_state["_df_bear_live"] = result
  
     st.caption(
         "💡 Type 'Masse' : ajoute une masse ponctuelle sans rigidité "
         "(capteur, demi-accouplement)."
     )
-
 
 # =============================================================================
 # PANNEAU GRAPHICS (droite) — inchangé
