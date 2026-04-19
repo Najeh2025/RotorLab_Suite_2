@@ -514,7 +514,8 @@ def _render_chat_area_inner():
     else:
         # Affichage des messages
         for msg in history:
-            avatar = "🧑‍" if msg["role"] == "user" else "✨"
+            # Utiliser des emojis simples et compatibles
+            avatar = "👤" if msg["role"] == "user" else "✨"
             with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
