@@ -431,9 +431,14 @@ def _assemble_rotor():
     if not ROSS_OK:
         st.error("❌ ROSS n'est pas installé.")
         return
-
+ 
     errors = []
-
+ 
+    # ── Lire les données courantes (avec fallback sur les bases) ──────────
+    df_shaft = st.session_state.get("_df_shaft_live", st.session_state.get("df_shaft", pd.DataFrame()))
+    df_disk  = st.session_state.get("_df_disk_live",  st.session_state.get("df_disk",  pd.DataFrame()))
+    df_bear  = st.session_state.get("_df_bear_live",  st.session_state.get("df_bear",  pd.DataFrame()))
+ 
     try:
         mat_name = st.session_state.get("mat_name", "Acier standard (AISI 1045)")
         props    = MATERIALS_DB[mat_name]
@@ -443,10 +448,10 @@ def _assemble_rotor():
             E     = props["E"],
             G_s   = props["G_s"]
         )
-
-        # Arbre
+ 
+        # ── Arbre ────────────────────────────────────────────────────────
         shaft = []
-        for i, row in st.session_state["df_shaft"].iterrows():
+        for i, row in df_shaft.iterrows():
             L   = float(row.get("L (m)",    0.2))
             idl = float(row.get("id_L (m)", 0.0))
             odl = float(row.get("od_L (m)", 0.05))
@@ -460,13 +465,13 @@ def _assemble_rotor():
                 continue
             shaft.append(rs.ShaftElement(
                 L=L, idl=idl, odl=odl, idr=idr, odr=odr, material=mat))
-
+ 
         if not shaft:
             errors.append("Aucun élément d'arbre valide.")
-
-        # Disques
+ 
+        # ── Disques ──────────────────────────────────────────────────────
         disks = []
-        for i, row in st.session_state["df_disk"].iterrows():
+        for i, row in df_disk.iterrows():
             try:
                 disks.append(rs.DiskElement(
                     n  = int(row["nœud"]),
@@ -476,26 +481,26 @@ def _assemble_rotor():
                 ))
             except Exception as e:
                 errors.append(f"Disque ligne {i+1} : {e}")
-
-        # Paliers
+ 
+        # ── Paliers ──────────────────────────────────────────────────────
         bears = []
-        for i, row in st.session_state["df_bear"].fillna(0.0).iterrows():
+        for i, row in df_bear.fillna(0.0).iterrows():
             try:
                 n      = int(row["nœud"])
                 e_type = str(row.get("Type", "Palier")).strip()
-
+ 
                 def sv(v):
                     try:
                         return float(v) if v not in (None, "") else 0.0
                     except Exception:
                         return 0.0
-
+ 
                 kxx = sv(row.get("kxx", 0))
                 kyy = sv(row.get("kyy", 0))
                 kxy = sv(row.get("kxy", 0))
                 cxx = sv(row.get("cxx", 0))
                 cyy = sv(row.get("cyy", 0))
-
+ 
                 if e_type == "Masse":
                     m_val = sv(row.get("m (kg)", 0))
                     if m_val > 0:
@@ -515,26 +520,26 @@ def _assemble_rotor():
                         kxy=kxy, kyx=-kxy, cxx=cxx, cyy=cyy))
             except Exception as e:
                 errors.append(f"Palier ligne {i+1} : {e}")
-
+ 
         if not bears:
             errors.append("Aucun palier défini.")
-
+ 
         if errors:
             for err in errors:
                 st.error(f"❌ {err}")
             return
-
+ 
         with st.spinner("Assemblage du modèle éléments finis…"):
             rotor = rs.Rotor(shaft, disks, bears)
-
+ 
         st.session_state["rotor"]        = rotor
         st.session_state["rotor_name"]   = "Rotor personnalisé"
         st.session_state["rotor_source"] = "custom"
-
+ 
         for key in ["res_static", "res_modal", "res_campbell",
                     "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
             st.session_state[key] = None
-
+ 
         try:
             from app import add_log
             add_log(
@@ -542,18 +547,17 @@ def _assemble_rotor():
                 f"{rotor.m:.2f} kg, {rotor.ndof} DDL", "ok")
         except ImportError:
             pass
-
+ 
         st.success(
             f"✅ Rotor assemblé — {len(rotor.nodes)} nœuds | "
             f"{rotor.m:.2f} kg | {rotor.ndof} DDL"
         )
         st.rerun()
-
+ 
     except Exception as e:
         st.error(f"❌ Erreur d'assemblage : {e}")
         import traceback
         st.code(traceback.format_exc(), language="python")
-
 
 # =============================================================================
 # INITIALISATION DES TABLEAUX PAR DÉFAUT
@@ -574,8 +578,17 @@ def _init_tables():
         {"nœud": 5, "Type": "Palier",
          "kxx": 1e6, "kyy": 1e6, "kxy": 0.0, "cxx": 0.0, "cyy": 0.0},
     ])
+    # ── Initialiser les versions _live ─────────────────────────────────
+    st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
+    st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
+    st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
+ 
+    # ── Forcer la recréation des éditeurs (nouvelle génération) ──────────
+    st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0) + 1
+ 
     st.session_state["rotor"]      = None
     st.session_state["rotor_name"] = "Nouveau rotor"
     for key in ["res_static", "res_modal", "res_campbell",
                 "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
         st.session_state[key] = None
+ 
