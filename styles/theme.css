@@ -332,6 +332,56 @@ div[data-testid="stProgress"] > div > div {
 .rl-file-manager .stDownloadButton {
     width: 100% !important;
 }
+
+/* ── Uniformisation Upload / Sauvegarde ─────────────────────────────── */
+.rl-file-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.rl-file-manager > div, .rl-file-manager > div > div {
+    width: 100% !important;
+}
+
+/* Force le file uploader à ressembler à un bouton standard */
+.rl-file-manager .stFileUploader {
+    height: 42px !important;
+    min-height: 42px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border: 1.5px solid #D0D8E4 !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF !important;
+    padding: 0 16px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease;
+}
+.rl-file-manager .stFileUploader:hover {
+    border-color: #1F5C8B !important;
+    background-color: #F7F9FC !important;
+}
+.rl-file-manager .stFileUploader label {
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    color: #1A1A2E !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+/* Style interne du bouton "Browse files" pour qu'il disparaisse visuellement */
+.rl-file-manager .stFileUploader button {
+    background: transparent !important;
+    border: none !important;
+    color: #1F5C8B !important;
+    font-weight: 700 !important;
+    padding: 0 !important;
+    margin-left: auto !important;
+}
+        
 /* Harmonise la hauteur visuelle des boutons/upload */
 .rl-file-manager .stFileUploader {
     padding-top: 4px;
