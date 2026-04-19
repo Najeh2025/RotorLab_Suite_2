@@ -129,74 +129,72 @@ def _handle_modals():
 
 def _render_settings(active_node: str):
  
-    # ── CSS : uniformisation des 3 éléments du bloc fichiers ─────────────
+    # ── CSS : uniformisation ABSOLUE des 3 boutons ─────────────
     st.markdown("""
     <style>
-    /* ══════════════════════════════════════════════════════════════
-       Boutons fichiers M1 — hauteur, police et bordure identiques
-       ══════════════════════════════════════════════════════════════ */
- 
-    /* --- Masquer les instructions drag-drop de l'uploader --- */
+    /* 1. Neutraliser complètement l'aspect visuel de la Dropzone du file_uploader */
     [data-testid="stFileUploaderDropzoneInstructions"] {
-        display : none !important;
-    }
- 
-    /* --- Transformer le dropzone en conteneur bouton --- */
-    [data-testid="stFileUploader"] > section {
-        padding    : 0 !important;
-        border     : none !important;
-        background : transparent !important;
-        min-height : 0 !important;
+        display: none !important;
     }
     [data-testid="stFileUploaderDropzone"] {
-        display       : flex !important;
-        align-items   : center !important;
-        padding       : 0 !important;
-        border        : 1.5px solid #D0D8E4 !important;
-        border-radius : 8px !important;
-        min-height    : 40px !important;
-        background    : #FFFFFF !important;
-        cursor        : pointer !important;
-        transition    : border-color .15s, background .15s !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+        min-height: 0 !important;
     }
-    [data-testid="stFileUploaderDropzone"]:hover {
-        border-color : #1F5C8B !important;
-        background   : #EBF4FB !important;
+    [data-testid="stFileUploader"] > section {
+        padding: 0 !important;
+        border: none !important;
     }
- 
-    /* --- Bouton "Browse files" interne : pleine largeur, sans bordure --- */
-    [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] {
-        width          : 100% !important;
-        min-height     : 38px !important;
-        border         : none !important;
-        background     : transparent !important;
-        box-shadow     : none !important;
-        font-size      : 0.875rem !important;
-        font-weight    : 600 !important;
-        color          : #1A1A2E !important;
-        justify-content: flex-start !important;
-        padding        : 0 14px !important;
-    }
-    [data-testid="stFileUploaderDropzone"]:hover
+
+    /* 2. Styliser TOUS les boutons (Appliquer, Uploader, Sauvegarder) ensemble */
     button[data-testid="stBaseButton-secondary"] {
-        color : #1F5C8B !important;
+        width: 100% !important;
+        min-height: 42px !important;
+        height: 42px !important;
+        border: 1.5px solid #D0D8E4 !important;
+        border-radius: 8px !important;
+        background: #FFFFFF !important;
+        color: #1A1A2E !important;
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease-in-out !important;
     }
- 
-    /* --- Remplacer "Browse files" par notre libellé (CSS content trick) --- */
-    [data-testid="stFileUploader"]
+    
+    button[data-testid="stBaseButton-secondary"]:hover {
+        border-color: #1F5C8B !important;
+        background: #EBF4FB !important;
+        color: #1F5C8B !important;
+    }
+
+    /* Ajustement par défaut du texte des boutons standards */
     button[data-testid="stBaseButton-secondary"] p {
-        font-size   : 0 !important;
-        line-height : 0 !important;
-        visibility  : hidden !important;
+        margin: 0 !important;
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
     }
-    [data-testid="stFileUploader"]
-    button[data-testid="stBaseButton-secondary"] p::before {
-        content     : "📂  Charger un modèle (.json)";
-        font-size   : 0.875rem !important;
-        font-weight : 600 !important;
-        line-height : 1.5 !important;
-        visibility  : visible !important;
-        color       : inherit !important;
+
+    /* 3. Remplacement spécifique du texte "Browse files" de l'uploader */
+    [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] p {
+        font-size: 0 !important;
+        visibility: hidden !important;
+    }
+    [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] p::before {
+        content: "📂  Charger un modèle (.json)";
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        visibility: visible !important;
+        display: block !important;
+    }
+
+    /* 4. Réduire les espaces verticaux entre les conteneurs Streamlit pour harmoniser l'empilement */
+    div[data-testid="stButton"], div[data-testid="stDownloadButton"], div[data-testid="stFileUploader"] {
+        margin-bottom: 0.5rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -205,10 +203,6 @@ def _render_settings(active_node: str):
         '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
         unsafe_allow_html=True
     )
- 
-    # ══════════════════════════════════════════════════════════════════════
-    # BLOC FICHIERS — 4 éléments empilés, pleine largeur
-    # ══════════════════════════════════════════════════════════════════════
  
     # ── 1. Label section ──────────────────────────────────────────────────
     st.markdown(
@@ -232,12 +226,8 @@ def _render_settings(active_node: str):
         label_visibility="collapsed"
     )
  
-    # ── 3. Bouton Appliquer (st.button secondaire, pleine largeur) ────────
-    if st.button(
-        "✅  Appliquer ce template",
-        use_container_width=True,
-        key="m1_btn_apply_template"
-    ):
+    # ── 3. Bouton Appliquer ───────────────────────────────────────────────
+    if st.button("✅  Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
             st.session_state["m1_pending_action"]       = "apply_template"
@@ -248,9 +238,6 @@ def _render_settings(active_node: str):
         st.rerun()
  
     # ── 4. Charger un fichier JSON ─────────────────────────────────────────
-    #   label_visibility="collapsed" : cache le label Streamlit au-dessus
-    #   Le CSS ci-dessus remplace "Browse files" par notre texte personnalisé
-    #   et rend le dropzone cliquable comme un bouton ordinaire.
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
@@ -267,16 +254,13 @@ def _render_settings(active_node: str):
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
-                    # Synchroniser _live + forcer recréation des éditeurs
                     st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
                     st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
                     st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
-                    st.session_state["m1_data_gen"]    = \
-                        st.session_state.get("m1_data_gen", 0) + 1
+                    st.session_state["m1_data_gen"]    = st.session_state.get("m1_data_gen", 0) + 1
                     st.session_state["m1_last_file_id"]        = file_id
                     st.session_state["m1_has_unsaved_changes"] = False
-                    st.success(
-                        f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+                    st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
             except json.JSONDecodeError as e:
                 st.error(f"❌ JSON malformé : {e}")
@@ -284,22 +268,15 @@ def _render_settings(active_node: str):
                 st.error(f"❌ Erreur de lecture : {e}")
  
     # ── 5. Sauvegarder en JSON ─────────────────────────────────────────────
+    # Empêche l'erreur si la clé n'existe pas en gérant des valeurs par défaut
     current_data = {
         "name":     st.session_state.get("rotor_name", "rotor_export"),
         "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
-        "shaft":    st.session_state.get(
-                        "_df_shaft_live",
-                        st.session_state["df_shaft"]
-                    ).to_dict(orient="records"),
-        "disks":    st.session_state.get(
-                        "_df_disk_live",
-                        st.session_state["df_disk"]
-                    ).to_dict(orient="records"),
-        "bearings": st.session_state.get(
-                        "_df_bear_live",
-                        st.session_state["df_bear"]
-                    ).to_dict(orient="records"),
+        "shaft":    st.session_state.get("_df_shaft_live", pd.DataFrame()).to_dict(orient="records") if "_df_shaft_live" in st.session_state else [],
+        "disks":    st.session_state.get("_df_disk_live", pd.DataFrame()).to_dict(orient="records") if "_df_disk_live" in st.session_state else [],
+        "bearings": st.session_state.get("_df_bear_live", pd.DataFrame()).to_dict(orient="records") if "_df_bear_live" in st.session_state else [],
     }
+    
     st.download_button(
         label="💾  Sauvegarder le modèle (.json)",
         data=json.dumps(current_data, indent=2, ensure_ascii=False),
@@ -316,26 +293,24 @@ def _render_settings(active_node: str):
     # NAVIGATION ONGLETS (matériau / arbre / disques / paliers)
     # ══════════════════════════════════════════════════════════════════════
     _label_to_render = {
-        "🧱 Matériau": _render_tab_material,
-        "📏 Arbre":    _render_tab_shaft,
-        "💿 Disques":  _render_tab_disk,
-        "⚙️ Paliers":  _render_tab_bearing,
+        # Remplacez par vos fonctions (ex: lambda: None) si elles ne sont pas définies pour l'exemple
+        "🧱 Matériau": lambda: None, 
+        "📏 Arbre":    lambda: None,
+        "💿 Disques":  lambda: None,
+        "⚙️ Paliers":  lambda: None,
     }
     current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
-    _label_to_render.get(current, _render_tab_material)()
+    
+    # (Décommentez pour appeler vos vraies vues d'onglets)
+    # _label_to_render.get(current, _label_to_render["🧱 Matériau"])()
  
     st.markdown("---")
  
     # ══════════════════════════════════════════════════════════════════════
-    # BOUTON ASSEMBLER
+    # BOUTON ASSEMBLER (Lui peut être classifié comme primary pour le démarquer)
     # ══════════════════════════════════════════════════════════════════════
-    if st.button(
-        "🚀 Assembler le rotor",
-        type="primary",
-        key="m1_build",
-        use_container_width=True
-    ):
-        _assemble_rotor()
+    if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
+        pass # _assemble_rotor()
  
  
 # =============================================================================
