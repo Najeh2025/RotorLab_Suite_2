@@ -127,97 +127,120 @@ def _handle_modals():
 # PANNEAU SETTINGS
 # =============================================================================
 
+# =============================================================================
+# REMPLACEZ dans modules/m1_builder.py :
+#   • _render_settings
+#   • _load_model_from_dict  (fonction helper à ajouter si absente)
+#   • _init_tables           (version avec paramètre template=)
+# =============================================================================
+
+import streamlit as st
+import numpy as np
+import pandas as pd
+import json
+
+try:
+    import ross as rs
+    ROSS_OK = True
+except ImportError:
+    ROSS_OK = False
+
+from config import MATERIALS_DB, BEARING_PRESETS
+
+
+# =============================================================================
+# _render_settings
+# =============================================================================
 def _render_settings(active_node: str):
- 
-    # ── CSS : UNIFORMISATION ABSOLUE DES 3 BOUTONS ─────────────
+
+    # ── CSS : uniformisation des 3 éléments du bloc fichiers ─────────────
     st.markdown("""
     <style>
-    /* 1. Neutraliser et élargir le conteneur du uploader pour qu'il prenne 100% */
-    [data-testid="stFileUploaderDropzoneInstructions"] { 
-        display: none !important; 
+    /* ══════════════════════════════════════════════════════════════
+       Boutons fichiers M1 — hauteur, police et bordure identiques
+       ══════════════════════════════════════════════════════════════ */
+
+    /* --- Masquer les instructions drag-drop de l'uploader --- */
+    [data-testid="stFileUploaderDropzoneInstructions"] {
+        display : none !important;
     }
-    [data-testid="stFileUploader"] svg { 
-        display: none !important; 
+
+    /* --- Transformer le dropzone en conteneur bouton --- */
+    [data-testid="stFileUploader"] > section {
+        padding    : 0 !important;
+        border     : none !important;
+        background : transparent !important;
+        min-height : 0 !important;
     }
     [data-testid="stFileUploaderDropzone"] {
-        padding: 0 !important;
-        border: none !important;
-        background: transparent !important;
-        min-height: 0 !important;
-        width: 100% !important;
-        display: flex !important;
+        display       : flex !important;
+        align-items   : center !important;
+        padding       : 0 !important;
+        border        : 1.5px solid #D0D8E4 !important;
+        border-radius : 8px !important;
+        min-height    : 40px !important;
+        background    : #FFFFFF !important;
+        cursor        : pointer !important;
+        transition    : border-color .15s, background .15s !important;
     }
-    [data-testid="stFileUploader"] > section {
-        padding: 0 !important;
-        border: none !important;
-        width: 100% !important;
-    }
-
-    /* 2. Cible Appliquer, Sauvegarder, et Charger */
-    /* L'opérateur :not([kind="primary"]) protège votre bouton final "Assembler" */
-    div[data-testid="stButton"] button:not([kind="primary"]),
-    div[data-testid="stDownloadButton"] button,
-    [data-testid="stFileUploader"] button {
-        width: 100% !important;
-        height: 44px !important;
-        min-height: 44px !important;
-        margin: 0 !important;
-        
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 8px !important;
-        background-color: #FFFFFF !important;
-        color: #1A1A2E !important;
-        
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
-        transition: all 0.2s ease-in-out !important;
+    [data-testid="stFileUploaderDropzone"]:hover {
+        border-color : #1F5C8B !important;
+        background   : #EBF4FB !important;
     }
 
-    /* 3. Effet au clic et survol identique (Bleu) */
-    div[data-testid="stButton"] button:not([kind="primary"]):hover,
-    div[data-testid="stDownloadButton"] button:hover,
-    [data-testid="stFileUploader"] button:hover {
-        border-color: #3B82F6 !important;
-        background-color: #EFF6FF !important;
-        color: #1D4ED8 !important;
+    /* --- Bouton "Browse files" interne : pleine largeur, sans bordure --- */
+    [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] {
+        width          : 100% !important;
+        min-height     : 38px !important;
+        border         : none !important;
+        background     : transparent !important;
+        box-shadow     : none !important;
+        font-size      : 0.875rem !important;
+        font-weight    : 600 !important;
+        color          : #1A1A2E !important;
+        justify-content: flex-start !important;
+        padding        : 0 14px !important;
+    }
+    [data-testid="stFileUploaderDropzone"]:hover
+    button[data-testid="stBaseButton-secondary"] {
+        color : #1F5C8B !important;
     }
 
-    /* 4. Forcer la police d'Appliquer et Sauvegarder */
-    div[data-testid="stButton"] button:not([kind="primary"]) p,
-    div[data-testid="stDownloadButton"] button p {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: inherit !important;
-        margin: 0 !important;
+    /* --- Remplacer "Browse files" par notre libellé (CSS content trick) --- */
+    [data-testid="stFileUploader"]
+    button[data-testid="stBaseButton-secondary"] p {
+        font-size   : 0 !important;
+        line-height : 0 !important;
+        visibility  : hidden !important;
     }
-
-    /* 5. Remplacement malin du texte "Browse files" de l'uploader */
-    [data-testid="stFileUploader"] button p {
-        display: none !important;
-    }
-    [data-testid="stFileUploader"] button::after {
-        content: "📂  Charger un modèle (.json)";
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: inherit !important;
+    [data-testid="stFileUploader"]
+    button[data-testid="stBaseButton-secondary"] p::before {
+        content     : "📂  Charger un modèle (.json)";
+        font-size   : 0.875rem !important;
+        font-weight : 600 !important;
+        line-height : 1.5 !important;
+        visibility  : visible !important;
+        color       : inherit !important;
     }
     </style>
     """, unsafe_allow_html=True)
- 
+
     st.markdown(
         '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
         unsafe_allow_html=True
     )
- 
+
+    # ══════════════════════════════════════════════════════════════════════
+    # BLOC FICHIERS — 4 éléments empilés, pleine largeur
+    # ══════════════════════════════════════════════════════════════════════
+
     # ── 1. Label section ──────────────────────────────────────────────────
     st.markdown(
         '<p style="font-weight:700;margin:0 0 6px;color:#1A1A2E;font-size:.88em;">'
         '🆕 Nouveau modèle</p>',
         unsafe_allow_html=True
     )
- 
+
     # ── 2. Sélecteur template ─────────────────────────────────────────────
     template_choice = st.selectbox(
         "template",
@@ -232,9 +255,13 @@ def _render_settings(active_node: str):
         key="m1_template_selector_main",
         label_visibility="collapsed"
     )
- 
-    # ── 3. Bouton Appliquer ───────────────────────────────────────────────
-    if st.button("✅  Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
+
+    # ── 3. Bouton Appliquer (st.button secondaire, pleine largeur) ────────
+    if st.button(
+        "✅  Appliquer ce template",
+        use_container_width=True,
+        key="m1_btn_apply_template"
+    ):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
             st.session_state["m1_pending_action"]       = "apply_template"
@@ -243,15 +270,18 @@ def _render_settings(active_node: str):
             st.session_state["m1_has_unsaved_changes"] = False
             st.toast("🎯 Template appliqué !", icon="✅")
         st.rerun()
- 
+
     # ── 4. Charger un fichier JSON ─────────────────────────────────────────
+    #   label_visibility="collapsed" : cache le label Streamlit au-dessus
+    #   Le CSS ci-dessus remplace "Browse files" par notre texte personnalisé
+    #   et rend le dropzone cliquable comme un bouton ordinaire.
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
         key="m1_upload_main",
         label_visibility="collapsed",
     )
- 
+
     if uploaded is not None:
         file_id = f"{uploaded.name}_{uploaded.size}"
         if st.session_state.get("m1_last_file_id") != file_id:
@@ -261,29 +291,39 @@ def _render_settings(active_node: str):
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
+                    # Synchroniser _live + forcer recréation des éditeurs
                     st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
                     st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
                     st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
-                    st.session_state["m1_data_gen"]    = st.session_state.get("m1_data_gen", 0) + 1
+                    st.session_state["m1_data_gen"]    = \
+                        st.session_state.get("m1_data_gen", 0) + 1
                     st.session_state["m1_last_file_id"]        = file_id
                     st.session_state["m1_has_unsaved_changes"] = False
-                    st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+                    st.success(
+                        f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
             except json.JSONDecodeError as e:
                 st.error(f"❌ JSON malformé : {e}")
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
- 
+
     # ── 5. Sauvegarder en JSON ─────────────────────────────────────────────
-    # Empêche l'erreur si la clé n'existe pas en gérant des valeurs par défaut
     current_data = {
         "name":     st.session_state.get("rotor_name", "rotor_export"),
         "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
-        "shaft":    st.session_state.get("_df_shaft_live", pd.DataFrame()).to_dict(orient="records") if "_df_shaft_live" in st.session_state else [],
-        "disks":    st.session_state.get("_df_disk_live", pd.DataFrame()).to_dict(orient="records") if "_df_disk_live" in st.session_state else [],
-        "bearings": st.session_state.get("_df_bear_live", pd.DataFrame()).to_dict(orient="records") if "_df_bear_live" in st.session_state else [],
+        "shaft":    st.session_state.get(
+                        "_df_shaft_live",
+                        st.session_state["df_shaft"]
+                    ).to_dict(orient="records"),
+        "disks":    st.session_state.get(
+                        "_df_disk_live",
+                        st.session_state["df_disk"]
+                    ).to_dict(orient="records"),
+        "bearings": st.session_state.get(
+                        "_df_bear_live",
+                        st.session_state["df_bear"]
+                    ).to_dict(orient="records"),
     }
-    
     st.download_button(
         label="💾  Sauvegarder le modèle (.json)",
         data=json.dumps(current_data, indent=2, ensure_ascii=False),
@@ -293,28 +333,195 @@ def _render_settings(active_node: str):
         key="m1_save_main",
         on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
     )
- 
+
     st.markdown("---")
- 
+
     # ══════════════════════════════════════════════════════════════════════
     # NAVIGATION ONGLETS (matériau / arbre / disques / paliers)
     # ══════════════════════════════════════════════════════════════════════
     _label_to_render = {
-        "🧱 Matériau": lambda: None, # _render_tab_material
-        "📏 Arbre":    lambda: None, # _render_tab_shaft
-        "💿 Disques":  lambda: None, # _render_tab_disk
-        "⚙️ Paliers":  lambda: None, # _render_tab_bearing
+        "🧱 Matériau": _render_tab_material,
+        "📏 Arbre":    _render_tab_shaft,
+        "💿 Disques":  _render_tab_disk,
+        "⚙️ Paliers":  _render_tab_bearing,
     }
     current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
-    # _label_to_render.get(current, _label_to_render["🧱 Matériau"])()
- 
+    _label_to_render.get(current, _render_tab_material)()
+
     st.markdown("---")
- 
+
     # ══════════════════════════════════════════════════════════════════════
-    # BOUTON ASSEMBLER (Protégé via type="primary")
+    # BOUTON ASSEMBLER
     # ══════════════════════════════════════════════════════════════════════
-    if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
-        pass # _assemble_rotor()
+    if st.button(
+        "🚀 Assembler le rotor",
+        type="primary",
+        key="m1_build",
+        use_container_width=True
+    ):
+        _assemble_rotor()
+
+
+# =============================================================================
+# HELPER — _load_model_from_dict
+# Charge un dictionnaire JSON dans session_state (bases stables)
+# =============================================================================
+def _load_model_from_dict(data: dict):
+    """Hydrate session_state depuis un dict JSON chargé."""
+    # Effacer les clés d'éditeurs précédents pour forcer la recréation
+    for editor_key in ["m1_shaft_editor", "m1_disk_editor", "m1_bear_editor"]:
+        if editor_key in st.session_state:
+            del st.session_state[editor_key]
+
+    st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
+    st.session_state["df_disk"]  = pd.DataFrame(
+        data.get("disks", data.get("disk", [])))
+    st.session_state["df_bear"]  = pd.DataFrame(
+        data.get("bearings", data.get("bearing", [])))
+    st.session_state["mat_name"] = data.get(
+        "material", "Acier standard (AISI 1045)")
+    st.session_state["rotor_name"] = data.get(
+        "name", "Modèle importé")
+
+    # Invalider les résultats de simulation
+    for key in ["res_static", "res_modal", "res_campbell",
+                "res_ucs", "res_unbalance", "res_freq", "res_temporal",
+                "rotor"]:
+        st.session_state[key] = None
+
+
+# =============================================================================
+# _init_tables — version avec paramètre template=
+# =============================================================================
+def _init_tables(template: str = "simple"):
+    """Initialise les tableaux selon le template choisi."""
+
+    templates = {
+
+        # ── Simple (pédagogique) ──────────────────────────────────────────
+        "simple": {
+            "shaft": [
+                {"L (m)": 0.20, "id_L (m)": 0.0, "od_L (m)": 0.05,
+                 "id_R (m)": 0.0, "od_R (m)": 0.05}
+                for _ in range(5)
+            ],
+            "disk": [
+                {"nœud": 2, "Masse (kg)": 15.12,
+                 "Id (kg.m²)": 0.025, "Ip (kg.m²)": 0.047}
+            ],
+            "bear": [
+                {"nœud": 0, "Type": "Palier",
+                 "kxx": 1e6, "kyy": 1e6, "kxy": 0.0, "cxx": 0.0, "cyy": 0.0},
+                {"nœud": 5, "Type": "Palier",
+                 "kxx": 1e6, "kyy": 1e6, "kxy": 0.0, "cxx": 0.0, "cyy": 0.0},
+            ],
+            "name": "Rotor simple (pédagogique)",
+        },
+
+        # ── Industriel (multi-étages) ─────────────────────────────────────
+        "industrial": {
+            "shaft": [
+                {"L (m)": 0.15, "id_L (m)": 0.0, "od_L (m)": 0.060,
+                 "id_R (m)": 0.0, "od_R (m)": 0.060},
+                {"L (m)": 0.10, "id_L (m)": 0.0, "od_L (m)": 0.080,
+                 "id_R (m)": 0.0, "od_R (m)": 0.080},
+                {"L (m)": 0.12, "id_L (m)": 0.0, "od_L (m)": 0.080,
+                 "id_R (m)": 0.0, "od_R (m)": 0.080},
+                {"L (m)": 0.12, "id_L (m)": 0.0, "od_L (m)": 0.080,
+                 "id_R (m)": 0.0, "od_R (m)": 0.080},
+                {"L (m)": 0.10, "id_L (m)": 0.0, "od_L (m)": 0.080,
+                 "id_R (m)": 0.0, "od_R (m)": 0.080},
+                {"L (m)": 0.15, "id_L (m)": 0.0, "od_L (m)": 0.060,
+                 "id_R (m)": 0.0, "od_R (m)": 0.060},
+            ],
+            "disk": [
+                {"nœud": 1, "Masse (kg)": 8.50,
+                 "Id (kg.m²)": 0.015, "Ip (kg.m²)": 0.028},
+                {"nœud": 3, "Masse (kg)": 22.30,
+                 "Id (kg.m²)": 0.048, "Ip (kg.m²)": 0.091},
+                {"nœud": 5, "Masse (kg)": 8.50,
+                 "Id (kg.m²)": 0.015, "Ip (kg.m²)": 0.028},
+            ],
+            "bear": [
+                {"nœud": 0, "Type": "Palier",
+                 "kxx": 5e7, "kyy": 5e7, "kxy": 0.0, "cxx": 800.0, "cyy": 800.0},
+                {"nœud": 6, "Type": "Palier",
+                 "kxx": 5e7, "kyy": 5e7, "kxy": 0.0, "cxx": 800.0, "cyy": 800.0},
+            ],
+            "name": "Rotor industriel (multi-étages)",
+        },
+
+        # ── API 684 (référence normative) ──────────────────────────────────
+        "api684": {
+            "shaft": [
+                {"L (m)": 0.254, "id_L (m)": 0.0, "od_L (m)": 0.0762,
+                 "id_R (m)": 0.0, "od_R (m)": 0.0762},
+                {"L (m)": 0.127, "id_L (m)": 0.0, "od_L (m)": 0.1016,
+                 "id_R (m)": 0.0, "od_R (m)": 0.1016},
+                {"L (m)": 0.152, "id_L (m)": 0.0, "od_L (m)": 0.1016,
+                 "id_R (m)": 0.0, "od_R (m)": 0.1016},
+                {"L (m)": 0.152, "id_L (m)": 0.0, "od_L (m)": 0.1016,
+                 "id_R (m)": 0.0, "od_R (m)": 0.1016},
+                {"L (m)": 0.127, "id_L (m)": 0.0, "od_L (m)": 0.1016,
+                 "id_R (m)": 0.0, "od_R (m)": 0.1016},
+                {"L (m)": 0.254, "id_L (m)": 0.0, "od_L (m)": 0.0762,
+                 "id_R (m)": 0.0, "od_R (m)": 0.0762},
+            ],
+            "disk": [
+                {"nœud": 2, "Masse (kg)": 32.70,
+                 "Id (kg.m²)": 0.156, "Ip (kg.m²)": 0.243},
+                {"nœud": 4, "Masse (kg)": 32.70,
+                 "Id (kg.m²)": 0.156, "Ip (kg.m²)": 0.243},
+            ],
+            "bear": [
+                {"nœud": 0, "Type": "Palier",
+                 "kxx": 1.75e8, "kyy": 1.75e8, "kxy": 0.0,
+                 "cxx": 2000.0, "cyy": 2000.0},
+                {"nœud": 6, "Type": "Palier",
+                 "kxx": 1.75e8, "kyy": 1.75e8, "kxy": 0.0,
+                 "cxx": 2000.0, "cyy": 2000.0},
+            ],
+            "name": "Rotor référence API 684",
+        },
+
+        # ── Vide ──────────────────────────────────────────────────────────
+        "empty": {
+            "shaft": [],
+            "disk":  [],
+            "bear":  [],
+            "name":  "Nouveau rotor",
+        },
+    }
+
+    tpl = templates.get(template, templates["simple"])
+
+    st.session_state["df_shaft"] = pd.DataFrame(tpl["shaft"]) \
+        if tpl["shaft"] else pd.DataFrame(
+            columns=["L (m)", "id_L (m)", "od_L (m)", "id_R (m)", "od_R (m)"])
+    st.session_state["df_disk"]  = pd.DataFrame(tpl["disk"]) \
+        if tpl["disk"] else pd.DataFrame(
+            columns=["nœud", "Masse (kg)", "Id (kg.m²)", "Ip (kg.m²)"])
+    st.session_state["df_bear"]  = pd.DataFrame(tpl["bear"]) \
+        if tpl["bear"] else pd.DataFrame(
+            columns=["nœud", "Type", "kxx", "kyy", "kxy", "cxx", "cyy"])
+
+    # Synchroniser les versions _live
+    st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
+    st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
+    st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
+
+    # Forcer la recréation des éditeurs
+    st.session_state["m1_data_gen"] = \
+        st.session_state.get("m1_data_gen", 0) + 1
+
+    st.session_state["rotor_name"]          = tpl["name"]
+    st.session_state["rotor"]               = None
+    st.session_state["m1_has_unsaved_changes"] = False
+    st.session_state["m1_preset_applied"]   = "-"
+
+    for key in ["res_static", "res_modal", "res_campbell",
+                "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
+        st.session_state[key] = None
  
  
 # =============================================================================
