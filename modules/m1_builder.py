@@ -129,72 +129,79 @@ def _handle_modals():
 
 def _render_settings(active_node: str):
  
-    # ── CSS : uniformisation ABSOLUE des 3 boutons ─────────────
+    # ── CSS : UNIFORMISATION ABSOLUE DES 3 BOUTONS ─────────────
     st.markdown("""
     <style>
-    /* 1. Neutraliser complètement l'aspect visuel de la Dropzone du file_uploader */
-    [data-testid="stFileUploaderDropzoneInstructions"] {
-        display: none !important;
+    /* 1. Neutraliser et élargir le conteneur du uploader pour qu'il prenne 100% */
+    [data-testid="stFileUploaderDropzoneInstructions"] { 
+        display: none !important; 
+    }
+    [data-testid="stFileUploader"] svg { 
+        display: none !important; 
     }
     [data-testid="stFileUploaderDropzone"] {
         padding: 0 !important;
         border: none !important;
         background: transparent !important;
         min-height: 0 !important;
+        width: 100% !important;
+        display: flex !important;
     }
     [data-testid="stFileUploader"] > section {
         padding: 0 !important;
         border: none !important;
+        width: 100% !important;
     }
 
-    /* 2. Styliser TOUS les boutons (Appliquer, Uploader, Sauvegarder) ensemble */
-    button[data-testid="stBaseButton-secondary"] {
+    /* 2. Cible Appliquer, Sauvegarder, et Charger */
+    /* L'opérateur :not([kind="primary"]) protège votre bouton final "Assembler" */
+    div[data-testid="stButton"] button:not([kind="primary"]),
+    div[data-testid="stDownloadButton"] button,
+    [data-testid="stFileUploader"] button {
         width: 100% !important;
-        min-height: 42px !important;
-        height: 42px !important;
-        border: 1.5px solid #D0D8E4 !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        margin: 0 !important;
+        
+        border: 1px solid #CBD5E1 !important;
         border-radius: 8px !important;
-        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
         color: #1A1A2E !important;
-        font-size: 0.875rem !important;
-        font-weight: 600 !important;
+        
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        margin: 0 !important;
-        box-shadow: none !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
         transition: all 0.2s ease-in-out !important;
     }
-    
-    button[data-testid="stBaseButton-secondary"]:hover {
-        border-color: #1F5C8B !important;
-        background: #EBF4FB !important;
-        color: #1F5C8B !important;
+
+    /* 3. Effet au clic et survol identique (Bleu) */
+    div[data-testid="stButton"] button:not([kind="primary"]):hover,
+    div[data-testid="stDownloadButton"] button:hover,
+    [data-testid="stFileUploader"] button:hover {
+        border-color: #3B82F6 !important;
+        background-color: #EFF6FF !important;
+        color: #1D4ED8 !important;
     }
 
-    /* Ajustement par défaut du texte des boutons standards */
-    button[data-testid="stBaseButton-secondary"] p {
+    /* 4. Forcer la police d'Appliquer et Sauvegarder */
+    div[data-testid="stButton"] button:not([kind="primary"]) p,
+    div[data-testid="stDownloadButton"] button p {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: inherit !important;
         margin: 0 !important;
-        font-size: 0.875rem !important;
-        font-weight: 600 !important;
     }
 
-    /* 3. Remplacement spécifique du texte "Browse files" de l'uploader */
-    [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] p {
-        font-size: 0 !important;
-        visibility: hidden !important;
+    /* 5. Remplacement malin du texte "Browse files" de l'uploader */
+    [data-testid="stFileUploader"] button p {
+        display: none !important;
     }
-    [data-testid="stFileUploader"] button[data-testid="stBaseButton-secondary"] p::before {
+    [data-testid="stFileUploader"] button::after {
         content: "📂  Charger un modèle (.json)";
-        font-size: 0.875rem !important;
+        font-size: 15px !important;
         font-weight: 600 !important;
-        visibility: visible !important;
-        display: block !important;
-    }
-
-    /* 4. Réduire les espaces verticaux entre les conteneurs Streamlit pour harmoniser l'empilement */
-    div[data-testid="stButton"], div[data-testid="stDownloadButton"], div[data-testid="stFileUploader"] {
-        margin-bottom: 0.5rem !important;
+        color: inherit !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -293,21 +300,18 @@ def _render_settings(active_node: str):
     # NAVIGATION ONGLETS (matériau / arbre / disques / paliers)
     # ══════════════════════════════════════════════════════════════════════
     _label_to_render = {
-        # Remplacez par vos fonctions (ex: lambda: None) si elles ne sont pas définies pour l'exemple
-        "🧱 Matériau": lambda: None, 
-        "📏 Arbre":    lambda: None,
-        "💿 Disques":  lambda: None,
-        "⚙️ Paliers":  lambda: None,
+        "🧱 Matériau": lambda: None, # _render_tab_material
+        "📏 Arbre":    lambda: None, # _render_tab_shaft
+        "💿 Disques":  lambda: None, # _render_tab_disk
+        "⚙️ Paliers":  lambda: None, # _render_tab_bearing
     }
     current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
-    
-    # (Décommentez pour appeler vos vraies vues d'onglets)
     # _label_to_render.get(current, _label_to_render["🧱 Matériau"])()
  
     st.markdown("---")
  
     # ══════════════════════════════════════════════════════════════════════
-    # BOUTON ASSEMBLER (Lui peut être classifié comme primary pour le démarquer)
+    # BOUTON ASSEMBLER (Protégé via type="primary")
     # ══════════════════════════════════════════════════════════════════════
     if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
         pass # _assemble_rotor()
