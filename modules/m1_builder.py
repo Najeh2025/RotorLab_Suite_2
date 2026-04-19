@@ -1,6 +1,6 @@
 # modules/m1_builder.py — Constructeur de Rotor (Module M1)
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
-# v3.0 — Templates intelligents + Sync df_base/df_live + UX améliorée
+# v3.1 — Correction st.modal + Templates + Sync df_base/df_live
 # =============================================================================
 
 import streamlit as st
@@ -36,42 +36,42 @@ def render_m1(col_settings, col_graphics):
     with col_graphics:
         _render_graphics(active_node)
     
-    # Gestion des modals (après le rendu principal)
+    # Gestion des dialogs/expander après le rendu principal
     _handle_modals()
 
 
 # =============================================================================
-# GESTION DES MODALS (Template Selector + Confirmation)
+# GESTION DES DIALOGS / EXPANDERS (remplace st.modal)
 # =============================================================================
 def _handle_modals():
-    """Gère l'affichage des dialogs modaux Streamlit."""
+    """Gère l'affichage des confirmations et sélecteurs de template."""
     
-    # ── Modal : Confirmation modifications non sauvegardées ───────────────
+    # ── Dialog : Confirmation modifications non sauvegardées ──────────────
     if st.session_state.get("m1_show_unsaved_dialog"):
-        with st.modal("⚠️ Modifications non sauvegardées"):
+        with st.expander("⚠️ Modifications non sauvegardées", expanded=True):
             st.warning("Le modèle actuel contient des modifications non enregistrées.")
             st.info("💡 Conseil : Exportez votre travail avant de créer un nouveau modèle.")
             
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("💾 Sauvegarder", use_container_width=True):
+                if st.button("💾 Sauvegarder", use_container_width=True, key="dlg_save"):
                     _trigger_save()
                     st.session_state["m1_show_unsaved_dialog"] = False
                     st.session_state["m1_show_template_selector"] = True
                     st.rerun()
             with c2:
-                if st.button("❌ Abandonner", use_container_width=True, type="primary"):
+                if st.button("❌ Abandonner", use_container_width=True, type="primary", key="dlg_abandon"):
                     st.session_state["m1_show_unsaved_dialog"] = False
                     st.session_state["m1_show_template_selector"] = True
                     st.rerun()
             with c3:
-                if st.button("↩️ Annuler", use_container_width=True):
+                if st.button("↩️ Annuler", use_container_width=True, key="dlg_cancel"):
                     st.session_state["m1_show_unsaved_dialog"] = False
                     st.rerun()
     
-    # ── Modal : Sélecteur de template ─────────────────────────────────────
+    # ── Dialog : Sélecteur de template ────────────────────────────────────
     if st.session_state.get("m1_show_template_selector"):
-        with st.modal("🆕 Nouveau modèle — Sélectionnez un template"):
+        with st.expander("🆕 Nouveau modèle — Sélectionnez un template", expanded=True):
             st.markdown("### Choisissez une configuration de départ :")
             
             template = st.radio(
@@ -99,14 +99,14 @@ def _handle_modals():
             
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("✅ Créer ce modèle", use_container_width=True, type="primary"):
+                if st.button("✅ Créer ce modèle", use_container_width=True, type="primary", key="dlg_create"):
                     _init_tables(template=st.session_state["m1_template_choice_radio"])
                     st.session_state["m1_show_template_selector"] = False
                     st.session_state["m1_has_unsaved_changes"] = False
                     st.toast(f"🎯 Template '{template}' chargé avec succès !", icon="✅")
                     st.rerun()
             with c2:
-                if st.button("↩️ Annuler", use_container_width=True):
+                if st.button("↩️ Annuler", use_container_width=True, key="dlg_cancel_t"):
                     st.session_state["m1_show_template_selector"] = False
                     st.rerun()
 
@@ -167,6 +167,7 @@ def _render_settings(active_node: str):
                         st.error("Fichier JSON invalide : clé 'shaft' manquante.")
                     else:
                         _load_model_from_dict(data)
+                        st.session_state["m1_last_file_id"] = file_id
                         st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                         st.session_state["m1_has_unsaved_changes"] = False
                         st.rerun()
@@ -452,7 +453,7 @@ def _render_graphics(active_node: str):
     except Exception as e:
         st.error(f"❌ Impossible d'afficher le modèle 3D. Détail : {e}")
 
-    # ── Récapitulatif — CORRECTION : utilise les versions _live ──────────
+    # ── Récapitulatif — utilise les versions _live ───────────────────────
     with st.expander("📋 Récapitulatif du modèle", expanded=False):
         tab_s, tab_d, tab_b = st.tabs(["Arbre", "Disques", "Paliers"])
         with tab_s:
@@ -471,7 +472,7 @@ def _render_graphics(active_node: str):
                 use_container_width=True, hide_index=True
             )
 
-    # ── Export Excel — utilise les versions _live ────────────────────────
+    # ── Export Excel ─────────────────────────────────────────────────────
     try:
         import io
         buf = io.BytesIO()
@@ -494,7 +495,7 @@ def _render_graphics(active_node: str):
 
 
 # =============================================================================
-# ASSEMBLAGE DU ROTOR — CORRECTION PRINCIPALE
+# ASSEMBLAGE DU ROTOR
 # =============================================================================
 def _assemble_rotor():
     if not ROSS_OK:
@@ -597,7 +598,7 @@ def _assemble_rotor():
         with st.spinner("Assemblage du modèle éléments finis…"):
             rotor = rs.Rotor(shaft, disks, bears)
  
-        # ✅ CORRECTION PRINCIPALE : Synchroniser les DataFrames de base avec les versions éditées
+        # ✅ Synchronisation df_base ↔ df_live après assemblage
         st.session_state["df_shaft"] = df_shaft.copy()
         st.session_state["df_disk"] = df_disk.copy()
         st.session_state["df_bear"] = df_bear.copy()
@@ -633,15 +634,7 @@ def _assemble_rotor():
 # INITIALISATION DES TABLEAUX PAR TEMPLATE
 # =============================================================================
 def _init_tables(template: str = "simple"):
-    """
-    Initialise les DataFrames selon un template.
-    
-    Templates :
-    - "empty" : Tableau vide, construction from scratch
-    - "simple" : Arbre 5 éléments + 1 disque + 2 paliers (pédagogique)
-    - "industrial" : Rotor multi-étages, paramètres réalistes
-    - "api684" : Rotor de référence pour validation normative API 684
-    """
+    """Initialise les DataFrames selon un template prédéfini."""
     
     templates = {
         "empty": {
@@ -767,20 +760,9 @@ def _load_model_from_dict(data: dict):
     
     # Réinitialiser le rotor
     st.session_state["rotor"] = None
-    
-    # Marquer comme fichier chargé
-    st.session_state["m1_last_file_id"] = data.get("_file_id", "imported")
 
 
 def _trigger_save():
-    """Déclenche la sauvegarde du modèle courant (appelé depuis le modal)."""
-    current_data = {
-        "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
-        "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
-        "bearings": st.session_state.get("_df_bear_live", st.session_state["df_bear"]).to_dict(orient="records"),
-        "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
-        "name": st.session_state.get("rotor_name", "unnamed"),
-    }
-    # La sauvegarde réelle est gérée par le download_button, ici on marque juste comme sauvegardé
+    """Marque le modèle comme sauvegardé (la sauvegarde réelle passe par le download_button)."""
     st.session_state["m1_has_unsaved_changes"] = False
-    st.toast("💾 Modèle sauvegardé localement", icon="✅")
+    st.toast("💾 Modèle marqué comme sauvegardé", icon="✅")
