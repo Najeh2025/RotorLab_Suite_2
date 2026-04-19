@@ -126,9 +126,6 @@ def _handle_modals():
 # =============================================================================
 # PANNEAU SETTINGS
 # =============================================================================
-# =============================================================================
-# PANNEAU SETTINGS
-# =============================================================================
 def _render_settings(active_node: str):
     # Injection CSS spécifique pour l'alignement vertical des boutons
     st.markdown("""
@@ -160,11 +157,14 @@ def _render_settings(active_node: str):
     )
 
     # ── Gestion des fichiers — Layout uniforme ───────────────────────────
+        # ── Gestion des fichiers — 3 BOUTONS IDENTIQUES ──────────────────────
     st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
 
-    # 1. Sélecteur de template
+    # 1. Sélecteur de template (label seul)
+    st.markdown('<div style="font-weight:600;margin-bottom:8px;color:#1A1A2E;">🆕 Nouveau modèle — Sélectionner un template</div>', unsafe_allow_html=True)
+    
     template_choice = st.selectbox(
-        "🆕 Nouveau modèle — Sélectionner un template",
+        "Template :",
         options=["simple", "industrial", "api684", "empty"],
         format_func=lambda x: {
             "simple": "🔹 Simple (Pédagogique)",
@@ -174,10 +174,10 @@ def _render_settings(active_node: str):
         }[x],
         index=0,
         key="m1_template_selector_main",
-        label_visibility="visible"
+        label_visibility="collapsed"
     )
 
-    # Bouton Appliquer
+    # BOUTON 1 : Appliquer template
     if st.button("✅ Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
@@ -188,12 +188,12 @@ def _render_settings(active_node: str):
             st.toast("🎯 Template appliqué avec succès !", icon="✅")
         st.rerun()
 
-    # 2. Charger un modèle (Upload)
+    # BOUTON 2 : Charger modèle (file uploader déguisé en bouton)
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
         key="m1_upload_main",
-        label_visibility="visible",
+        label_visibility="collapsed",  # Cache le label natif
         help="Cliquez pour sélectionner un fichier JSON"
     )
 
@@ -203,8 +203,6 @@ def _render_settings(active_node: str):
             try:
                 content = uploaded.read()
                 data = json.loads(content.decode("utf-8"))
-                
-                # --- CORRECTION DE L'ERREUR SYNTAXE ICI ---
                 if "shaft" not in data:
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
@@ -213,11 +211,10 @@ def _render_settings(active_node: str):
                     st.session_state["m1_has_unsaved_changes"] = False
                     st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
-                    
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
 
-    # 3. Sauvegarder
+    # BOUTON 3 : Sauvegarder
     current_data = {
         "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
         "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
@@ -236,7 +233,6 @@ def _render_settings(active_node: str):
     )
 
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("---")
 
     # ── Rendu des onglets selon la session ────────────────────────────────
     _label_to_render = {
