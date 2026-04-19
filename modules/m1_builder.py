@@ -126,89 +126,33 @@ def _handle_modals():
 # =============================================================================
 # PANNEAU SETTINGS
 # =============================================================================
+# =============================================================================
+# PANNEAU SETTINGS
+# =============================================================================
 def _render_settings(active_node: str):
-    # Injection CSS spécifique pour l'alignement vertical des boutons
-    
-    # ✅ CORRECTION : CSS enveloppé dans <style> tags
+    # Injection CSS pour uniformiser les 3 boutons
     st.markdown("""
     <style>
-    .rl-file-manager {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 10px !important;
-        margin-bottom: 20px !important;
-        width: 100% !important;
-    }
-    .rl-file-manager > div,
-    .rl-file-manager .stSelectbox,
-    .rl-file-manager .stButton,
-    .rl-file-manager .stFileUploader,
-    .rl-file-manager .stDownloadButton {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-    .rl-file-manager .stButton > button,
-    .rl-file-manager .stDownloadButton > button {
-        justify-content: flex-start !important;
-        text-align: left !important;
-        padding-left: 16px !important;
-        width: 100% !important;
-    }
-    .rl-file-manager .stFileUploader {
-        border: 1px solid #D0D8E4 !important;
-        border-radius: 8px !important;
-        background-color: #FFFFFF !important;
-        padding: 0 !important;
-        height: 38px !important;
-        min-height: 38px !important;
-    }
-    .rl-file-manager .stFileUploader:hover {
-        border-color: #1F5C8B !important;
-        background-color: #F7F9FC !important;
-    }
-    .rl-file-manager .stFileUploader button[data-testid="stBaseButton"] {
-        display: none !important;
-    }
-    .rl-file-manager .stFileUploader label {
-        width: 100% !important;
-        height: 100% !important;
-        display: flex !important;
-        align-items: center !important;
-        padding: 0 16px !important;
-        margin: 0 !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        color: #1A1A2E !important;
-        cursor: pointer !important;
-        background: transparent !important;
-        border: none !important;
-    }
-    .rl-file-manager .stFileUploader input[type="file"] {
-        position: absolute !important;
-        opacity: 0.01 !important;
-        width: 100% !important;
-        height: 100% !important;
-        cursor: pointer !important;
-        z-index: 10 !important;
-    }
+    .rl-file-manager { display: flex !important; flex-direction: column !important; gap: 10px !important; margin-bottom: 20px !important; width: 100% !important; }
+    .rl-file-manager > div, .rl-file-manager .stSelectbox, .rl-file-manager .stButton, .rl-file-manager .stFileUploader, .rl-file-manager .stDownloadButton { width: 100% !important; max-width: 100% !important; }
+    .rl-file-manager .stButton > button, .rl-file-manager .stDownloadButton > button { justify-content: flex-start !important; text-align: left !important; padding-left: 16px !important; width: 100% !important; }
+    .rl-file-manager .stFileUploader { border: 1px solid #D0D8E4 !important; border-radius: 8px !important; background-color: #FFFFFF !important; padding: 0 !important; height: 38px !important; min-height: 38px !important; }
+    .rl-file-manager .stFileUploader:hover { border-color: #1F5C8B !important; background-color: #F7F9FC !important; }
+    .rl-file-manager .stFileUploader button[data-testid="stBaseButton"] { display: none !important; }
+    .rl-file-manager .stFileUploader label { width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; padding: 0 16px !important; margin: 0 !important; font-weight: 600 !important; font-size: 0.95rem !important; color: #1A1A2E !important; cursor: pointer !important; background: transparent !important; border: none !important; }
+    .rl-file-manager .stFileUploader input[type="file"] { position: absolute !important; opacity: 0.01 !important; width: 100% !important; height: 100% !important; cursor: pointer !important; z-index: 10 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown(
-        '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
-        unsafe_allow_html=True
-    )
-    
+    st.markdown('<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>', unsafe_allow_html=True)
 
-    # ── Gestion des fichiers — Layout uniforme ───────────────────────────
-        # ── Gestion des fichiers — 3 BOUTONS IDENTIQUES ──────────────────────
+    # ── Gestion des fichiers : 3 boutons verticaux identiques ────────────
     st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
 
-    # 1. Sélecteur de template (label seul)
-    st.markdown('<div style="font-weight:600;margin-bottom:8px;color:#1A1A2E;">🆕 Nouveau modèle — Sélectionner un template</div>', unsafe_allow_html=True)
-    
+    # 1. Template + Bouton Appliquer
+    st.markdown('<div style="font-weight:600; margin-bottom:6px; color:#1A1A2E;">🆕 Nouveau modèle</div>', unsafe_allow_html=True)
     template_choice = st.selectbox(
-        "Template :",
+        "Sélectionner un template",
         options=["simple", "industrial", "api684", "empty"],
         format_func=lambda x: {
             "simple": "🔹 Simple (Pédagogique)",
@@ -221,7 +165,6 @@ def _render_settings(active_node: str):
         label_visibility="collapsed"
     )
 
-    # BOUTON 1 : Appliquer template
     if st.button("✅ Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
@@ -232,22 +175,22 @@ def _render_settings(active_node: str):
             st.toast("🎯 Template appliqué avec succès !", icon="✅")
         st.rerun()
 
-    # BOUTON 2 : Charger modèle (file uploader déguisé en bouton)
+    # 2. Bouton Charger (Upload déguisé)
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
         key="m1_upload_main",
-        label_visibility="collapsed",  # Cache le label natif
+        label_visibility="collapsed",
         help="Cliquez pour sélectionner un fichier JSON"
     )
 
     if uploaded is not None:
-        file_id = "{}_{}".format(uploaded.name, uploaded.size)
+        file_id = f"{uploaded.name}_{uploaded.size}"
         if st.session_state.get("m1_last_file_id") != file_id:
             try:
                 content = uploaded.read()
                 data = json.loads(content.decode("utf-8"))
-                if "shaft" not in data:
+                if "shaft" not in 
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
@@ -258,7 +201,7 @@ def _render_settings(active_node: str):
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
 
-    # BOUTON 3 : Sauvegarder
+    # 3. Bouton Sauvegarder
     current_data = {
         "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
         "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
@@ -277,8 +220,9 @@ def _render_settings(active_node: str):
     )
 
     st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("---")
 
-    # ── Rendu des onglets selon la session ────────────────────────────────
+    # ── Navigation par onglets ────────────────────────────────────────────
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
         "📏 Arbre": _render_tab_shaft,
@@ -289,10 +233,8 @@ def _render_settings(active_node: str):
     _label_to_render.get(current, _render_tab_material)()
 
     # ── Bouton Assembler ──────────────────────────────────────────────────
-    if st.button("🚀 Assembler le rotor", type="primary",
-                 key="m1_build", use_container_width=True):
+    if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
         _assemble_rotor()
-
 # =============================================================================
 # ONGLET MATÉRIAU
 # =============================================================================
