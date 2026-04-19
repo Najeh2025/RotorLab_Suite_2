@@ -50,9 +50,10 @@ _COPILOT_CSS = """
     padding: 3px 9px; border-radius: 99px;
     letter-spacing: 0.03em;
 }
-.cop-hero-tag.active { background: rgba(34,134,58,0.3); border-color: rgba(34,134,58,0.6); color: #7FE5A0; }
-.cop-hero-tag.warn   { background: rgba(245,124,0,0.25); border-color: rgba(245,124,0,0.5);   color: #FFB74D; }
-.cop-hero-tag.err    { background: rgba(192,0,0,0.25);   border-color: rgba(192,0,0,0.5);     color: #FF8F8F; }
+.cop-hero-tag.active   { background: rgba(34,134,58,0.3);   border-color: rgba(34,134,58,0.6);   color: #7FE5A0; }
+.cop-hero-tag.warn     { background: rgba(245,124,0,0.25); border-color: rgba(245,124,0,0.5);   color: #FFB74D; }
+.cop-hero-tag.err      { background: rgba(192,0,0,0.25);   border-color: rgba(192,0,0,0.5);     color: #FF8F8F; }
+.cop-hero-tag.exchange { background: rgba(123,31,162,0.30); border-color: rgba(179,100,228,0.6); color: #D8A8FF; font-weight: 700; }
 
 .cop-config-wrap {
     background: #F7F9FC;
@@ -161,7 +162,13 @@ def render_copilot_fullscreen():
 def _render_cop_hero():
     api_key = st.session_state.get("copilot_api_key", "")
     rotor   = st.session_state.get("rotor")
-    n_msgs  = len(st.session_state.get("copilot_chat_history", []))
+    history = st.session_state.get("copilot_chat_history", [])
+
+    # Nombre d'échanges complets (paires user + assistant)
+    n_user      = sum(1 for m in history if m["role"] == "user")
+    n_assistant = sum(1 for m in history if m["role"] == "assistant")
+    n_exchanges = min(n_user, n_assistant)   # paires complètes uniquement
+    exchange_lbl = "💬 {} échange{}".format(n_exchanges, "s" if n_exchanges > 1 else "")
 
     tag_gemini = ("active", "Gemini IA actif") if (GEMINI_OK and api_key) else \
                  ("warn",   "Mode hors-ligne") if GEMINI_OK else \
@@ -170,8 +177,11 @@ def _render_cop_hero():
                  else ("warn", "Sans rotor")
 
     tags_html = ""
-    for cls, lbl in [tag_gemini, ("", "ROSS OK"), tag_rotor, ("", "{} messages".format(n_msgs))]:
+    for cls, lbl in [tag_gemini, ("", "ROSS OK"), tag_rotor]:
         tags_html += '<span class="cop-hero-tag {}">{}</span>'.format(cls, lbl)
+    # Badge échanges toujours visible, violet si au moins 1 échange
+    ex_cls = "exchange" if n_exchanges > 0 else ""
+    tags_html += '<span class="cop-hero-tag {}">{}</span>'.format(ex_cls, exchange_lbl)
 
     st.markdown("""
     <div class="cop-hero">
