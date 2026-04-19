@@ -386,3 +386,103 @@ div[data-testid="stProgress"] > div > div {
 .rl-file-manager .stFileUploader {
     padding-top: 4px;
 }
+#==========================================
+/* ── Uniformisation Upload / Sauvegarde ─────────────────────────────── */
+.rl-file-manager {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+    width: 100% !important;
+}
+
+/* Force tous les enfants à pleine largeur */
+.rl-file-manager > div,
+.rl-file-manager .stSelectbox,
+.rl-file-manager .stButton,
+.rl-file-manager .stFileUploader,
+.rl-file-manager .stDownloadButton {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Alignement gauche pour tous les labels */
+.rl-file-manager label {
+    text-align: left !important;
+    justify-content: flex-start !important;
+}
+
+/* Style du bouton Appliquer */
+.rl-file-manager .stButton > button {
+    width: 100% !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding-left: 16px !important;
+}
+
+/* Transformation du file uploader pour ressembler à un bouton */
+.rl-file-manager .stFileUploader {
+    border: 1.5px solid #D0D8E4 !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF !important;
+    padding: 8px 16px !important;
+    height: auto !important;
+    min-height: 42px !important;
+}
+
+.rl-file-manager .stFileUploader:hover {
+    border-color: #1F5C8B !important;
+    background-color: #F7F9FC !important;
+}
+
+/* Masquer le bouton "Browse files" natif et afficher comme texte */
+.rl-file-manager .stFileUploader button[data-testid="stBaseButton"] {
+    display: none !important;
+}
+
+/* Style du label pour qu'il ressemble à un bouton */
+.rl-file-manager .stFileUploader label {
+    width: 100% !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    color: #1A1A2E !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+    padding: 6px 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+/* Input file caché mais fonctionnel */
+.rl-file-manager .stFileUploader input[type="file"] {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: pointer !important;
+}
+
+/* Style du bouton Sauvegarder */
+.rl-file-manager .stDownloadButton > button {
+    width: 100% !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding-left: 16px !important;
+    background-color: #FFFFFF !important;
+    color: #1A1A2E !important;
+    border: 1.5px solid #D0D8E4 !important;
+    font-weight: 600 !important;
+}
+
+.rl-file-manager .stDownloadButton > button:hover {
+    border-color: #1F5C8B !important;
+    background-color: #F7F9FC !important;
+}
+
+</style>
+"""
+
+
+
+
