@@ -26,25 +26,11 @@ except ImportError:
 # =============================================================================
 _COPILOT_CSS = """
 <style>
+
 /* ════════════════════════════════════════════════════
-   LAYOUT FIXE — STRUCTURE PRINCIPALE
+   COMPOSANTS VISUELS
    ════════════════════════════════════════════════════ */
 
-/* Empêcher le scroll global de la page */
-body, html, .stApp {
-    overflow: hidden !important;
-    height: 100vh;
-}
-
-/* Container principal du copilot en flexbox */
-.cop-main-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* Hero fixe en haut */
 .cop-hero {
     background: linear-gradient(135deg, #0F1923 0%, #153F62 55%, #1F5C8B 100%);
     border-radius: 12px 12px 0 0;
@@ -55,80 +41,7 @@ body, html, .stApp {
     gap: 16px;
     border: 1.5px solid rgba(31,92,139,0.5);
     border-bottom: none;
-    flex-shrink: 0;  /* Ne jamais réduire */
-    z-index: 1000;
 }
-
-/* Zone de contenu (sidebar + chat) */
-.cop-content-wrapper {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-    gap: 20px;
-    padding: 0 20px 20px 20px;
-}
-
-/* Sidebar gauche fixe */
-.cop-sidebar {
-    flex: 0 0 350px;  /* Largeur fixe 350px */
-    overflow-y: auto;
-    overflow-x: hidden;
-    flex-shrink: 0;
-    padding-right: 10px;
-}
-
-.cop-sidebar::-webkit-scrollbar {
-    width: 6px;
-}
-.cop-sidebar::-webkit-scrollbar-thumb {
-    background: rgba(31,92,139,0.4);
-    border-radius: 3px;
-}
-
-/* Zone de chat scrollable */
-.cop-chat-zone {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-width: 0;  /* Important pour flexbox */
-}
-
-/* Container des messages — SCROLLABLE */
-.cop-messages-container {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 10px 0;
-    margin-bottom: 10px;
-}
-
-.cop-messages-container::-webkit-scrollbar {
-    width: 8px;
-}
-.cop-messages-container::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.05);
-    border-radius: 4px;
-}
-.cop-messages-container::-webkit-scrollbar-thumb {
-    background: rgba(31,92,139,0.5);
-    border-radius: 4px;
-}
-.cop-messages-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(31,92,139,0.7);
-}
-
-/* Input fixe en bas */
-.cop-input-wrapper {
-    flex-shrink: 0;
-    margin-top: auto;
-    padding-top: 10px;
-}
-
-/* ════════════════════════════════════════════════════
-   COMPOSANTS VISUELS (inchangés)
-   ════════════════════════════════════════════════════ */
-
 .cop-hero-left { display: flex; align-items: center; gap: 14px; }
 .cop-hero-orb {
     width: 44px; height: 44px;
@@ -199,20 +112,66 @@ body, html, .stApp {
 .cop-ctx-val.err  { color: #C00000; }
 .cop-ctx-val.warn { color: #C55A11; }
 
-/* Messages de chat */
 .stChatMessage { padding: 1.2rem 1.5rem !important; border-radius: 12px; margin-bottom: 12px; }
 .stChatMessageContent { font-size: 1.05em; line-height: 1.6; }
 
-/* Masquer les scrollbars Streamlit par défaut */
+/* ════════════════════════════════════════════════════
+   LAYOUT FIXE — éléments toujours visibles
+   ════════════════════════════════════════════════════ */
+
+/* 1. Hero : sticky au sommet du viewport */
+.cop-hero {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 500 !important;
+}
+
+/* 2. Panneau gauche (settings) : sticky dans le mode plein écran copilot
+      Cible le premier stVerticalBlock du stHorizontalBlock qui
+      contient .cop-config-wrap (sélecteur :has() — Chrome 105+,
+      Firefox 121+, Safari 15.4+; dégradation gracieuse sinon). */
+[data-testid="stHorizontalBlock"]:has(.cop-config-wrap)
+    > [data-testid="column"]:first-child
+    > [data-testid="stVerticalBlock"] {
+    position       : sticky;
+    top            : 0;
+    max-height     : 100vh;
+    overflow-y     : auto;
+    overflow-x     : hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(31,92,139,0.4) transparent;
+    padding-bottom : 20px;
+}
+[data-testid="stHorizontalBlock"]:has(.cop-config-wrap)
+    > [data-testid="column"]:first-child
+    > [data-testid="stVerticalBlock"]::-webkit-scrollbar       { width: 4px; }
+[data-testid="stHorizontalBlock"]:has(.cop-config-wrap)
+    > [data-testid="column"]:first-child
+    > [data-testid="stVerticalBlock"]::-webkit-scrollbar-thumb {
+    background   : rgba(31,92,139,0.45);
+    border-radius: 4px;
+}
+
+/* 3. Container de messages scrollable — supprime la bordure Streamlit */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border: none !important;
+    border    : none !important;
     box-shadow: none !important;
 }
 
-/* Cacher le header Streamlit par défaut si présent */
-header[data-testid="stHeader"] {
-    display: none !important;
+/* 4. Scroll fluide sur toute la page */
+html { scroll-behavior: smooth; }
+
+/* 5. Scrollbar de la zone de messages */
+[data-testid="stVerticalBlockBorderWrapper"] > div {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(31,92,139,0.35) transparent;
 }
+[data-testid="stVerticalBlockBorderWrapper"] > div::-webkit-scrollbar       { width: 5px; }
+[data-testid="stVerticalBlockBorderWrapper"] > div::-webkit-scrollbar-thumb {
+    background   : rgba(31,92,139,0.4);
+    border-radius: 4px;
+}
+
 </style>
 """
 
@@ -254,31 +213,15 @@ def render_copilot(col_settings, col_graphics):
 
 
 def render_copilot_fullscreen():
-    """Mode plein écran copilot : layout fixe avec flexbox."""
+    """Mode plein écran copilot : héro pleine largeur, 2 colonnes dessous."""
     _init_copilot_state()
     st.markdown(_COPILOT_CSS, unsafe_allow_html=True)
-    
-    # Wrapper principal avec structure flexbox
-    st.markdown('<div class="cop-main-container">', unsafe_allow_html=True)
-    
-    # 1. HERO (fixe)
-    _render_cop_hero()
-    
-    # 2. ZONE DE CONTENU (sidebar + chat)
-    st.markdown('<div class="cop-content-wrapper">', unsafe_allow_html=True)
-    
-    # Colonne gauche (sidebar fixe)
-    st.markdown('<div class="cop-sidebar">', unsafe_allow_html=True)
-    _render_settings_panel(compact=False)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Colonne droite (chat scrollable)
-    st.markdown('<div class="cop-chat-zone">', unsafe_allow_html=True)
-    _render_chat_area_inner()
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Fin content-wrapper
-    st.markdown('</div>', unsafe_allow_html=True)  # Fin main-container
+    _render_cop_hero()                        # ← sticky full-width au scroll
+    col1, col2 = st.columns([1, 2.8])
+    with col1:
+        _render_settings_panel(compact=False) # ← sticky via :has() CSS
+    with col2:
+        _render_chat_area_inner()             # ← zone scrollable + chat_input
 
 
 # =============================================================================
@@ -453,109 +396,118 @@ def _render_chat_area():
 
 
 def _render_chat_area_inner():
-    """Zone de chat avec messages scrollables + input fixe."""
+    """Cœur de la zone de chat : messages scrollables + input fixe en bas."""
 
-    # Effacement
+    # ── Effacement ───────────────────────────────────────────────────────
     if st.session_state.get("copilot_clear_requested"):
-        st.session_state["copilot_chat_history"] = []
-        st.session_state["copilot_clear_requested"] = False
-        st.session_state["copilot_is_processing"] = False
-        st.rerun()
+        st.session_state["copilot_chat_history"]         = []
+        st.session_state["copilot_clear_requested"]      = False
+        st.session_state["copilot_is_processing"]        = False
+        st.session_state["copilot_pending_quick_prompt"] = None
 
     history = st.session_state.get("copilot_chat_history", [])
 
-    # Bouton Nouveau Chat
+    # ── Bouton Nouveau Chat ───────────────────────────────────────────────
     if history:
-        col_space, col_clear = st.columns([5, 1])
+        _, col_clear = st.columns([5, 1])
         with col_clear:
-            if st.button("✨ Nouveau Chat", key="copilot_clear_btn",
-                        use_container_width=True, on_click=_cb_clear_history):
-                st.rerun()
+            st.button("✨ Nouveau Chat", key="copilot_clear_btn",
+                      use_container_width=True, on_click=_cb_clear_history)
 
-    # Wrapper pour messages scrollables
-    st.markdown('<div class="cop-messages-container" id="cop-messages">', 
-                unsafe_allow_html=True)
-
+    # ── Écran d'accueil ───────────────────────────────────────────────────
     if not history:
-        # Écran d'accueil
         st.markdown("""
         <div style="display:flex;flex-direction:column;justify-content:center;
-                    align-items:center;padding:60px 20px;text-align:center;">
-            <div style="font-size:3.2em;font-weight:600;line-height:1.1;
-                        background:-webkit-linear-gradient(135deg,#1F5C8B,#7B1FA2);
-                        -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-                Bonjour.</div>
-            <div style="font-size:1.8em;font-weight:500;color:#8A9BB0;
-                        margin-top:12px;">
-                Comment puis-je optimiser votre rotor aujourd'hui ?
-            </div>
+                    align-items:center;padding-top:10vh;padding-bottom:6vh;text-align:center;">
+          <div style="font-size:3.8em;font-weight:600;line-height:1.1;letter-spacing:-1.5px;">
+            <span style="background:-webkit-linear-gradient(135deg,#1F5C8B,#7B1FA2);
+                         -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+              Bonjour.</span>
+          </div>
+          <div style="font-size:2.2em;font-weight:500;color:#8A9BB0;
+                      line-height:1.2;letter-spacing:-0.5px;margin-top:8px;">
+            Comment puis-je optimiser votre rotor aujourd'hui ?
+          </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("<div style='text-align:center;color:#6B7280;"
-                    "font-size:0.80em;margin:20px 0;font-weight:700;"
-                    "text-transform:uppercase;letter-spacing:0.08em;'>"
-                    "Suggestions pour démarrer</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='text-align:center;color:#6B7280;font-size:0.85em;"
+            "margin-bottom:15px;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.08em;'>Suggestions pour démarrer</div>",
+            unsafe_allow_html=True)
 
         c1, c2, c3, c4 = st.columns(4)
         prompts_data = [
-            (c1, "🏗️ Modélisation", "Créer un rotor avec ROSS en Python"),
-            (c2, "🩺 Diagnostic M7", "Diagnostiquer une vibration à 2X"),
-            (c3, "⚖️ Audit API 684", "Rédiger un audit de conformité"),
-            (c4, "💧 Stabilisation", "Stabiliser un rotor instable"),
+            (c1, "🏗️ Modélisation",  "Créer un rotor avec ROSS en Python"),
+            (c2, "🩺 Diagnostic M7", "Diagnostiquer une forte composante vibratoire à 2X la vitesse de rotation"),
+            (c3, "⚖️ Audit API 684", "Rédiger un audit de conformité API 684 basé sur les données actuelles"),
+            (c4, "💧 Stabilisation", "Comment stabiliser ce rotor (Log Decrétement négatif) ?"),
         ]
         for col, label, prompt in prompts_data:
             with col:
-                if st.button(label, help=prompt, key=f"qp_{label}",
-                            use_container_width=True):
+                if st.button(label, help=prompt,
+                             key="qp_hero_{}".format(label),
+                             use_container_width=True):
                     st.session_state["copilot_chat_history"].append(
                         {"role": "user", "content": prompt})
+                    st.session_state["copilot_pending_quick_prompt"] = prompt
                     st.rerun()
+
     else:
-        # Affichage des messages
-        for msg in history:
-            # Utiliser des emojis simples et compatibles
-            avatar = "👤" if msg["role"] == "user" else "✨"
-            with st.chat_message(msg["role"], avatar=avatar):
-                st.markdown(msg["content"])
+        # ── ZONE DE MESSAGES SCROLLABLE ───────────────────────────────────
+        # st.container(height=X) crée un bloc scrollable natif Streamlit.
+        # La hauteur est ajustée dynamiquement via JS injecté ci-dessous.
+        # Valeur initiale : 500 px (raisonnable sur tous les écrans).
+        msg_container = _make_scrollable_container(default_height=500)
 
-    st.markdown('</div>', unsafe_allow_html=True)  # Fin messages container
+        with msg_container:
+            for msg in history:
+                avatar = "🧑‍💻" if msg["role"] == "user" else "✨"
+                with st.chat_message(msg["role"], avatar=avatar):
+                    st.markdown(msg["content"])
 
-    # Traitement pending response
-    if st.session_state.get("copilot_pending_response"):
-        pending = st.session_state["copilot_pending_response"]
-        st.session_state["copilot_pending_response"] = None
-        st.session_state["copilot_is_processing"] = True
-        
+        # JS : adapte la hauteur du container au viewport et scroll en bas.
+        _inject_layout_js()
+
+    # ── Traitement d'un quick prompt en attente ───────────────────────────
+    pending = st.session_state.get("copilot_pending_quick_prompt")
+    if pending:
+        st.session_state["copilot_pending_quick_prompt"] = None
+        with st.chat_message("user", avatar="🧑‍💻"):
+            st.markdown(pending)
         with st.chat_message("assistant", avatar="✨"):
-            with st.spinner("Analyse en cours…"):
+            with st.spinner("SmartRotor Copilot analyse votre question…"):
                 response = _call_gemini(
                     pending, _build_context(),
                     st.session_state["copilot_chat_history"][:-1])
                 st.markdown(response)
-        
         st.session_state["copilot_chat_history"].append(
             {"role": "assistant", "content": response})
-        st.session_state["copilot_is_processing"] = False
         st.rerun()
         return
 
-    # Input fixe en bas
-    st.markdown('<div class="cop-input-wrapper">', unsafe_allow_html=True)
+    # ── Saisie manuelle ───────────────────────────────────────────────────
+    # st.chat_input est rendu par Streamlit HORS du container → reste fixe en bas.
     user_input = st.chat_input(
         "Posez votre question en dynamique des rotors…",
         key="copilot_chat_input")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     if user_input:
         st.session_state["copilot_chat_history"].append(
             {"role": "user", "content": user_input})
-        st.session_state["copilot_pending_response"] = user_input
+        with st.chat_message("user", avatar="🧑‍💻"):
+            st.markdown(user_input)
+        with st.chat_message("assistant", avatar="✨"):
+            with st.spinner("SmartRotor Copilot analyse votre question…"):
+                response = _call_gemini(
+                    user_input, _build_context(),
+                    st.session_state["copilot_chat_history"][:-1])
+                st.markdown(response)
+        st.session_state["copilot_chat_history"].append(
+            {"role": "assistant", "content": response})
         st.rerun()
 
-    # Auto-scroll vers le bas après rendu
-    if history:
-        _inject_auto_scroll_js()
 
 # =============================================================================
 # HELPERS LAYOUT
@@ -646,26 +598,6 @@ def _inject_layout_js():
     except Exception:
         pass   # Dégradation gracieuse si components non disponible
 
-
-
-def _inject_auto_scroll_js():
-    """Auto-scroll vers le dernier message."""
-    try:
-        import streamlit.components.v1 as components
-        
-        js_code = """
-<script>
-setTimeout(function() {
-    var container = document.querySelector('.cop-messages-container');
-    if (container) {
-        container.scrollTop = container.scrollHeight;
-    }
-}, 100);
-</script>
-"""
-        components.html(js_code, height=0, scrolling=False)
-    except Exception:
-        pass
 
 # =============================================================================
 # CALLBACKS
