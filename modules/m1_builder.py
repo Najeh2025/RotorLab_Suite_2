@@ -128,7 +128,7 @@ def _handle_modals():
 # =============================================================================
 def _render_settings(active_node: str):
     # Injection CSS spécifique pour l'alignement vertical des boutons
-    def _render_settings(active_node: str):
+    
     # ✅ CORRECTION : CSS enveloppé dans <style> tags
     st.markdown("""
     <style>
