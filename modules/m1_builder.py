@@ -177,24 +177,27 @@ def _render_tab_shaft():
         "Éléments de poutre Timoshenko — L : longueur, id : Ø interne, "
         "od : Ø externe. _L = côté gauche, _R = côté droit (arbre conique)."
     )
-    st.session_state["df_shaft"] = st.data_editor(
+ 
+    # ── CORRECTION : pas de key= → return value uniquement ──────────────
+    edited = st.data_editor(
         st.session_state["df_shaft"],
         num_rows="dynamic",
-        key="m1_shaft_editor",
         use_container_width=True,
         column_config={
             "L (m)":    st.column_config.NumberColumn(
-                "L (m)", min_value=0.001, format="%.4f"),
+                "L (m)",    min_value=0.001, format="%.4f"),
             "id_L (m)": st.column_config.NumberColumn(
-                "id_L (m)", min_value=0.0, format="%.4f"),
+                "id_L (m)", min_value=0.0,   format="%.4f"),
             "od_L (m)": st.column_config.NumberColumn(
                 "od_L (m)", min_value=0.001, format="%.4f"),
             "id_R (m)": st.column_config.NumberColumn(
-                "id_R (m)", min_value=0.0, format="%.4f"),
+                "id_R (m)", min_value=0.0,   format="%.4f"),
             "od_R (m)": st.column_config.NumberColumn(
                 "od_R (m)", min_value=0.001, format="%.4f"),
         }
     )
+    st.session_state["df_shaft"] = edited
+ 
     n_el = len(st.session_state["df_shaft"])
     st.caption(f"→ {n_el} éléments · {n_el + 1} nœuds (0 → {n_el})")
 
