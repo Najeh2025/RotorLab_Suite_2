@@ -30,6 +30,8 @@ def render_m1(col_settings, col_graphics):
         st.session_state["m1_show_template_selector"] = False
     if "m1_show_unsaved_dialog" not in st.session_state:
         st.session_state["m1_show_unsaved_dialog"] = False
+    if "m1_pending_action" not in st.session_state:
+        st.session_state["m1_pending_action"] = None
     
     with col_settings:
         _render_settings(active_node)
