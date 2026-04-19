@@ -646,6 +646,26 @@ def _inject_layout_js():
         pass   # Dégradation gracieuse si components non disponible
 
 
+
+def _inject_auto_scroll_js():
+    """Auto-scroll vers le dernier message."""
+    try:
+        import streamlit.components.v1 as components
+        
+        js_code = """
+<script>
+setTimeout(function() {
+    var container = document.querySelector('.cop-messages-container');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+}, 100);
+</script>
+"""
+        components.html(js_code, height=0, scrolling=False)
+    except Exception:
+        pass
+
 # =============================================================================
 # CALLBACKS
 # =============================================================================
