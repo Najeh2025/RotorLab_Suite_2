@@ -128,10 +128,11 @@ def _handle_modals():
 # =============================================================================
 def _render_settings(active_node: str):
         # ── Gestion des fichiers — Layout vertical uniforme ───────────────────
+        # ── Gestion des fichiers — Layout uniforme ───────────────────────────
     st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
 
     # 1. Sélecteur de template
-    st.selectbox(
+    template_choice = st.selectbox(
         "🆕 Nouveau modèle — Sélectionner un template",
         options=["simple", "industrial", "api684", "empty"],
         format_func=lambda x: {
@@ -145,17 +146,18 @@ def _render_settings(active_node: str):
         label_visibility="visible"
     )
 
+    # Bouton Appliquer - aligné à gauche
     if st.button("✅ Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
             st.session_state["m1_pending_action"] = "apply_template"
         else:
-            _init_tables(template=st.session_state["m1_template_selector_main"])
+            _init_tables(template=template_choice)
             st.session_state["m1_has_unsaved_changes"] = False
             st.toast("🎯 Template appliqué avec succès !", icon="✅")
         st.rerun()
 
-    # 2. Charger un modèle (Upload) — Styled to match Save button
+    # 2. Charger un modèle (Upload)
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
@@ -170,7 +172,7 @@ def _render_settings(active_node: str):
             try:
                 content = uploaded.read()
                 data = json.loads(content.decode("utf-8"))
-                if "shaft" not in data:
+                if "shaft" not in 
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
@@ -178,8 +180,6 @@ def _render_settings(active_node: str):
                     st.session_state["m1_has_unsaved_changes"] = False
                     st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
-            except json.JSONDecodeError as e:
-                st.error(f"❌ JSON malformé : {e}")
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
 
@@ -201,8 +201,7 @@ def _render_settings(active_node: str):
         on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
     )
 
-    st.markdown('</div>', unsafe_allow_html=True)
-    # ── Rendu des onglets selon la session ────────────────────────────────
+    st.markdown('</div>', unsafe_allow_html=True)    # ── Rendu des onglets selon la session ────────────────────────────────
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
         "📏 Arbre": _render_tab_shaft,
