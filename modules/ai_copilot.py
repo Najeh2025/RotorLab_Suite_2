@@ -26,11 +26,25 @@ except ImportError:
 # =============================================================================
 _COPILOT_CSS = """
 <style>
-
 /* ════════════════════════════════════════════════════
-   COMPOSANTS VISUELS
+   LAYOUT FIXE — STRUCTURE PRINCIPALE
    ════════════════════════════════════════════════════ */
 
+/* Empêcher le scroll global de la page */
+body, html, .stApp {
+    overflow: hidden !important;
+    height: 100vh;
+}
+
+/* Container principal du copilot en flexbox */
+.cop-main-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Hero fixe en haut */
 .cop-hero {
     background: linear-gradient(135deg, #0F1923 0%, #153F62 55%, #1F5C8B 100%);
     border-radius: 12px 12px 0 0;
@@ -41,7 +55,80 @@ _COPILOT_CSS = """
     gap: 16px;
     border: 1.5px solid rgba(31,92,139,0.5);
     border-bottom: none;
+    flex-shrink: 0;  /* Ne jamais réduire */
+    z-index: 1000;
 }
+
+/* Zone de contenu (sidebar + chat) */
+.cop-content-wrapper {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 20px;
+    padding: 0 20px 20px 20px;
+}
+
+/* Sidebar gauche fixe */
+.cop-sidebar {
+    flex: 0 0 350px;  /* Largeur fixe 350px */
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
+    padding-right: 10px;
+}
+
+.cop-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+.cop-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(31,92,139,0.4);
+    border-radius: 3px;
+}
+
+/* Zone de chat scrollable */
+.cop-chat-zone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;  /* Important pour flexbox */
+}
+
+/* Container des messages — SCROLLABLE */
+.cop-messages-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 0;
+    margin-bottom: 10px;
+}
+
+.cop-messages-container::-webkit-scrollbar {
+    width: 8px;
+}
+.cop-messages-container::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+.cop-messages-container::-webkit-scrollbar-thumb {
+    background: rgba(31,92,139,0.5);
+    border-radius: 4px;
+}
+.cop-messages-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(31,92,139,0.7);
+}
+
+/* Input fixe en bas */
+.cop-input-wrapper {
+    flex-shrink: 0;
+    margin-top: auto;
+    padding-top: 10px;
+}
+
+/* ════════════════════════════════════════════════════
+   COMPOSANTS VISUELS (inchangés)
+   ════════════════════════════════════════════════════ */
+
 .cop-hero-left { display: flex; align-items: center; gap: 14px; }
 .cop-hero-orb {
     width: 44px; height: 44px;
@@ -112,66 +199,20 @@ _COPILOT_CSS = """
 .cop-ctx-val.err  { color: #C00000; }
 .cop-ctx-val.warn { color: #C55A11; }
 
+/* Messages de chat */
 .stChatMessage { padding: 1.2rem 1.5rem !important; border-radius: 12px; margin-bottom: 12px; }
 .stChatMessageContent { font-size: 1.05em; line-height: 1.6; }
 
-/* ════════════════════════════════════════════════════
-   LAYOUT FIXE — éléments toujours visibles
-   ════════════════════════════════════════════════════ */
-
-/* 1. Hero : sticky au sommet du viewport */
-.cop-hero {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 500 !important;
-}
-
-/* 2. Panneau gauche (settings) : sticky dans le mode plein écran copilot
-      Cible le premier stVerticalBlock du stHorizontalBlock qui
-      contient .cop-config-wrap (sélecteur :has() — Chrome 105+,
-      Firefox 121+, Safari 15.4+; dégradation gracieuse sinon). */
-[data-testid="stHorizontalBlock"]:has(.cop-config-wrap)
-    > [data-testid="column"]:first-child
-    > [data-testid="stVerticalBlock"] {
-    position       : sticky;
-    top            : 0;
-    max-height     : 100vh;
-    overflow-y     : auto;
-    overflow-x     : hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(31,92,139,0.4) transparent;
-    padding-bottom : 20px;
-}
-[data-testid="stHorizontalBlock"]:has(.cop-config-wrap)
-    > [data-testid="column"]:first-child
-    > [data-testid="stVerticalBlock"]::-webkit-scrollbar       { width: 4px; }
-[data-testid="stHorizontalBlock"]:has(.cop-config-wrap)
-    > [data-testid="column"]:first-child
-    > [data-testid="stVerticalBlock"]::-webkit-scrollbar-thumb {
-    background   : rgba(31,92,139,0.45);
-    border-radius: 4px;
-}
-
-/* 3. Container de messages scrollable — supprime la bordure Streamlit */
+/* Masquer les scrollbars Streamlit par défaut */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border    : none !important;
+    border: none !important;
     box-shadow: none !important;
 }
 
-/* 4. Scroll fluide sur toute la page */
-html { scroll-behavior: smooth; }
-
-/* 5. Scrollbar de la zone de messages */
-[data-testid="stVerticalBlockBorderWrapper"] > div {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(31,92,139,0.35) transparent;
+/* Cacher le header Streamlit par défaut si présent */
+header[data-testid="stHeader"] {
+    display: none !important;
 }
-[data-testid="stVerticalBlockBorderWrapper"] > div::-webkit-scrollbar       { width: 5px; }
-[data-testid="stVerticalBlockBorderWrapper"] > div::-webkit-scrollbar-thumb {
-    background   : rgba(31,92,139,0.4);
-    border-radius: 4px;
-}
-
 </style>
 """
 
