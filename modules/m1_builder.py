@@ -1,6 +1,6 @@
 # modules/m1_builder.py — Constructeur de Rotor (Module M1)
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
-# Correction v2.1 : routage automatique vers l'onglet selon active_node
+# Correction v2.2 : Synchronisation df_base ↔ df_live après assemblage
 # =============================================================================
 
 import streamlit as st
@@ -45,12 +45,12 @@ def _render_settings(active_node: str):
                 _init_tables()
                 st.rerun()
         with c2:
+            # ⚠️ Utiliser les versions _live pour l'export (données à jour)
             current_data = {
-                "shaft":    st.session_state["df_shaft"].to_dict(orient="records"),
-                "disks":    st.session_state["df_disk"].to_dict(orient="records"),
-                "bearings": st.session_state["df_bear"].to_dict(orient="records"),
-                "material": st.session_state.get("mat_name",
-                            "Acier standard (AISI 1045)"),
+                "shaft":    st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
+                "disks":    st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
+                "bearings": st.session_state.get("_df_bear_live", st.session_state["df_bear"]).to_dict(orient="records"),
+                "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
             }
             st.download_button(
                 "💾 Sauvegarder (.json)",
@@ -83,11 +83,12 @@ def _render_settings(active_node: str):
                         st.session_state["df_disk"]  = pd.DataFrame(data.get("disks", data.get("disk", [])))
                         st.session_state["df_bear"]  = pd.DataFrame(data.get("bearings", data.get("bearing", [])))
                         
+                        # Initialiser les versions _live
                         st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
                         st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
                         st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
+                        
                         st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0)
-   
                         st.session_state["mat_name"] = data.get(
                             "material", "Acier standard (AISI 1045)")
                         st.session_state["rotor"]      = None
@@ -108,9 +109,7 @@ def _render_settings(active_node: str):
             else:
                 st.info("Fichier '{}' déjà chargé.".format(uploaded.name))
 
-    #st.markdown("---")
-
- # ── Rendu direct selon la session — aucun sélecteur visible ──────────
+    # ── Rendu direct selon la session — aucun sélecteur visible ──────────
     _label_to_render = {
         "🧱 Matériau" : _render_tab_material,
         "📏 Arbre"    : _render_tab_shaft,
@@ -203,8 +202,8 @@ def _render_tab_shaft():
  
     n_el = len(result)
     st.caption(f"→ {n_el} éléments · {n_el + 1} nœuds (0 → {n_el})")
- 
- 
+
+
 # =============================================================================
 # ONGLET DISQUES
 # =============================================================================
@@ -233,8 +232,8 @@ def _render_tab_disk():
         }
     )
     st.session_state["_df_disk_live"] = result
- 
- 
+
+
 # =============================================================================
 # ONGLET PALIERS
 # =============================================================================
@@ -271,7 +270,6 @@ def _render_tab_bearing():
              "cxx": p["cxx"], "cyy": p["cyy"]},
         ])
         # Mettre à jour la base ET incrémenter la génération
-        # → le widget repart de zéro avec les valeurs du preset
         st.session_state["df_bear"]         = new_bear
         st.session_state["_df_bear_live"]   = new_bear.copy()
         st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0) + 1
@@ -307,8 +305,9 @@ def _render_tab_bearing():
         "(capteur, demi-accouplement)."
     )
 
+
 # =============================================================================
-# PANNEAU GRAPHICS (droite) — inchangé
+# PANNEAU GRAPHICS (droite)
 # =============================================================================
 def _render_graphics(active_node: str):
     st.markdown(
@@ -335,13 +334,10 @@ def _render_graphics(active_node: str):
         """, unsafe_allow_html=True)
         return
 
-    # ── Métriques globales ───────────────────────────────────────────────
-    n_el    = len(st.session_state.get("df_shaft", []))
-    L_total = sum(
-        float(r.get("L (m)", 0))
-        for r in st.session_state.get(
-            "df_shaft", pd.DataFrame()).to_dict("records")
-    )
+    # ── Métriques globales (utilise les données éditées) ─────────────────
+    df_shaft_display = st.session_state.get("_df_shaft_live", st.session_state.get("df_shaft", pd.DataFrame()))
+    n_el    = len(df_shaft_display)
+    L_total = sum(float(r.get("L (m)", 0)) for r in df_shaft_display.to_dict("records"))
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""
@@ -392,29 +388,36 @@ def _render_graphics(active_node: str):
     except Exception as e:
         st.error(f"❌ Impossible d'afficher le modèle 3D. Détail : {e}")
 
-    # ── Récapitulatif ────────────────────────────────────────────────────
+    # ── Récapitulatif — CORRECTION : utilise les versions _live ──────────
     with st.expander("📋 Récapitulatif du modèle", expanded=False):
         tab_s, tab_d, tab_b = st.tabs(["Arbre", "Disques", "Paliers"])
         with tab_s:
-            st.dataframe(st.session_state["df_shaft"],
-                         use_container_width=True, hide_index=True)
+            # ✅ Affiche les données éditées (fallback sur base si _live indisponible)
+            st.dataframe(
+                st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]),
+                use_container_width=True, hide_index=True
+            )
         with tab_d:
-            st.dataframe(st.session_state["df_disk"],
-                         use_container_width=True, hide_index=True)
+            st.dataframe(
+                st.session_state.get("_df_disk_live", st.session_state["df_disk"]),
+                use_container_width=True, hide_index=True
+            )
         with tab_b:
-            st.dataframe(st.session_state["df_bear"],
-                         use_container_width=True, hide_index=True)
+            st.dataframe(
+                st.session_state.get("_df_bear_live", st.session_state["df_bear"]),
+                use_container_width=True, hide_index=True
+            )
 
-    # ── Export Excel ─────────────────────────────────────────────────────
+    # ── Export Excel — utilise les versions _live ────────────────────────
     try:
         import io
         buf = io.BytesIO()
         with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
-            st.session_state["df_shaft"].to_excel(
+            st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_excel(
                 writer, sheet_name="Arbre",   index=False)
-            st.session_state["df_disk"].to_excel(
+            st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_excel(
                 writer, sheet_name="Disques", index=False)
-            st.session_state["df_bear"].to_excel(
+            st.session_state.get("_df_bear_live", st.session_state["df_bear"]).to_excel(
                 writer, sheet_name="Paliers", index=False)
         st.download_button(
             "📥 Export Excel (.xlsx)",
@@ -429,7 +432,7 @@ def _render_graphics(active_node: str):
 
 
 # =============================================================================
-# ASSEMBLAGE DU ROTOR
+# ASSEMBLAGE DU ROTOR — CORRECTION PRINCIPALE
 # =============================================================================
 def _assemble_rotor():
     if not ROSS_OK:
@@ -439,9 +442,9 @@ def _assemble_rotor():
     errors = []
  
     # ── Lire les données courantes (avec fallback sur les bases) ──────────
-    df_shaft = st.session_state.get("_df_shaft_live", st.session_state.get("df_shaft", pd.DataFrame()))
-    df_disk  = st.session_state.get("_df_disk_live",  st.session_state.get("df_disk",  pd.DataFrame()))
-    df_bear  = st.session_state.get("_df_bear_live",  st.session_state.get("df_bear",  pd.DataFrame()))
+    df_shaft = st.session_state.get("_df_shaft_live", st.session_state.get("df_shaft", pd.DataFrame())).copy()
+    df_disk  = st.session_state.get("_df_disk_live",  st.session_state.get("df_disk",  pd.DataFrame())).copy()
+    df_bear  = st.session_state.get("_df_bear_live",  st.session_state.get("df_bear",  pd.DataFrame())).copy()
  
     try:
         mat_name = st.session_state.get("mat_name", "Acier standard (AISI 1045)")
@@ -536,6 +539,17 @@ def _assemble_rotor():
         with st.spinner("Assemblage du modèle éléments finis…"):
             rotor = rs.Rotor(shaft, disks, bears)
  
+        # ✅ CORRECTION PRINCIPALE : Synchroniser les DataFrames de base avec les versions éditées
+        # Cela garantit que le récapitulatif, l'export et tous les affichages reflètent les modifications
+        st.session_state["df_shaft"] = df_shaft.copy()
+        st.session_state["df_disk"]  = df_disk.copy()
+        st.session_state["df_bear"]  = df_bear.copy()
+        
+        # Mettre à jour aussi les versions _live pour cohérence
+        st.session_state["_df_shaft_live"] = df_shaft.copy()
+        st.session_state["_df_disk_live"]  = df_disk.copy()
+        st.session_state["_df_bear_live"]  = df_bear.copy()
+ 
         st.session_state["rotor"]        = rotor
         st.session_state["rotor_name"]   = "Rotor personnalisé"
         st.session_state["rotor_source"] = "custom"
@@ -562,6 +576,7 @@ def _assemble_rotor():
         st.error(f"❌ Erreur d'assemblage : {e}")
         import traceback
         st.code(traceback.format_exc(), language="python")
+
 
 # =============================================================================
 # INITIALISATION DES TABLEAUX PAR DÉFAUT
@@ -595,4 +610,3 @@ def _init_tables():
     for key in ["res_static", "res_modal", "res_campbell",
                 "res_ucs", "res_unbalance", "res_freq", "res_temporal"]:
         st.session_state[key] = None
- 
