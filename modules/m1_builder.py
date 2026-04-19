@@ -430,7 +430,48 @@ def _render_tab_bearing():
         "(capteur, demi-accouplement)."
     )
 
+# =============================================================================
+# À COLLER dans modules/m1_builder.py
+# Placez cette fonction AVANT _render_settings (ou n'importe où dans le fichier,
+# Python résout les noms à l'exécution, pas à la définition — mais par convention
+# mettez-la avec les autres _render_tab_*)
+# =============================================================================
 
+def _render_tab_material():
+    st.markdown(
+        '<div class="rl-section-header">🧱 Matériau</div>',
+        unsafe_allow_html=True
+    )
+    mat_name = st.selectbox(
+        "Matériau :",
+        list(MATERIALS_DB.keys()),
+        index=list(MATERIALS_DB.keys()).index(
+            st.session_state.get("mat_name", "Acier standard (AISI 1045)")
+        ),
+        key="m1_mat_select"
+    )
+    st.session_state["mat_name"] = mat_name
+    props = MATERIALS_DB[mat_name]
+
+    if mat_name == "Personnalisé":
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            props["rho"] = st.number_input(
+                "ρ (kg/m³)", 500.0, 20000.0,
+                float(props["rho"]), key="m1_rho")
+        with c2:
+            props["E"] = st.number_input(
+                "E (GPa)", 1.0, 500.0,
+                float(props["E"]) / 1e9, key="m1_E") * 1e9
+        with c3:
+            props["G_s"] = st.number_input(
+                "G_s (GPa)", 1.0, 200.0,
+                float(props["G_s"]) / 1e9, key="m1_Gs") * 1e9
+    else:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("ρ (kg/m³)", f"{props['rho']:.0f}")
+        c2.metric("E (GPa)",   f"{props['E']/1e9:.1f}")
+        c3.metric("G_s (GPa)", f"{props['G_s']/1e9:.1f}")
 # =============================================================================
 # PANNEAU GRAPHICS
 # =============================================================================
