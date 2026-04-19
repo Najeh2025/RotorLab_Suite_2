@@ -80,10 +80,14 @@ def _render_settings(active_node: str):
                             if editor_key in st.session_state:
                                 del st.session_state[editor_key]
                         st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
-                        st.session_state["df_disk"]  = pd.DataFrame(
-                            data.get("disks", data.get("disk", [])))
-                        st.session_state["df_bear"]  = pd.DataFrame(
-                            data.get("bearings", data.get("bearing", [])))
+                        st.session_state["df_disk"]  = pd.DataFrame(data.get("disks", data.get("disk", [])))
+                        st.session_state["df_bear"]  = pd.DataFrame(data.get("bearings", data.get("bearing", [])))
+                        
+                        st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
+                        st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
+                        st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
+                        st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0)
+   
                         st.session_state["mat_name"] = data.get(
                             "material", "Acier standard (AISI 1045)")
                         st.session_state["rotor"]      = None
