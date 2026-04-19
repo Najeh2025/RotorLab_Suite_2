@@ -126,9 +126,40 @@ def _handle_modals():
 # =============================================================================
 # PANNEAU SETTINGS
 # =============================================================================
+# =============================================================================
+# PANNEAU SETTINGS
+# =============================================================================
 def _render_settings(active_node: str):
-        # ── Gestion des fichiers — Layout vertical uniforme ───────────────────
-        # ── Gestion des fichiers — Layout uniforme ───────────────────────────
+    # Injection CSS spécifique pour l'alignement vertical des boutons
+    st.markdown("""
+    <style>
+    .rl-file-manager {
+        display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; width: 100%;
+    }
+    .rl-file-manager > div, .rl-file-manager .stSelectbox, .rl-file-manager .stFileUploader, .rl-file-manager .stDownloadButton, .rl-file-manager .stButton {
+        width: 100% !important; max-width: 100% !important;
+    }
+    /* Style unifié pour les boutons et l'upload */
+    .rl-file-manager .stFileUploader {
+        border: 1.5px solid #D0D8E4; border-radius: 8px; background-color: #FFFFFF;
+        padding: 8px 16px; cursor: pointer; transition: all 0.2s;
+    }
+    .rl-file-manager .stFileUploader:hover { border-color: #1F5C8B; background-color: #F7F9FC; }
+    .rl-file-manager .stFileUploader label {
+        width: 100%; font-weight: 600; font-size: 0.95rem; color: #1A1A2E; margin: 0; padding: 0;
+        display: flex; align-items: center; gap: 8px; cursor: pointer;
+    }
+    /* Masquer le bouton 'Browse' natif pour ne garder que le texte unifié */
+    .rl-file-manager .stFileUploader button[data-testid="stBaseButton"] { display: none; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
+        unsafe_allow_html=True
+    )
+
+    # ── Gestion des fichiers — Layout uniforme ───────────────────────────
     st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
 
     # 1. Sélecteur de template
@@ -146,7 +177,7 @@ def _render_settings(active_node: str):
         label_visibility="visible"
     )
 
-    # Bouton Appliquer - aligné à gauche
+    # Bouton Appliquer
     if st.button("✅ Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
@@ -172,7 +203,9 @@ def _render_settings(active_node: str):
             try:
                 content = uploaded.read()
                 data = json.loads(content.decode("utf-8"))
-                if "shaft" not in 
+                
+                # --- CORRECTION DE L'ERREUR SYNTAXE ICI ---
+                if "shaft" not in data:
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
@@ -180,6 +213,7 @@ def _render_settings(active_node: str):
                     st.session_state["m1_has_unsaved_changes"] = False
                     st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
+                    
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
 
@@ -201,7 +235,10 @@ def _render_settings(active_node: str):
         on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
     )
 
-    st.markdown('</div>', unsafe_allow_html=True)    # ── Rendu des onglets selon la session ────────────────────────────────
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("---")
+
+    # ── Rendu des onglets selon la session ────────────────────────────────
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
         "📏 Arbre": _render_tab_shaft,
@@ -210,14 +247,11 @@ def _render_settings(active_node: str):
     }
     current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
     _label_to_render.get(current, _render_tab_material)()
-    
-    st.markdown("---")
 
     # ── Bouton Assembler ──────────────────────────────────────────────────
     if st.button("🚀 Assembler le rotor", type="primary",
                  key="m1_build", use_container_width=True):
         _assemble_rotor()
-
 
 # =============================================================================
 # ONGLET MATÉRIAU
