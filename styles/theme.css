@@ -318,3 +318,21 @@ div[data-testid="stVerticalBlock"]
 div[data-testid="stProgress"] > div > div {
     background: var(--rl-primary) !important;
 }
+
+/* ── Alignement uniforme du gestionnaire de fichiers ─────────────────── */
+.rl-file-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.rl-file-manager .stSelectbox,
+.rl-file-manager .stButton,
+.rl-file-manager .stFileUploader,
+.rl-file-manager .stDownloadButton {
+    width: 100% !important;
+}
+/* Harmonise la hauteur visuelle des boutons/upload */
+.rl-file-manager .stFileUploader {
+    padding-top: 4px;
+}
