@@ -127,16 +127,10 @@ def _handle_modals():
 # PANNEAU SETTINGS
 # =============================================================================
 def _render_settings(active_node: str):
-    st.markdown(
-        '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
-        unsafe_allow_html=True
-    )
-
-    # ── Gestion fichiers — BOUTONS DE MÊME TAILLE ─────────────────────────
         # ── Gestion des fichiers — Layout vertical uniforme ───────────────────
     st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
 
-    # 1. Sélecteur de template + Application
+    # 1. Sélecteur de template
     st.selectbox(
         "🆕 Nouveau modèle — Sélectionner un template",
         options=["simple", "industrial", "api684", "empty"],
@@ -161,14 +155,15 @@ def _render_settings(active_node: str):
             st.toast("🎯 Template appliqué avec succès !", icon="✅")
         st.rerun()
 
-    # 2. Upload de fichier
+    # 2. Charger un modèle (Upload) — Styled to match Save button
     uploaded = st.file_uploader(
         "📂 Charger un modèle (.json)",
         type=["json"],
-        label_visibility="collapsed",
         key="m1_upload_main",
-        help="Sélectionnez un fichier JSON exporté précédemment"
+        label_visibility="visible",
+        help="Cliquez pour sélectionner un fichier JSON"
     )
+
     if uploaded is not None:
         file_id = "{}_{}".format(uploaded.name, uploaded.size)
         if st.session_state.get("m1_last_file_id") != file_id:
@@ -188,7 +183,7 @@ def _render_settings(active_node: str):
             except Exception as e:
                 st.error(f"❌ Erreur de lecture : {e}")
 
-    # 3. Sauvegarde
+    # 3. Sauvegarder
     current_data = {
         "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
         "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
@@ -207,7 +202,6 @@ def _render_settings(active_node: str):
     )
 
     st.markdown('</div>', unsafe_allow_html=True)
-
     # ── Rendu des onglets selon la session ────────────────────────────────
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
