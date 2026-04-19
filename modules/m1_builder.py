@@ -214,14 +214,15 @@ def _render_tab_disk():
         "Masses concentrées — saisie directe de masse et inerties "
         "(données CAO ou catalogue constructeur)."
     )
-    st.session_state["df_disk"] = st.data_editor(
+ 
+    # ── CORRECTION : pas de key= ─────────────────────────────────────────
+    edited = st.data_editor(
         st.session_state["df_disk"],
         num_rows="dynamic",
-        key="m1_disk_editor",
         use_container_width=True,
         column_config={
             "nœud":       st.column_config.NumberColumn(
-                "Nœud", min_value=0, step=1),
+                "Nœud",       min_value=0, step=1),
             "Masse (kg)": st.column_config.NumberColumn(
                 "Masse (kg)", min_value=0.0, format="%.4f"),
             "Id (kg.m²)": st.column_config.NumberColumn(
@@ -230,6 +231,7 @@ def _render_tab_disk():
                 "Ip (kg.m²)", min_value=0.0, format="%.6f"),
         }
     )
+    st.session_state["df_disk"] = edited
 
 
 # =============================================================================
@@ -240,52 +242,63 @@ def _render_tab_bearing():
         '<div class="rl-section-header">⚙️ Paliers & Joints</div>',
         unsafe_allow_html=True
     )
-
-    # ✅ 1. Selectbox en pleine largeur (colonnes inutiles supprimées)
+ 
+    if "df_bear" not in st.session_state:
+        import pandas as pd
+        st.session_state["df_bear"] = pd.DataFrame(
+            columns=["nœud", "Type", "kxx", "kyy", "kxy", "cxx", "cyy"]
+        )
+ 
+    # ── Selectbox preset ─────────────────────────────────────────────────
+    from config import BEARING_PRESETS
     preset = st.selectbox(
         "Preset :",
         ["-"] + list(BEARING_PRESETS.keys()),
         key="m1_preset"
     )
-
-    # ✅ 2. Initialisation sécurisée (évite KeyError si preset == "-")
-    if "df_bear" not in st.session_state:
-        st.session_state["df_bear"] = pd.DataFrame(
-            columns=["nœud", "Type", "kxx", "kyy", "kxy", "cxx", "cyy"]
-        )
-
-    # ✅ 3. Application du preset si sélectionné
-    if preset != "-":
-        p = BEARING_PRESETS[preset]
-        # Sécurisation si df_shaft n'est pas encore créé
+ 
+    # ── CORRECTION BUG #1 : appliquer le preset UNIQUEMENT au changement ─
+    preset_applied = st.session_state.get("m1_preset_applied", "-")
+    if preset != "-" and preset != preset_applied:
+        # Mémoriser pour ne pas réappliquer au prochain rerun
+        st.session_state["m1_preset_applied"] = preset
+ 
+        import pandas as pd
+        p    = BEARING_PRESETS[preset]
         n_el = max(1, len(st.session_state.get("df_shaft", [])))
         st.session_state["df_bear"] = pd.DataFrame([
-            {"nœud": 0,   "Type": "Palier",
+            {"nœud": 0,    "Type": "Palier",
              "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
              "cxx": p["cxx"], "cyy": p["cyy"]},
             {"nœud": n_el, "Type": "Palier",
              "kxx": p["kxx"], "kyy": p["kyy"], "kxy": p["kxy"],
              "cxx": p["cxx"], "cyy": p["cyy"]},
         ])
-
-    # ✅ 4. Éditeur de données
-    st.session_state["df_bear"] = st.data_editor(
+ 
+    elif preset == "-":
+        # Réinitialise la mémorisation si l'utilisateur revient sur "-"
+        st.session_state["m1_preset_applied"] = "-"
+ 
+    # ── CORRECTION BUG #2 : pas de key= sur data_editor ─────────────────
+    edited = st.data_editor(
         st.session_state["df_bear"].fillna(0.0),
         num_rows="dynamic",
-        key="m1_bear_editor",
         use_container_width=True,
         column_config={
             "Type": st.column_config.SelectboxColumn(
-                "Type", options=["Palier", "Joint", "Roulement", "Masse"], required=True
+                "Type",
+                options=["Palier", "Joint", "Roulement", "Masse"],
+                required=True
             ),
-            "kxx": st.column_config.NumberColumn("kxx (N/m)", format="%.2e"),
-            "kyy": st.column_config.NumberColumn("kyy (N/m)", format="%.2e"),
-            "kxy": st.column_config.NumberColumn("kxy (N/m)", format="%.2e"),
+            "kxx": st.column_config.NumberColumn("kxx (N/m)",   format="%.2e"),
+            "kyy": st.column_config.NumberColumn("kyy (N/m)",   format="%.2e"),
+            "kxy": st.column_config.NumberColumn("kxy (N/m)",   format="%.2e"),
             "cxx": st.column_config.NumberColumn("cxx (N·s/m)", format="%.1f"),
             "cyy": st.column_config.NumberColumn("cyy (N·s/m)", format="%.1f"),
         }
     )
-
+    st.session_state["df_bear"] = edited
+ 
     st.caption(
         "💡 Type 'Masse' : ajoute une masse ponctuelle sans rigidité "
         "(capteur, demi-accouplement)."
