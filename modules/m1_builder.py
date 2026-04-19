@@ -122,66 +122,80 @@ def _render_settings(active_node: str):
     )
 
     # ── Gestion fichiers — BOUTONS DE MÊME TAILLE ─────────────────────────
-    with st.expander("📁 Fichiers — Charger / Sauvegarder", expanded=False):
-        # Trois boutons sur une seule ligne de même taille
-        col_new, col_save, col_upload = st.columns(3)
-        
-        with col_new:
-            if st.button("📄 Nouveau modèle", use_container_width=True, key="m1_new"):
-                # Vérifier si modifications non sauvegardées
-                if st.session_state.get("m1_has_unsaved_changes", False):
-                    st.session_state["m1_show_unsaved_dialog"] = True
+        # ── Gestion des fichiers — Layout vertical uniforme ───────────────────
+    st.markdown('<div class="rl-file-manager">', unsafe_allow_html=True)
+
+    # 1. Sélecteur de template + Application
+    st.selectbox(
+        "🆕 Nouveau modèle — Sélectionner un template",
+        options=["simple", "industrial", "api684", "empty"],
+        format_func=lambda x: {
+            "simple": "🔹 Simple (Pédagogique)",
+            "industrial": "🔹 Industriel (Multi-étages)",
+            "api684": "🔹 API 684 (Référence normative)",
+            "empty": "🔹 Vide (Construction from scratch)"
+        }[x],
+        index=0,
+        key="m1_template_selector_main",
+        label_visibility="visible"
+    )
+
+    if st.button("✅ Appliquer ce template", use_container_width=True, key="m1_btn_apply_template"):
+        if st.session_state.get("m1_has_unsaved_changes", False):
+            st.session_state["m1_show_unsaved_dialog"] = True
+            st.session_state["m1_pending_action"] = "apply_template"
+        else:
+            _init_tables(template=st.session_state["m1_template_selector_main"])
+            st.session_state["m1_has_unsaved_changes"] = False
+            st.toast("🎯 Template appliqué avec succès !", icon="✅")
+        st.rerun()
+
+    # 2. Upload de fichier
+    uploaded = st.file_uploader(
+        "📂 Charger un modèle (.json)",
+        type=["json"],
+        label_visibility="collapsed",
+        key="m1_upload_main",
+        help="Sélectionnez un fichier JSON exporté précédemment"
+    )
+    if uploaded is not None:
+        file_id = "{}_{}".format(uploaded.name, uploaded.size)
+        if st.session_state.get("m1_last_file_id") != file_id:
+            try:
+                content = uploaded.read()
+                data = json.loads(content.decode("utf-8"))
+                if "shaft" not in data:
+                    st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
-                    st.session_state["m1_show_template_selector"] = True
-                st.rerun()
-                
-        with col_save:
-            # ⚠️ Utiliser les versions _live pour l'export (données à jour)
-            current_data = {
-                "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
-                "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
-                "bearings": st.session_state.get("_df_bear_live", st.session_state["df_bear"]).to_dict(orient="records"),
-                "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
-                "name": st.session_state.get("rotor_name", "unnamed"),
-            }
-            st.download_button(
-                "💾 Sauvegarder (.json)",
-                data=json.dumps(current_data, indent=2, ensure_ascii=False),
-                file_name="rotor_model.json",
-                mime="application/json",
-                use_container_width=True,
-                key="m1_save",
-                on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
-            )
-            
-        with col_upload:
-            uploaded = st.file_uploader(
-                "📂 Charger (.json)",
-                type=["json"],
-                label_visibility="collapsed",  # Cache le label pour plus de propreté
-                key="m1_upload",
-                help="Sélectionnez un fichier JSON de modèle de rotor"
-            )
-            if uploaded is not None:
-                file_id = "{}_{}".format(uploaded.name, uploaded.size)
-                if st.session_state.get("m1_last_file_id") != file_id:
-                    try:
-                        content = uploaded.read()
-                        data = json.loads(content.decode("utf-8"))
-                        if "shaft" not in data:
-                            st.error("Fichier JSON invalide : clé 'shaft' manquante.")
-                        else:
-                            _load_model_from_dict(data)
-                            st.session_state["m1_last_file_id"] = file_id
-                            st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
-                            st.session_state["m1_has_unsaved_changes"] = False
-                            st.rerun()
-                    except json.JSONDecodeError as e:
-                        st.error(f"JSON malformé : {e}")
-                    except Exception as e:
-                        st.error(f"Erreur lecture : {e}")
-                else:
-                    st.info(f"📁 Fichier '{uploaded.name}' déjà chargé.")
+                    _load_model_from_dict(data)
+                    st.session_state["m1_last_file_id"] = file_id
+                    st.session_state["m1_has_unsaved_changes"] = False
+                    st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+                    st.rerun()
+            except json.JSONDecodeError as e:
+                st.error(f"❌ JSON malformé : {e}")
+            except Exception as e:
+                st.error(f"❌ Erreur de lecture : {e}")
+
+    # 3. Sauvegarde
+    current_data = {
+        "shaft": st.session_state.get("_df_shaft_live", st.session_state["df_shaft"]).to_dict(orient="records"),
+        "disks": st.session_state.get("_df_disk_live", st.session_state["df_disk"]).to_dict(orient="records"),
+        "bearings": st.session_state.get("_df_bear_live", st.session_state["df_bear"]).to_dict(orient="records"),
+        "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
+        "name": st.session_state.get("rotor_name", "rotor_export"),
+    }
+    st.download_button(
+        "💾 Sauvegarder le modèle (.json)",
+        data=json.dumps(current_data, indent=2, ensure_ascii=False),
+        file_name=f"{st.session_state.get('rotor_name', 'rotor_model')}.json",
+        mime="application/json",
+        use_container_width=True,
+        key="m1_save_main",
+        on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
+    )
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Rendu des onglets selon la session ────────────────────────────────
     _label_to_render = {
