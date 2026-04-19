@@ -128,26 +128,69 @@ def _handle_modals():
 # =============================================================================
 def _render_settings(active_node: str):
     # Injection CSS spécifique pour l'alignement vertical des boutons
+    def _render_settings(active_node: str):
+    # ✅ CORRECTION : CSS enveloppé dans <style> tags
     st.markdown("""
     <style>
     .rl-file-manager {
-        display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; width: 100%;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
     }
-    .rl-file-manager > div, .rl-file-manager .stSelectbox, .rl-file-manager .stFileUploader, .rl-file-manager .stDownloadButton, .rl-file-manager .stButton {
-        width: 100% !important; max-width: 100% !important;
+    .rl-file-manager > div,
+    .rl-file-manager .stSelectbox,
+    .rl-file-manager .stButton,
+    .rl-file-manager .stFileUploader,
+    .rl-file-manager .stDownloadButton {
+        width: 100% !important;
+        max-width: 100% !important;
     }
-    /* Style unifié pour les boutons et l'upload */
+    .rl-file-manager .stButton > button,
+    .rl-file-manager .stDownloadButton > button {
+        justify-content: flex-start !important;
+        text-align: left !important;
+        padding-left: 16px !important;
+        width: 100% !important;
+    }
     .rl-file-manager .stFileUploader {
-        border: 1.5px solid #D0D8E4; border-radius: 8px; background-color: #FFFFFF;
-        padding: 8px 16px; cursor: pointer; transition: all 0.2s;
+        border: 1px solid #D0D8E4 !important;
+        border-radius: 8px !important;
+        background-color: #FFFFFF !important;
+        padding: 0 !important;
+        height: 38px !important;
+        min-height: 38px !important;
     }
-    .rl-file-manager .stFileUploader:hover { border-color: #1F5C8B; background-color: #F7F9FC; }
+    .rl-file-manager .stFileUploader:hover {
+        border-color: #1F5C8B !important;
+        background-color: #F7F9FC !important;
+    }
+    .rl-file-manager .stFileUploader button[data-testid="stBaseButton"] {
+        display: none !important;
+    }
     .rl-file-manager .stFileUploader label {
-        width: 100%; font-weight: 600; font-size: 0.95rem; color: #1A1A2E; margin: 0; padding: 0;
-        display: flex; align-items: center; gap: 8px; cursor: pointer;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 16px !important;
+        margin: 0 !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        color: #1A1A2E !important;
+        cursor: pointer !important;
+        background: transparent !important;
+        border: none !important;
     }
-    /* Masquer le bouton 'Browse' natif pour ne garder que le texte unifié */
-    .rl-file-manager .stFileUploader button[data-testid="stBaseButton"] { display: none; }
+    .rl-file-manager .stFileUploader input[type="file"] {
+        position: absolute !important;
+        opacity: 0.01 !important;
+        width: 100% !important;
+        height: 100% !important;
+        cursor: pointer !important;
+        z-index: 10 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -155,6 +198,7 @@ def _render_settings(active_node: str):
         '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
         unsafe_allow_html=True
     )
+    
 
     # ── Gestion des fichiers — Layout uniforme ───────────────────────────
         # ── Gestion des fichiers — 3 BOUTONS IDENTIQUES ──────────────────────
