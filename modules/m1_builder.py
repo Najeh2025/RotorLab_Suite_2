@@ -60,9 +60,18 @@ def _handle_modals():
                     st.session_state["m1_show_template_selector"] = True
                     st.rerun()
             with c2:
-                if st.button("❌ Abandonner", use_container_width=True, type="primary", key="dlg_abandon"):
+                if st.button("❌ Abandonner & Appliquer", use_container_width=True, type="primary", key="dlg_abandon"):
+                    action = st.session_state.get("m1_pending_action", "new_model")
                     st.session_state["m1_show_unsaved_dialog"] = False
-                    st.session_state["m1_show_template_selector"] = True
+                    st.session_state["m1_has_unsaved_changes"] = False
+                    
+                    if action == "apply_template":
+                        _init_tables(template=st.session_state["m1_template_selector_main"])
+                        st.toast("🎯 Template appliqué !", icon="✅")
+                    else:
+                        st.session_state["m1_show_template_selector"] = True
+                        
+                    st.session_state["m1_pending_action"] = None
                     st.rerun()
             with c3:
                 if st.button("↩️ Annuler", use_container_width=True, key="dlg_cancel"):
