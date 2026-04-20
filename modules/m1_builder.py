@@ -161,6 +161,11 @@ from config import MATERIALS_DB, BEARING_PRESETS
 # Aucune autre fonction n'est modifiée.
 # =============================================================================
 
+# =============================================================================
+# REMPLACEZ uniquement _render_settings dans modules/m1_builder.py
+# Aucune autre fonction n'est modifiée.
+# =============================================================================
+
 def _render_settings(active_node: str):
     import streamlit.components.v1 as components
 
@@ -419,32 +424,6 @@ def _render_settings(active_node: str):
         use_container_width=True
     ):
         _assemble_rotor()
-# =============================================================================
-# HELPER — _load_model_from_dict
-# Charge un dictionnaire JSON dans session_state (bases stables)
-# =============================================================================
-def _load_model_from_dict(data: dict):
-    """Hydrate session_state depuis un dict JSON chargé."""
-    # Effacer les clés d'éditeurs précédents pour forcer la recréation
-    for editor_key in ["m1_shaft_editor", "m1_disk_editor", "m1_bear_editor"]:
-        if editor_key in st.session_state:
-            del st.session_state[editor_key]
-
-    st.session_state["df_shaft"] = pd.DataFrame(data["shaft"])
-    st.session_state["df_disk"]  = pd.DataFrame(
-        data.get("disks", data.get("disk", [])))
-    st.session_state["df_bear"]  = pd.DataFrame(
-        data.get("bearings", data.get("bearing", [])))
-    st.session_state["mat_name"] = data.get(
-        "material", "Acier standard (AISI 1045)")
-    st.session_state["rotor_name"] = data.get(
-        "name", "Modèle importé")
-
-    # Invalider les résultats de simulation
-    for key in ["res_static", "res_modal", "res_campbell",
-                "res_ucs", "res_unbalance", "res_freq", "res_temporal",
-                "rotor"]:
-        st.session_state[key] = None
 
 
 # =============================================================================
