@@ -155,10 +155,18 @@ import streamlit as st
 import json
 import pandas as pd
 
+#=============================================================================
 # NOTE : _init_tables, _load_model_from_dict, _assemble_rotor et _render_tab_* 
 # sont supposés définis ailleurs dans le module.
-
+#============================================================================
 def _render_settings(active_node: str):
+
+    import pathlib
+    import streamlit as st
+
+    css_path = pathlib.Path("styles/theme.css")
+    if css_path.exists():
+        st.markdown(f"<style>{css_path.read_text()}</style>", unsafe_allow_html=True)
     # ── Injection CSS (si tu utilises un fichier externe, supprime ce bloc) ──
     # st.markdown(open("styles/theme.css").read(), unsafe_allow_html=True)
 
