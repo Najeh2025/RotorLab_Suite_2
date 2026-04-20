@@ -532,6 +532,58 @@ div[data-testid="stProgress"] > div > div {
     margin           : 0 !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   M1 — Uniformisation des 3 boutons d'action
+   Cible : Appliquer / Charger (.json) / Sauvegarder (.json)
+   Requis : Streamlit >= 1.23.0
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Masquer la zone drag-and-drop native */
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
+}
+
+/* 2. Conteneur du uploader : aligné sur le style secondary Streamlit */
+[data-testid="stFileUploaderDropzone"] {
+    padding: 0 !important;
+    border: 1px solid rgba(49, 51, 63, 0.2) !important;
+    border-radius: 0.5rem !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    height: 2.5rem !important;
+    min-height: 2.5rem !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+    cursor: pointer;
+}
+
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: rgba(49, 51, 63, 0.4) !important;
+    background-color: rgba(151, 166, 195, 0.15) !important;
+}
+
+/* 3. Bouton interne "Browse files" : pleine largeur, même typo */
+[data-testid="stFileUploaderDropzone"] > button {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.875rem !important;
+    font-weight: 400 !important;
+    color: rgb(49, 51, 63) !important;
+    padding: 0 0.75rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* 4. Fallback pour le texte interne du bouton */
+[data-testid="stFileUploaderDropzone"] > button p {
+    font-size: 0.875rem !important;
+    font-weight: 400 !important;
+    color: rgb(49, 51, 63) !important;
+    margin: 0 !important;
+}
         
 </style>
 """
