@@ -167,151 +167,29 @@ from config import MATERIALS_DB, BEARING_PRESETS
 # =============================================================================
 
 def _render_settings(active_node: str):
-    import streamlit.components.v1 as components
-
-    # ── Script JS via iframe same-origin → accès DOM parent garanti ───────
-    # window.parent.document pointe sur l'app Streamlit (même origine).
-    # MutationObserver + debounce : styles persistants après chaque rerun.
-    components.html("""
-    <script>
-    (function () {
-        var PD;
-        try { PD = window.parent.document; } catch (e) { return; }
-        if (!PD) return;
-
-        /* ── Style cible commun aux 3 boutons ─────────────────────────── */
-        var S = {
-            height:          '40px',
-            minHeight:       '40px',
-            padding:         '0 14px',
-            border:          '1.5px solid #D1D5DB',
-            borderRadius:    '8px',
-            background:      '#FFFFFF',
-            fontSize:        '14px',
-            fontWeight:      '600',
-            color:           '#1A1A2E',
-            justifyContent:  'flex-start',
-            boxShadow:       'none',
-            display:         'flex',
-            alignItems:      'center',
-            width:           '100%',
-            cursor:          'pointer',
-            boxSizing:       'border-box',
-            transition:      'border-color .15s, background .15s, color .15s'
-        };
-
-        /* ── Applique le style + hover sur un élément ─────────────────── */
-        function style(el, extra, hoverContainer) {
-            if (!el) return;
-            Object.assign(el.style, S, extra || {});
-            var tgt = hoverContainer || el;
-            el.onmouseenter = function () {
-                tgt.style.borderColor = '#1F5C8B';
-                tgt.style.background  = '#EBF4FB';
-                el.style.color        = '#1F5C8B';
-                if (extra && extra.background !== undefined)
-                    el.style.background = extra.background;
-            };
-            el.onmouseleave = function () {
-                tgt.style.borderColor = '#D1D5DB';
-                tgt.style.background  = '#FFFFFF';
-                el.style.color        = '#1A1A2E';
-                if (extra && extra.background !== undefined)
-                    el.style.background = extra.background;
-            };
-        }
-
-        /* ── Passe principale ─────────────────────────────────────────── */
-        function run() {
-
-            /* [A] st.button — "Appliquer ce template" */
-            PD.querySelectorAll('[data-testid="stButton"] button').forEach(function (b) {
-                if ((b.textContent || '').indexOf('Appliquer') !== -1) style(b);
-            });
-
-            /* [B] st.download_button — "Sauvegarder" */
-            PD.querySelectorAll('[data-testid="stDownloadButton"] button').forEach(function (b) {
-                if ((b.textContent || '').indexOf('Sauvegarder') !== -1) style(b);
-            });
-
-            /* [C] st.file_uploader — transformer en bouton identique */
-            var dz = PD.querySelector('[data-testid="stFileUploaderDropzone"]');
-            if (dz) {
-                /* Masquer les instructions drag-and-drop */
-                var instr = dz.querySelector('[data-testid="stFileUploaderDropzoneInstructions"]');
-                if (instr) instr.style.display = 'none';
-
-                /* Styler le conteneur dropzone */
-                Object.assign(dz.style, {
-                    height: '40px', minHeight: '40px', padding: '0',
-                    border: '1.5px solid #D1D5DB', borderRadius: '8px',
-                    background: '#FFFFFF', display: 'flex', alignItems: 'center',
-                    boxSizing: 'border-box'
-                });
-
-                /* Bouton Browse interne */
-                var btn = dz.querySelector('button');
-                if (btn) {
-                    /* Remplacer le texte "Browse files" */
-                    var p = btn.querySelector('p');
-                    if (p && p.textContent.indexOf('Charger') === -1) {
-                        p.textContent = '📂  Charger un modèle (.json)';
-                    }
-                    /* Styler le bouton (transparent pour laisser dz gérer la bordure) */
-                    style(btn, { border: 'none', background: 'transparent' }, dz);
-                }
-            }
-        }
-
-        /* ── Exécutions initiales (laisse le temps à Streamlit de rendre) */
-        run();
-        setTimeout(run, 150);
-        setTimeout(run, 400);
-        setTimeout(run, 800);
-
-        /* ── Observer permanent : réappliquer après chaque rerun Streamlit */
-        var debTimer;
-        new MutationObserver(function () {
-            clearTimeout(debTimer);
-            debTimer = setTimeout(run, 80);
-        }).observe(PD.body, { childList: true, subtree: true });
-
-    }());
-    </script>
-    """, height=0, scrolling=False)
-
-    # ── Masquer le micro-iframe généré par components.html ────────────────
-    st.markdown("""
-    <style>
-    /* Supprime l'espace vide laissé par le composant JS invisible */
-    .element-container:has(iframe[height="0"]) {
-        height   : 0 !important;
-        overflow : hidden !important;
-        margin   : 0 !important;
-        padding  : 0 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
+    # ── Injection CSS ─────────────────────────────────────────────────────
+    # (remplace l'ancien bloc components.html / JS)
+    st.markdown(_M1_BUTTONS_CSS, unsafe_allow_html=True)
+ 
     # ══════════════════════════════════════════════════════════════════════
     # TITRE
     # ══════════════════════════════════════════════════════════════════════
     st.markdown(
         '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
-
+ 
     # ══════════════════════════════════════════════════════════════════════
-    # BLOC FICHIERS
+    # BLOC FICHIERS — 3 éléments d'action uniformes
     # ══════════════════════════════════════════════════════════════════════
     st.markdown(
         '<p style="font-weight:700;margin:0 0 5px;color:#1A1A2E;'
         'font-size:.82em;text-transform:uppercase;letter-spacing:.05em;">'
-        '🆕 Nouveau modèle</p>',
-        unsafe_allow_html=True
+        "🆕 Nouveau modèle</p>",
+        unsafe_allow_html=True,
     )
-
-    # 1. Sélecteur de template
+ 
+    # ── 1. Sélecteur de template ──────────────────────────────────────────
     template_choice = st.selectbox(
         "template",
         options=["simple", "industrial", "api684", "empty"],
@@ -323,27 +201,30 @@ def _render_settings(active_node: str):
         }[x],
         index=0,
         key="m1_template_selector_main",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
-
-    # 2. [A] Bouton Appliquer  ← stylé par le JS ci-dessus
+ 
+    # ── 2. [A] Bouton « Appliquer ce template » ───────────────────────────
+    #   use_container_width=True + type par défaut (secondary) = même style
+    #   que st.download_button ci-dessous
     if st.button(
         "✅  Appliquer ce template",
         use_container_width=True,
-        key="m1_btn_apply_template"
+        key="m1_btn_apply_template",
     ):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
-            st.session_state["m1_pending_action"]       = "apply_template"
+            st.session_state["m1_pending_action"] = "apply_template"
         else:
             _init_tables(template=template_choice)
             st.session_state["m1_has_unsaved_changes"] = False
             st.toast("🎯 Template appliqué !", icon="✅")
         st.rerun()
-
-    # 3. [C] File uploader  ← transformé visuellement en bouton par le JS
+ 
+    # ── 3. [C] File uploader — transformé visuellement par le CSS ci-dessus
+    #   label_visibility="collapsed" supprime le label au-dessus du widget
     uploaded = st.file_uploader(
-        "Charger",
+        "📂  Charger un modèle (.json)",
         type=["json"],
         key="m1_upload_main",
         label_visibility="collapsed",
@@ -360,32 +241,32 @@ def _render_settings(active_node: str):
                     st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
                     st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
                     st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
-                    st.session_state["m1_data_gen"]    = \
+                    st.session_state["m1_data_gen"] = (
                         st.session_state.get("m1_data_gen", 0) + 1
-                    st.session_state["m1_last_file_id"]        = file_id
+                    )
+                    st.session_state["m1_last_file_id"] = file_id
                     st.session_state["m1_has_unsaved_changes"] = False
-                    st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+                    st.success(
+                        f"✅ Modèle '{st.session_state['rotor_name']}' chargé !"
+                    )
                     st.rerun()
             except json.JSONDecodeError as e:
                 st.error(f"❌ JSON malformé : {e}")
             except Exception as e:
                 st.error(f"❌ Erreur : {e}")
-
-    # 4. [B] Download button  ← stylé par le JS ci-dessus
+ 
+    # ── 4. [B] Download button « Sauvegarder » — référence visuelle ───────
     current_data = {
         "name":     st.session_state.get("rotor_name", "rotor_export"),
         "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
         "shaft":    st.session_state.get(
-                        "_df_shaft_live",
-                        st.session_state["df_shaft"]
+                        "_df_shaft_live", st.session_state["df_shaft"]
                     ).to_dict(orient="records"),
         "disks":    st.session_state.get(
-                        "_df_disk_live",
-                        st.session_state["df_disk"]
+                        "_df_disk_live", st.session_state["df_disk"]
                     ).to_dict(orient="records"),
         "bearings": st.session_state.get(
-                        "_df_bear_live",
-                        st.session_state["df_bear"]
+                        "_df_bear_live", st.session_state["df_bear"]
                     ).to_dict(orient="records"),
     }
     st.download_button(
@@ -395,13 +276,13 @@ def _render_settings(active_node: str):
         mime="application/json",
         use_container_width=True,
         key="m1_save_main",
-        on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
+        on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False),
     )
-
+ 
     st.markdown("---")
-
+ 
     # ══════════════════════════════════════════════════════════════════════
-    # NAVIGATION ONGLETS
+    # NAVIGATION ONGLETS (inchangée)
     # ══════════════════════════════════════════════════════════════════════
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
@@ -411,20 +292,20 @@ def _render_settings(active_node: str):
     }
     current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
     _label_to_render.get(current, _render_tab_material)()
-
+ 
     st.markdown("---")
-
+ 
     # ══════════════════════════════════════════════════════════════════════
-    # BOUTON ASSEMBLER
+    # BOUTON ASSEMBLER (inchangé)
     # ══════════════════════════════════════════════════════════════════════
     if st.button(
         "🚀 Assembler le rotor",
         type="primary",
         key="m1_build",
-        use_container_width=True
+        use_container_width=True,
     ):
         _assemble_rotor()
-
+ 
 
 # =============================================================================
 # _init_tables — version avec paramètre template=
