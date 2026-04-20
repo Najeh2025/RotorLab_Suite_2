@@ -151,152 +151,30 @@ from config import MATERIALS_DB, BEARING_PRESETS
 # =============================================================================
 # _render_settings
 # =============================================================================
+import streamlit as st
+import json
+import pandas as pd
+
+# NOTE : _init_tables, _load_model_from_dict, _assemble_rotor et _render_tab_* 
+# sont supposés définis ailleurs dans le module.
+
 def _render_settings(active_node: str):
-    import streamlit.components.v1 as components
+    # ── Injection CSS (si tu utilises un fichier externe, supprime ce bloc) ──
+    # st.markdown(open("styles/theme.css").read(), unsafe_allow_html=True)
 
-    # ── Script JS via iframe same-origin → accès DOM parent garanti ───────
-    # window.parent.document pointe sur l'app Streamlit (même origine).
-    # MutationObserver + debounce : styles persistants après chaque rerun.
-    components.html("""
-    <script>
-    (function () {
-        var PD;
-        try { PD = window.parent.document; } catch (e) { return; }
-        if (!PD) return;
-
-        /* ── Style cible commun aux 3 boutons ─────────────────────────── */
-        var S = {
-            height:          '40px',
-            minHeight:       '40px',
-            padding:         '0 14px',
-            border:          '1.5px solid #D1D5DB',
-            borderRadius:    '8px',
-            background:      '#FFFFFF',
-            fontSize:        '14px',
-            fontWeight:      '600',
-            color:           '#1A1A2E',
-            justifyContent:  'flex-start',
-            boxShadow:       'none',
-            display:         'flex',
-            alignItems:      'center',
-            width:           '100%',
-            cursor:          'pointer',
-            boxSizing:       'border-box',
-            transition:      'border-color .15s, background .15s, color .15s'
-        };
-
-        /* ── Applique le style + hover sur un élément ─────────────────── */
-        function style(el, extra, hoverContainer) {
-            if (!el) return;
-            Object.assign(el.style, S, extra || {});
-            var tgt = hoverContainer || el;
-            el.onmouseenter = function () {
-                tgt.style.borderColor = '#1F5C8B';
-                tgt.style.background  = '#EBF4FB';
-                el.style.color        = '#1F5C8B';
-                if (extra && extra.background !== undefined)
-                    el.style.background = extra.background;
-            };
-            el.onmouseleave = function () {
-                tgt.style.borderColor = '#D1D5DB';
-                tgt.style.background  = '#FFFFFF';
-                el.style.color        = '#1A1A2E';
-                if (extra && extra.background !== undefined)
-                    el.style.background = extra.background;
-            };
-        }
-
-        /* ── Passe principale ─────────────────────────────────────────── */
-        function run() {
-
-            /* [A] st.button — "Appliquer ce template" */
-            PD.querySelectorAll('[data-testid="stButton"] button').forEach(function (b) {
-                if ((b.textContent || '').indexOf('Appliquer') !== -1) style(b);
-            });
-
-            /* [B] st.download_button — "Sauvegarder" */
-            PD.querySelectorAll('[data-testid="stDownloadButton"] button').forEach(function (b) {
-                if ((b.textContent || '').indexOf('Sauvegarder') !== -1) style(b);
-            });
-
-            /* [C] st.file_uploader — transformer en bouton identique */
-            var dz = PD.querySelector('[data-testid="stFileUploaderDropzone"]');
-            if (dz) {
-                /* Masquer les instructions drag-and-drop */
-                var instr = dz.querySelector('[data-testid="stFileUploaderDropzoneInstructions"]');
-                if (instr) instr.style.display = 'none';
-
-                /* Styler le conteneur dropzone */
-                Object.assign(dz.style, {
-                    height: '40px', minHeight: '40px', padding: '0',
-                    border: '1.5px solid #D1D5DB', borderRadius: '8px',
-                    background: '#FFFFFF', display: 'flex', alignItems: 'center',
-                    boxSizing: 'border-box'
-                });
-
-                /* Bouton Browse interne */
-                var btn = dz.querySelector('button');
-                if (btn) {
-                    /* Remplacer le texte "Browse files" */
-                    var p = btn.querySelector('p');
-                    if (p && p.textContent.indexOf('Charger') === -1) {
-                        p.textContent = '📂  Charger un modèle (.json)';
-                    }
-                    /* Styler le bouton (transparent pour laisser dz gérer la bordure) */
-                    style(btn, { border: 'none', background: 'transparent' }, dz);
-                }
-            }
-        }
-
-        /* ── Exécutions initiales (laisse le temps à Streamlit de rendre) */
-        run();
-        setTimeout(run, 150);
-        setTimeout(run, 400);
-        setTimeout(run, 800);
-
-        /* ── Observer permanent : réappliquer après chaque rerun Streamlit */
-        var debTimer;
-        new MutationObserver(function () {
-            clearTimeout(debTimer);
-            debTimer = setTimeout(run, 80);
-        }).observe(PD.body, { childList: true, subtree: true });
-
-    }());
-    </script>
-    """, height=0, scrolling=False)
-
-    # ── Masquer le micro-iframe généré par components.html ────────────────
-    st.markdown("""
-    <style>
-    /* Supprime l'espace vide laissé par le composant JS invisible */
-    .element-container:has(iframe[height="0"]) {
-        height   : 0 !important;
-        overflow : hidden !important;
-        margin   : 0 !important;
-        padding  : 0 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════════════════════
-    # TITRE
-    # ══════════════════════════════════════════════════════════════════════
     st.markdown(
         '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    # ══════════════════════════════════════════════════════════════════════
-    # BLOC FICHIERS
-    # ══════════════════════════════════════════════════════════════════════
     st.markdown(
-        '<p style="font-weight:700;margin:0 0 5px;color:#1A1A2E;'
+        '<p style="font-weight:700;margin:0 0 8px;color:#1A1A2E;'
         'font-size:.82em;text-transform:uppercase;letter-spacing:.05em;">'
-        '🆕 Nouveau modèle</p>',
-        unsafe_allow_html=True
+        "🆕 Nouveau modèle</p>",
+        unsafe_allow_html=True,
     )
 
-    # 1. Sélecteur de template
+    # ── 1. Sélecteur de template ──────────────────────────────────────────
     template_choice = st.selectbox(
         "template",
         options=["simple", "industrial", "api684", "empty"],
@@ -308,71 +186,74 @@ def _render_settings(active_node: str):
         }[x],
         index=0,
         key="m1_template_selector_main",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
 
-    # 2. [A] Bouton Appliquer  ← stylé par le JS ci-dessus
+    # ── 2. Bouton « Appliquer ce template » ───────────────────────────────
     if st.button(
         "✅  Appliquer ce template",
         use_container_width=True,
-        key="m1_btn_apply_template"
+        key="m1_btn_apply_template",
     ):
         if st.session_state.get("m1_has_unsaved_changes", False):
             st.session_state["m1_show_unsaved_dialog"] = True
-            st.session_state["m1_pending_action"]       = "apply_template"
+            st.session_state["m1_pending_action"] = "apply_template"
         else:
             _init_tables(template=template_choice)
             st.session_state["m1_has_unsaved_changes"] = False
             st.toast("🎯 Template appliqué !", icon="✅")
         st.rerun()
 
-    # 3. [C] File uploader  ← transformé visuellement en bouton par le JS
+    # ── 3. File uploader « Charger un modèle (.json) » ────────────────────
     uploaded = st.file_uploader(
-        "Charger",
+        "📂  Charger un modèle (.json)",
         type=["json"],
         key="m1_upload_main",
         label_visibility="collapsed",
     )
+
     if uploaded is not None:
         file_id = f"{uploaded.name}_{uploaded.size}"
         if st.session_state.get("m1_last_file_id") != file_id:
             try:
-                data = json.loads(uploaded.read().decode("utf-8"))
+                content = uploaded.read().decode("utf-8")
+                uploaded.seek(0)  # 🔒 Sécurité : libère le stream pour réutilisation
+                data = json.loads(content)
+
                 if "shaft" not in data:
                     st.error("❌ Fichier invalide : clé 'shaft' manquante.")
                 else:
                     _load_model_from_dict(data)
+
+                    # 🔒 Initialisation sécurisée des DataFrames
+                    st.session_state.setdefault("df_shaft", pd.DataFrame())
+                    st.session_state.setdefault("df_disk", pd.DataFrame())
+                    st.session_state.setdefault("df_bear", pd.DataFrame())
+
                     st.session_state["_df_shaft_live"] = st.session_state["df_shaft"].copy()
                     st.session_state["_df_disk_live"]  = st.session_state["df_disk"].copy()
                     st.session_state["_df_bear_live"]  = st.session_state["df_bear"].copy()
-                    st.session_state["m1_data_gen"]    = \
-                        st.session_state.get("m1_data_gen", 0) + 1
-                    st.session_state["m1_last_file_id"]        = file_id
+
+                    st.session_state["m1_data_gen"] = st.session_state.get("m1_data_gen", 0) + 1
+                    st.session_state["m1_last_file_id"] = file_id
                     st.session_state["m1_has_unsaved_changes"] = False
-                    st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+
+                    st.toast(f"✅ Modèle '{st.session_state.get('rotor_name', 'inconnu')}' chargé !", icon="📂")
                     st.rerun()
             except json.JSONDecodeError as e:
                 st.error(f"❌ JSON malformé : {e}")
             except Exception as e:
-                st.error(f"❌ Erreur : {e}")
+                st.error(f"❌ Erreur lors du chargement : {e}")
 
-    # 4. [B] Download button  ← stylé par le JS ci-dessus
+    # ── 4. Download button « Sauvegarder le modèle (.json) » ─────────────
     current_data = {
         "name":     st.session_state.get("rotor_name", "rotor_export"),
         "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
-        "shaft":    st.session_state.get(
-                        "_df_shaft_live",
-                        st.session_state["df_shaft"]
-                    ).to_dict(orient="records"),
-        "disks":    st.session_state.get(
-                        "_df_disk_live",
-                        st.session_state["df_disk"]
-                    ).to_dict(orient="records"),
-        "bearings": st.session_state.get(
-                        "_df_bear_live",
-                        st.session_state["df_bear"]
-                    ).to_dict(orient="records"),
+        "shaft":    st.session_state.get("_df_shaft_live", st.session_state.get("df_shaft", pd.DataFrame())).to_dict(orient="records"),
+        "disks":    st.session_state.get("_df_disk_live", st.session_state.get("df_disk", pd.DataFrame())).to_dict(orient="records"),
+        "bearings": st.session_state.get("_df_bear_live", st.session_state.get("df_bear", pd.DataFrame())).to_dict(orient="records"),
     }
+
     st.download_button(
         label="💾  Sauvegarder le modèle (.json)",
         data=json.dumps(current_data, indent=2, ensure_ascii=False),
@@ -380,36 +261,31 @@ def _render_settings(active_node: str):
         mime="application/json",
         use_container_width=True,
         key="m1_save_main",
-        on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
+        on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False),
     )
 
     st.markdown("---")
 
-    # ══════════════════════════════════════════════════════════════════════
-    # NAVIGATION ONGLETS
-    # ══════════════════════════════════════════════════════════════════════
+    # ── Navigation Onglets ────────────────────────────────────────────────
     _label_to_render = {
         "🧱 Matériau": _render_tab_material,
         "📏 Arbre":    _render_tab_shaft,
         "💿 Disques":  _render_tab_disk,
         "⚙️ Paliers":  _render_tab_bearing,
     }
-    current = st.session_state.get("m1_tab_selector", "🧱 Matériau")
-    _label_to_render.get(current, _render_tab_material)()
+    current_tab = st.session_state.get("m1_tab_selector", "🧱 Matériau")
+    _label_to_render.get(current_tab, _render_tab_material)()
 
     st.markdown("---")
 
-    # ══════════════════════════════════════════════════════════════════════
-    # BOUTON ASSEMBLER
-    # ══════════════════════════════════════════════════════════════════════
+    # ── Bouton Assembler ──────────────────────────────────────────────────
     if st.button(
         "🚀 Assembler le rotor",
         type="primary",
         key="m1_build",
-        use_container_width=True
+        use_container_width=True,
     ):
         _assemble_rotor()
-
 
 # =============================================================================
 # _init_tables — version avec paramètre template=
