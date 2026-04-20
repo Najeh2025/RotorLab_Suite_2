@@ -156,146 +156,157 @@ from config import MATERIALS_DB, BEARING_PRESETS
 # Les autres fonctions (_render_tab_*, _assemble_rotor, etc.) restent inchangées.
 # =============================================================================
 
-def _render_settings(active_node: str):
+# =============================================================================
+# REMPLACEZ uniquement _render_settings dans modules/m1_builder.py
+# Aucune autre fonction n'est modifiée.
+# =============================================================================
 
-    # ── CSS : les 3 boutons alignés sur le style du st.download_button ───
+def _render_settings(active_node: str):
+    import streamlit.components.v1 as components
+
+    # ── Script JS via iframe same-origin → accès DOM parent garanti ───────
+    # window.parent.document pointe sur l'app Streamlit (même origine).
+    # MutationObserver + debounce : styles persistants après chaque rerun.
+    components.html("""
+    <script>
+    (function () {
+        var PD;
+        try { PD = window.parent.document; } catch (e) { return; }
+        if (!PD) return;
+
+        /* ── Style cible commun aux 3 boutons ─────────────────────────── */
+        var S = {
+            height:          '40px',
+            minHeight:       '40px',
+            padding:         '0 14px',
+            border:          '1.5px solid #D1D5DB',
+            borderRadius:    '8px',
+            background:      '#FFFFFF',
+            fontSize:        '14px',
+            fontWeight:      '600',
+            color:           '#1A1A2E',
+            justifyContent:  'flex-start',
+            boxShadow:       'none',
+            display:         'flex',
+            alignItems:      'center',
+            width:           '100%',
+            cursor:          'pointer',
+            boxSizing:       'border-box',
+            transition:      'border-color .15s, background .15s, color .15s'
+        };
+
+        /* ── Applique le style + hover sur un élément ─────────────────── */
+        function style(el, extra, hoverContainer) {
+            if (!el) return;
+            Object.assign(el.style, S, extra || {});
+            var tgt = hoverContainer || el;
+            el.onmouseenter = function () {
+                tgt.style.borderColor = '#1F5C8B';
+                tgt.style.background  = '#EBF4FB';
+                el.style.color        = '#1F5C8B';
+                if (extra && extra.background !== undefined)
+                    el.style.background = extra.background;
+            };
+            el.onmouseleave = function () {
+                tgt.style.borderColor = '#D1D5DB';
+                tgt.style.background  = '#FFFFFF';
+                el.style.color        = '#1A1A2E';
+                if (extra && extra.background !== undefined)
+                    el.style.background = extra.background;
+            };
+        }
+
+        /* ── Passe principale ─────────────────────────────────────────── */
+        function run() {
+
+            /* [A] st.button — "Appliquer ce template" */
+            PD.querySelectorAll('[data-testid="stButton"] button').forEach(function (b) {
+                if ((b.textContent || '').indexOf('Appliquer') !== -1) style(b);
+            });
+
+            /* [B] st.download_button — "Sauvegarder" */
+            PD.querySelectorAll('[data-testid="stDownloadButton"] button').forEach(function (b) {
+                if ((b.textContent || '').indexOf('Sauvegarder') !== -1) style(b);
+            });
+
+            /* [C] st.file_uploader — transformer en bouton identique */
+            var dz = PD.querySelector('[data-testid="stFileUploaderDropzone"]');
+            if (dz) {
+                /* Masquer les instructions drag-and-drop */
+                var instr = dz.querySelector('[data-testid="stFileUploaderDropzoneInstructions"]');
+                if (instr) instr.style.display = 'none';
+
+                /* Styler le conteneur dropzone */
+                Object.assign(dz.style, {
+                    height: '40px', minHeight: '40px', padding: '0',
+                    border: '1.5px solid #D1D5DB', borderRadius: '8px',
+                    background: '#FFFFFF', display: 'flex', alignItems: 'center',
+                    boxSizing: 'border-box'
+                });
+
+                /* Bouton Browse interne */
+                var btn = dz.querySelector('button');
+                if (btn) {
+                    /* Remplacer le texte "Browse files" */
+                    var p = btn.querySelector('p');
+                    if (p && p.textContent.indexOf('Charger') === -1) {
+                        p.textContent = '📂  Charger un modèle (.json)';
+                    }
+                    /* Styler le bouton (transparent pour laisser dz gérer la bordure) */
+                    style(btn, { border: 'none', background: 'transparent' }, dz);
+                }
+            }
+        }
+
+        /* ── Exécutions initiales (laisse le temps à Streamlit de rendre) */
+        run();
+        setTimeout(run, 150);
+        setTimeout(run, 400);
+        setTimeout(run, 800);
+
+        /* ── Observer permanent : réappliquer après chaque rerun Streamlit */
+        var debTimer;
+        new MutationObserver(function () {
+            clearTimeout(debTimer);
+            debTimer = setTimeout(run, 80);
+        }).observe(PD.body, { childList: true, subtree: true });
+
+    }());
+    </script>
+    """, height=0, scrolling=False)
+
+    # ── Masquer le micro-iframe généré par components.html ────────────────
     st.markdown("""
     <style>
-
-    /* ═══════════════════════════════════════════════════════════════════
-       Wrapper : les éléments ciblés à l'intérieur de .m1-file-block
-       ═══════════════════════════════════════════════════════════════════
-
-       On force la même apparence sur :
-         [A] st.button          → [data-testid="stButton"] > button
-         [B] st.download_button → [data-testid="stDownloadButton"] > button
-         [C] st.file_uploader   → dropzone + bouton interne
-    */
-
-    /* ── [A] + [B] : bouton standard et bouton téléchargement ─────────── */
-    .m1-file-block [data-testid="stButton"] > button,
-    .m1-file-block [data-testid="stDownloadButton"] > button {
-        height          : 40px        !important;
-        min-height      : 40px        !important;
-        width           : 100%        !important;
-        padding         : 0 16px      !important;
-        border          : 1.5px solid rgb(210, 220, 232) !important;
-        border-radius   : 8px         !important;
-        background      : #FFFFFF     !important;
-        color           : #1A1A2E     !important;
-        font-size       : 0.875rem    !important;
-        font-weight     : 600         !important;
-        justify-content : flex-start  !important;
-        box-shadow      : none        !important;
-        transition      : border-color .15s, background .15s !important;
+    /* Supprime l'espace vide laissé par le composant JS invisible */
+    .element-container:has(iframe[height="0"]) {
+        height   : 0 !important;
+        overflow : hidden !important;
+        margin   : 0 !important;
+        padding  : 0 !important;
     }
-    .m1-file-block [data-testid="stButton"] > button:hover,
-    .m1-file-block [data-testid="stDownloadButton"] > button:hover {
-        border-color    : #1F5C8B     !important;
-        background      : #EBF4FB    !important;
-        color           : #1F5C8B    !important;
-    }
-
-    /* ── [C] : file uploader — masquer le drag-drop, garder le clic ───── */
-
-    /* Supprimer les marges/paddings du wrapper uploader */
-    .m1-file-block [data-testid="stFileUploader"] {
-        margin  : 0 !important;
-        padding : 0 !important;
-    }
-    .m1-file-block [data-testid="stFileUploader"] > section {
-        padding    : 0   !important;
-        border     : none !important;
-        background : transparent !important;
-    }
-
-    /* Masquer le texte "Drag and drop / Limit..." */
-    .m1-file-block [data-testid="stFileUploaderDropzoneInstructions"] {
-        display : none !important;
-    }
-
-    /* Dropzone = même boîte que les autres boutons */
-    .m1-file-block [data-testid="stFileUploaderDropzone"] {
-        height          : 40px        !important;
-        min-height      : 40px        !important;
-        padding         : 0           !important;
-        border          : 1.5px solid rgb(210, 220, 232) !important;
-        border-radius   : 8px         !important;
-        background      : #FFFFFF     !important;
-        cursor          : pointer     !important;
-        display         : flex        !important;
-        align-items     : center      !important;
-        transition      : border-color .15s, background .15s !important;
-    }
-    .m1-file-block [data-testid="stFileUploaderDropzone"]:hover {
-        border-color    : #1F5C8B    !important;
-        background      : #EBF4FB   !important;
-    }
-
-    /* Bouton "Browse files" interne : pleine largeur, transparent */
-    .m1-file-block [data-testid="stFileUploaderDropzone"] button {
-        width           : 100%       !important;
-        height          : 40px       !important;
-        border          : none       !important;
-        background      : transparent !important;
-        box-shadow      : none       !important;
-        font-size       : 0.875rem   !important;
-        font-weight     : 600        !important;
-        color           : #1A1A2E   !important;
-        justify-content : flex-start !important;
-        padding         : 0 16px     !important;
-        cursor          : pointer    !important;
-    }
-    .m1-file-block [data-testid="stFileUploaderDropzone"]:hover button {
-        color : #1F5C8B !important;
-    }
-
-    /* Remplacer "Browse files" par notre libellé */
-    .m1-file-block [data-testid="stFileUploaderDropzone"] button span,
-    .m1-file-block [data-testid="stFileUploaderDropzone"] button p {
-        font-size   : 0         !important;
-        line-height : 0         !important;
-        visibility  : hidden    !important;
-        display     : block     !important;
-        height      : 0         !important;
-    }
-    .m1-file-block [data-testid="stFileUploaderDropzone"] button::before {
-        content     : "📂  Charger un modèle (.json)";
-        font-size   : 0.875rem  !important;
-        font-weight : 600       !important;
-        color       : inherit   !important;
-        visibility  : visible   !important;
-        white-space : nowrap    !important;
-    }
-
-    /* Masquer le nom du fichier chargé sous le bouton (optionnel) */
-    .m1-file-block [data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] {
-        font-size   : 0.75rem !important;
-        color       : #6B7280 !important;
-        padding-top : 2px     !important;
-    }
-
     </style>
     """, unsafe_allow_html=True)
 
-    # ── Titre ─────────────────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════
+    # TITRE
+    # ══════════════════════════════════════════════════════════════════════
     st.markdown(
         '<div class="rl-settings-title">🏗️ Model Builder — Rotor Definition</div>',
         unsafe_allow_html=True
     )
 
     # ══════════════════════════════════════════════════════════════════════
-    # BLOC FICHIERS — wrapper .m1-file-block pour scoper le CSS
+    # BLOC FICHIERS
     # ══════════════════════════════════════════════════════════════════════
-    st.markdown('<div class="m1-file-block">', unsafe_allow_html=True)
-
-    # ── Sélecteur de template ─────────────────────────────────────────────
     st.markdown(
         '<p style="font-weight:700;margin:0 0 5px;color:#1A1A2E;'
-        'font-size:.85em;text-transform:uppercase;letter-spacing:.04em;">'
+        'font-size:.82em;text-transform:uppercase;letter-spacing:.05em;">'
         '🆕 Nouveau modèle</p>',
         unsafe_allow_html=True
     )
+
+    # 1. Sélecteur de template
     template_choice = st.selectbox(
         "template",
         options=["simple", "industrial", "api684", "empty"],
@@ -310,7 +321,7 @@ def _render_settings(active_node: str):
         label_visibility="collapsed"
     )
 
-    # ── [A] Bouton Appliquer ──────────────────────────────────────────────
+    # 2. [A] Bouton Appliquer  ← stylé par le JS ci-dessus
     if st.button(
         "✅  Appliquer ce template",
         use_container_width=True,
@@ -325,7 +336,7 @@ def _render_settings(active_node: str):
             st.toast("🎯 Template appliqué !", icon="✅")
         st.rerun()
 
-    # ── [C] Charger un fichier ────────────────────────────────────────────
+    # 3. [C] File uploader  ← transformé visuellement en bouton par le JS
     uploaded = st.file_uploader(
         "Charger",
         type=["json"],
@@ -348,15 +359,14 @@ def _render_settings(active_node: str):
                         st.session_state.get("m1_data_gen", 0) + 1
                     st.session_state["m1_last_file_id"]        = file_id
                     st.session_state["m1_has_unsaved_changes"] = False
-                    st.success(
-                        f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
+                    st.success(f"✅ Modèle '{st.session_state['rotor_name']}' chargé !")
                     st.rerun()
             except json.JSONDecodeError as e:
                 st.error(f"❌ JSON malformé : {e}")
             except Exception as e:
                 st.error(f"❌ Erreur : {e}")
 
-    # ── [B] Sauvegarder ───────────────────────────────────────────────────
+    # 4. [B] Download button  ← stylé par le JS ci-dessus
     current_data = {
         "name":     st.session_state.get("rotor_name", "rotor_export"),
         "material": st.session_state.get("mat_name", "Acier standard (AISI 1045)"),
@@ -382,8 +392,6 @@ def _render_settings(active_node: str):
         key="m1_save_main",
         on_click=lambda: st.session_state.update(m1_has_unsaved_changes=False)
     )
-
-    st.markdown('</div>', unsafe_allow_html=True)  # ferme .m1-file-block
 
     st.markdown("---")
 
@@ -411,7 +419,6 @@ def _render_settings(active_node: str):
         use_container_width=True
     ):
         _assemble_rotor()
-
 # =============================================================================
 # HELPER — _load_model_from_dict
 # Charge un dictionnaire JSON dans session_state (bases stables)
