@@ -483,3 +483,57 @@ div[data-testid="stProgress"] > div > div {
 </style>
 """
 
+/* ══════════════════════════════════════════════════════════════════════════
+   M1 — 3 boutons action uniformes (Appliquer / Charger / Sauvegarder)
+   Référence visuelle : st.download_button (style secondaire Streamlit)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Masquer la zone drag-and-drop et le texte "Limit 200 MB" */
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
+}
+
+/* 2. Conteneur du dropzone → même apparence qu'un bouton secondary */
+[data-testid="stFileUploaderDropzone"] {
+    padding          : 0 !important;
+    border           : 1px solid rgba(49, 51, 63, 0.2) !important;
+    border-radius    : 0.5rem !important;
+    background       : transparent !important;
+    box-shadow       : none !important;
+    min-height       : 2.5rem !important;
+    transition       : border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color     : rgba(49, 51, 63, 0.4) !important;
+    background-color : rgba(151, 166, 195, 0.15) !important;
+}
+
+/* 3. Bouton "Browse files" interne : pleine largeur, même typo */
+[data-testid="stFileUploaderDropzone"] > button {
+    width            : 100% !important;
+    height           : 2.5rem !important;
+    min-height       : 2.5rem !important;
+    border           : none !important;
+    background       : transparent !important;
+    box-shadow       : none !important;
+    font-size        : 0.875rem !important;
+    font-weight      : 400 !important;
+    color            : rgb(49, 51, 63) !important;
+    padding          : 0 0.75rem !important;
+    display          : flex !important;
+    align-items      : center !important;
+    justify-content  : center !important;
+    cursor           : pointer !important;
+}
+
+/* 4. Texte interne du bouton Browse */
+[data-testid="stFileUploaderDropzone"] > button p {
+    font-size        : 0.875rem !important;
+    font-weight      : 400 !important;
+    color            : rgb(49, 51, 63) !important;
+    margin           : 0 !important;
+}
+
+
+        
