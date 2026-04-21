@@ -334,85 +334,90 @@ div[data-testid="stProgress"] > div > div {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   UNIFORMISATION PARFAITE : Appliquer, Charger, Sauvegarder
+   CORRECTION DÉFINITIVE - ALIGNEMENT À GAUCHE ET BORDURES FORCÉES
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* 1. On force les 3 boutons à avoir exactement la même boîte */
-div[data-testid="stButton"] button[kind="secondary"],
-div[data-testid="stDownloadButton"] button[kind="secondary"],
-[data-testid="stFileUploaderDropzone"] {
+/* 1. On force les bordures, la taille, et le padding gauche sur les 3 conteneurs */
+div[data-testid="stButton"] > button,
+div[data-testid="stDownloadButton"] > button,
+div[data-testid="stFileUploaderDropzone"] {
     height: 42px !important;
     min-height: 42px !important;
-    padding: 0 16px !important;
-    border: 1px solid var(--rl-border) !important;
+    border: 1px solid #D0D8E4 !important; /* FORCE LA BORDURE ICI */
     border-radius: 8px !important;
     background-color: #FFFFFF !important;
-    color: var(--rl-text) !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+
+    /* On aligne le conteneur principal à gauche */
     display: flex !important;
     align-items: center !important;
-    justify-content: center !important;
-    box-shadow: none !important;
-    transition: all 0.2s ease !important;
+    justify-content: flex-start !important; 
+    padding-left: 45px !important; /* Décalage fixe pour toutes les icônes */
+}
+
+/* 2. On force le texte interne des boutons classiques à s'aligner à gauche */
+div[data-testid="stButton"] > button > div,
+div[data-testid="stDownloadButton"] > button > div,
+div[data-testid="stButton"] > button p,
+div[data-testid="stDownloadButton"] > button p {
+    display: flex !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+    color: #1A1A2E !important;
+    font-size: 1rem !important;
     margin: 0 !important;
 }
 
-/* 2. On aligne le texte au centre pour les boutons normaux */
-div[data-testid="stButton"] button[kind="secondary"] div,
-div[data-testid="stDownloadButton"] button[kind="secondary"] div {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-}
-
-/* 3. Effet Hover (survol) identique pour les 3 */
-div[data-testid="stButton"] button[kind="secondary"]:hover,
-div[data-testid="stDownloadButton"] button[kind="secondary"]:hover,
-[data-testid="stFileUploaderDropzone"]:hover {
-    border-color: var(--rl-primary) !important;
+/* 3. Effet au survol (Hover) identique pour les 3 */
+div[data-testid="stButton"] > button:hover,
+div[data-testid="stDownloadButton"] > button:hover,
+div[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #1F5C8B !important;
     background-color: #F7F9FC !important;
-    color: var(--rl-primary) !important;
+}
+div[data-testid="stButton"] > button:hover p,
+div[data-testid="stDownloadButton"] > button:hover p {
+    color: #1F5C8B !important;
 }
 
-/* 4. Nettoyage spécifique du File Uploader */
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    display: none !important; /* Cache le texte "Drag and drop..." */
-}
-
+/* 4. Nettoyage de l'Uploader (Cache le SVG et le texte inutile) */
+[data-testid="stFileUploaderDropzoneInstructions"],
 [data-testid="stFileUploaderDropzone"] button svg {
-    display: none !important; /* Cache l'icône de flèche d'upload native de Streamlit */
+    display: none !important;
 }
 
-/* 5. Remplacement du texte natif "Upload" par votre texte personnalisé */
-[data-testid="stFileUploaderDropzone"] button {
+/* 5. Bouton interne de l'Uploader rendu invisible mais cliquable */
+[data-testid="stFileUploaderDropzone"] > button {
     background: transparent !important;
     border: none !important;
-    color: transparent !important; /* Cache le mot "Upload" natif */
-    padding: 0 !important;
+    color: transparent !important; /* Cache "Upload" ou "Browse files" */
     width: 100% !important;
     height: 100% !important;
+    position: relative !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: center !important;
-    position: relative !important;
+    justify-content: flex-start !important;
+    padding: 0 !important;
 }
 
-/* Injection du nouveau texte avec le même retrait */
-[data-testid="stFileUploaderDropzone"] button::after {
+/* 6. Injection de ton texte personnalisé avec alignement strict à gauche */
+[data-testid="stFileUploaderDropzone"] > button::after {
     content: "📂 Charger un modèle (.json)" !important;
     position: absolute !important;
-    color: var(--rl-text) !important;
+    left: 0 !important; /* Aligné sur la marge gauche du bouton parent */
+    color: #1A1A2E !important;
     font-size: 1rem !important;
     font-weight: 400 !important;
-    left: 0 !important;
-    right: 0 !important;
-    text-align: left !important; /* Au lieu de center */
-    #padding-left: 00px !important; /* Exactement la même valeur que les autres boutons */
+    text-align: left !important;
+    display: block !important;
+    width: 100% !important;
 }
 
-/* Changement de couleur au survol pour rester cohérent */
-[data-testid="stFileUploaderDropzone"]:hover button::after {
-    color: var(--rl-primary) !important;
+/* Changement de couleur du texte injecté au survol */
+[data-testid="stFileUploaderDropzone"]:hover > button::after {
+    color: #1F5C8B !important;
 }
         
 </style>
