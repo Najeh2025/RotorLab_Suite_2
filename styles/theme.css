@@ -333,256 +333,69 @@ div[data-testid="stProgress"] > div > div {
     width: 100% !important;
 }
 
-/* ── Uniformisation Upload / Sauvegarde ─────────────────────────────── */
-.rl-file-manager {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-.rl-file-manager > div, .rl-file-manager > div > div {
-    width: 100% !important;
-}
+/* ══════════════════════════════════════════════════════════════════════════
+   UNIFORMISATION PARFAITE : Appliquer, Charger, Sauvegarder
+   ══════════════════════════════════════════════════════════════════════════ */
 
-/* Force le file uploader à ressembler à un bouton standard */
-.rl-file-manager .stFileUploader {
+/* 1. On force les 3 boutons à avoir exactement la même boîte */
+div[data-testid="stButton"] button[kind="secondary"],
+div[data-testid="stDownloadButton"] button[kind="secondary"],
+[data-testid="stFileUploaderDropzone"] {
     height: 42px !important;
     min-height: 42px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    border: 1.5px solid #D0D8E4 !important;
-    border-radius: 8px !important;
-    background-color: #FFFFFF !important;
     padding: 0 16px !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease;
-}
-.rl-file-manager .stFileUploader:hover {
-    border-color: #1F5C8B !important;
-    background-color: #F7F9FC !important;
-}
-.rl-file-manager .stFileUploader label {
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    color: #1A1A2E !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-}
-/* Style interne du bouton "Browse files" pour qu'il disparaisse visuellement */
-.rl-file-manager .stFileUploader button {
-    background: transparent !important;
-    border: none !important;
-    color: #1F5C8B !important;
-    font-weight: 700 !important;
-    padding: 0 !important;
-    margin-left: auto !important;
-}
-        
-/* Harmonise la hauteur visuelle des boutons/upload */
-.rl-file-manager .stFileUploader {
-    padding-top: 4px;
-}
-#==========================================
-/* ── Uniformisation Upload / Sauvegarde ─────────────────────────────── */
-.rl-file-manager {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-    margin-bottom: 16px !important;
-    width: 100% !important;
-}
-
-/* Force tous les enfants à pleine largeur */
-.rl-file-manager > div,
-.rl-file-manager .stSelectbox,
-.rl-file-manager .stButton,
-.rl-file-manager .stFileUploader,
-.rl-file-manager .stDownloadButton {
-    width: 100% !important;
-    max-width: 100% !important;
-}
-
-/* Alignement gauche pour tous les labels */
-.rl-file-manager label {
-    text-align: left !important;
-    justify-content: flex-start !important;
-}
-
-/* Style du bouton Appliquer */
-.rl-file-manager .stButton > button {
-    width: 100% !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    padding-left: 16px !important;
-}
-
-/* Transformation du file uploader pour ressembler à un bouton */
-.rl-file-manager .stFileUploader {
-    border: 1.5px solid #D0D8E4 !important;
+    border: 1px solid var(--rl-border) !important;
     border-radius: 8px !important;
     background-color: #FFFFFF !important;
-    padding: 8px 16px !important;
-    height: auto !important;
-    min-height: 42px !important;
-}
-
-.rl-file-manager .stFileUploader:hover {
-    border-color: #1F5C8B !important;
-    background-color: #F7F9FC !important;
-}
-
-/* Masquer le bouton "Browse files" natif et afficher comme texte */
-.rl-file-manager .stFileUploader button[data-testid="stBaseButton"] {
-    display: none !important;
-}
-
-/* Style du label pour qu'il ressemble à un bouton */
-.rl-file-manager .stFileUploader label {
-    width: 100% !important;
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    color: #1A1A2E !important;
-    cursor: pointer !important;
-    margin: 0 !important;
-    padding: 6px 12px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-}
-
-/* Input file caché mais fonctionnel */
-.rl-file-manager .stFileUploader input[type="file"] {
-    position: absolute !important;
-    opacity: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    cursor: pointer !important;
-}
-
-/* Style du bouton Sauvegarder */
-.rl-file-manager .stDownloadButton > button {
-    width: 100% !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    padding-left: 16px !important;
-    background-color: #FFFFFF !important;
-    color: #1A1A2E !important;
-    border: 1.5px solid #D0D8E4 !important;
-    font-weight: 600 !important;
-}
-
-.rl-file-manager .stDownloadButton > button:hover {
-    border-color: #1F5C8B !important;
-    background-color: #F7F9FC !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   M1 — 3 boutons action uniformes (Appliquer / Charger / Sauvegarder)
-   Référence visuelle : st.download_button (style secondaire Streamlit)
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* 1. Masquer la zone drag-and-drop et le texte "Limit 200 MB" */
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    display: none !important;
-}
-
-/* 2. Conteneur du dropzone → même apparence qu'un bouton secondary */
-[data-testid="stFileUploaderDropzone"] {
-    padding          : 0 !important;
-    border           : 1px solid rgba(49, 51, 63, 0.2) !important;
-    border-radius    : 0.5rem !important;
-    background       : transparent !important;
-    box-shadow       : none !important;
-    min-height       : 2.5rem !important;
-    transition       : border-color 0.15s ease, background-color 0.15s ease !important;
-}
-
-[data-testid="stFileUploaderDropzone"]:hover {
-    border-color     : rgba(49, 51, 63, 0.4) !important;
-    background-color : rgba(151, 166, 195, 0.15) !important;
-}
-
-/* 3. Bouton "Browse files" interne : pleine largeur, même typo */
-[data-testid="stFileUploaderDropzone"] > button {
-    width            : 100% !important;
-    height           : 2.5rem !important;
-    min-height       : 2.5rem !important;
-    border           : none !important;
-    background       : transparent !important;
-    box-shadow       : none !important;
-    font-size        : 0.875rem !important;
-    font-weight      : 400 !important;
-    color            : rgb(49, 51, 63) !important;
-    padding          : 0 0.75rem !important;
-    display          : flex !important;
-    align-items      : center !important;
-    justify-content  : center !important;
-    cursor           : pointer !important;
-}
-
-/* 4. Texte interne du bouton Browse */
-[data-testid="stFileUploaderDropzone"] > button p {
-    font-size        : 0.875rem !important;
-    font-weight      : 400 !important;
-    color            : rgb(49, 51, 63) !important;
-    margin           : 0 !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   M1 — Uniformisation des 3 boutons d'action
-   Cible : Appliquer / Charger (.json) / Sauvegarder (.json)
-   Requis : Streamlit >= 1.23.0
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* 1. Masquer la zone drag-and-drop native */
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    display: none !important;
-}
-
-/* 2. Conteneur du uploader : aligné sur le style secondary Streamlit */
-[data-testid="stFileUploaderDropzone"] {
-    padding: 0 !important;
-    border: 1px solid rgba(49, 51, 63, 0.2) !important;
-    border-radius: 0.5rem !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    height: 2.5rem !important;
-    min-height: 2.5rem !important;
-    transition: border-color 0.15s ease, background-color 0.15s ease !important;
-    cursor: pointer;
-}
-
-[data-testid="stFileUploaderDropzone"]:hover {
-    border-color: rgba(49, 51, 63, 0.4) !important;
-    background-color: rgba(151, 166, 195, 0.15) !important;
-}
-
-/* 3. Bouton interne "Browse files" : pleine largeur, même typo */
-[data-testid="stFileUploaderDropzone"] > button {
-    width: 100% !important;
-    height: 100% !important;
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    font-size: 0.875rem !important;
-    font-weight: 400 !important;
-    color: rgb(49, 51, 63) !important;
-    padding: 0 0.75rem !important;
+    color: var(--rl-text) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+    margin: 0 !important;
 }
 
-/* 4. Fallback pour le texte interne du bouton */
-[data-testid="stFileUploaderDropzone"] > button p {
-    font-size: 0.875rem !important;
+/* 2. On aligne le texte au centre pour les boutons normaux */
+div[data-testid="stButton"] button[kind="secondary"] div,
+div[data-testid="stDownloadButton"] button[kind="secondary"] div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+}
+
+/* 3. Effet Hover (survol) identique pour les 3 */
+div[data-testid="stButton"] button[kind="secondary"]:hover,
+div[data-testid="stDownloadButton"] button[kind="secondary"]:hover,
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: var(--rl-primary) !important;
+    background-color: #F7F9FC !important;
+    color: var(--rl-primary) !important;
+}
+
+/* 4. Nettoyage spécifique du File Uploader */
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important; /* Cache le texte "Drag and drop..." */
+}
+
+[data-testid="stFileUploaderDropzone"] button svg {
+    display: none !important; /* Cache l'icône de flèche d'upload native de Streamlit */
+}
+
+/* 5. On force le texte interne de l'uploader à prendre tout l'espace et à se centrer */
+[data-testid="stFileUploaderDropzone"] button {
+    background: transparent !important;
+    border: none !important;
+    color: inherit !important;
+    font-size: 1rem !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     font-weight: 400 !important;
-    color: rgb(49, 51, 63) !important;
-    margin: 0 !important;
 }
         
 </style>
