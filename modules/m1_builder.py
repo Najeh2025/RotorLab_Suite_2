@@ -151,66 +151,10 @@ from config import MATERIALS_DB, BEARING_PRESETS
 # =============================================================================
 # _render_settings
 # =============================================================================
-# ─────────────────────────────────────────────────────────────────────────────
-# CSS UNIFIÉ (S'adapte au mode clair et sombre, hauteurs identiques)
-# ─────────────────────────────────────────────────────────────────────────────
-_M1_BUTTONS_CSS = """
-<style>
-/* 1. Unification parfaite de la hauteur pour les 3 types de boutons */
-.stButton > button, 
-.stDownloadButton > button, 
-[data-testid="stFileUploaderDropzone"] {
-    min-height: 2.8rem !important;
-    height: 2.8rem !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 0.5rem !important;
-    margin-top: 0 !important;
-}
 
-/* 2. Transformation du File Uploader pour imiter un bouton standard */
-[data-testid="stFileUploaderDropzone"] {
-    padding: 0 !important;
-    border: 1px solid rgba(49, 51, 63, 0.2) !important;
-    background-color: transparent !important;
-    transition: border-color 0.15s ease, background-color 0.15s ease !important;
-}
-
-/* 3. Adaptation de la bordure si l'utilisateur est en Thème Sombre */
-@media (prefers-color-scheme: dark) {
-    [data-testid="stFileUploaderDropzone"] {
-        border-color: rgba(250, 250, 250, 0.2) !important;
-    }
-}
-
-/* 4. Effet au survol (Hover) avec les couleurs natives de Streamlit */
-[data-testid="stFileUploaderDropzone"]:hover {
-    border-color: #ff4b4b !important;
-    background-color: rgba(255, 75, 75, 0.05) !important;
-}
-
-/* 5. Nettoyage visuel de la zone de Drop */
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    display: none !important;
-}
-
-[data-testid="stFileUploaderDropzone"] button {
-    width: 100% !important;
-    height: 100% !important;
-    border: none !important;
-    background: transparent !important;
-    color: inherit !important; /* Hérite de la couleur (clair/sombre) */
-    font-size: 0.875rem !important;
-    font-weight: 400 !important;
-    cursor: pointer !important;
-}
-</style>
-"""
 
 def _render_settings(active_node: str):
-    # ── Injection CSS ─────────────────────────────────────────────────────
-    st.markdown(_M1_BUTTONS_CSS, unsafe_allow_html=True)
+   
 
     # ══════════════════════════════════════════════════════════════════════
     # TITRE
