@@ -334,89 +334,67 @@ div[data-testid="stProgress"] > div > div {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   CORRECTION DÉFINITIVE - ALIGNEMENT À GAUCHE ET BORDURES FORCÉES
+   UNIFORMISATION ABSOLUE (Appliquer, Charger, Sauvegarder)
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* 1. On force les bordures, la taille, et le padding gauche sur les 3 conteneurs */
-div[data-testid="stButton"] > button,
-div[data-testid="stDownloadButton"] > button,
-div[data-testid="stFileUploaderDropzone"] {
+/* 1. Style universel pour les boutons Appliquer et Sauvegarder */
+button[kind="secondary"] {
+    border: 1px solid #D0D8E4 !important; /* Force la bordure */
+    background-color: #FFFFFF !important;
+    border-radius: 8px !important;
     height: 42px !important;
     min-height: 42px !important;
-    border: 1px solid #D0D8E4 !important; /* FORCE LA BORDURE ICI */
-    border-radius: 8px !important;
-    background-color: #FFFFFF !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-
-    /* On aligne le conteneur principal à gauche */
     display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important; 
-    padding-left: 45px !important; /* Décalage fixe pour toutes les icônes */
-}
-
-/* 2. On force le texte interne des boutons classiques à s'aligner à gauche */
-div[data-testid="stButton"] > button > div,
-div[data-testid="stDownloadButton"] > button > div,
-div[data-testid="stButton"] > button p,
-div[data-testid="stDownloadButton"] > button p {
-    display: flex !important;
-    justify-content: flex-start !important;
-    text-align: left !important;
+    justify-content: flex-start !important; /* Alignement à gauche */
+    padding-left: 20px !important; /* Marge pour aligner les icônes */
     width: 100% !important;
     color: #1A1A2E !important;
     font-size: 1rem !important;
-    margin: 0 !important;
+    box-shadow: none !important;
 }
 
-/* 3. Effet au survol (Hover) identique pour les 3 */
-div[data-testid="stButton"] > button:hover,
-div[data-testid="stDownloadButton"] > button:hover,
-div[data-testid="stFileUploaderDropzone"]:hover {
+button[kind="secondary"]:hover {
     border-color: #1F5C8B !important;
     background-color: #F7F9FC !important;
-}
-div[data-testid="stButton"] > button:hover p,
-div[data-testid="stDownloadButton"] > button:hover p {
     color: #1F5C8B !important;
 }
 
-/* 4. Nettoyage de l'Uploader (Cache le SVG et le texte inutile) */
-[data-testid="stFileUploaderDropzoneInstructions"],
-[data-testid="stFileUploaderDropzone"] button svg {
-    display: none !important;
-}
-
-/* 5. Bouton interne de l'Uploader rendu invisible mais cliquable */
-[data-testid="stFileUploaderDropzone"] > button {
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important; /* Cache "Upload" ou "Browse files" */
-    width: 100% !important;
-    height: 100% !important;
-    position: relative !important;
+/* 2. Transformation de la Dropzone de l'Uploader en bouton */
+[data-testid="stFileUploaderDropzone"] {
+    border: 1px solid #D0D8E4 !important;
+    background-color: #FFFFFF !important;
+    border-radius: 8px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    padding: 0 !important;
+    cursor: pointer !important;
 }
 
-/* 6. Injection de ton texte personnalisé avec alignement strict à gauche */
-[data-testid="stFileUploaderDropzone"] > button::after {
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #1F5C8B !important;
+    background-color: #F7F9FC !important;
+}
+
+/* 3. On vaporise tout le contenu interne natif de l'Uploader */
+[data-testid="stFileUploaderDropzone"] > div,
+[data-testid="stFileUploaderDropzone"] button,
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
+}
+
+/* 4. On injecte notre texte directement sur la Dropzone globale */
+[data-testid="stFileUploaderDropzone"]::after {
     content: "📂 Charger un modèle (.json)" !important;
-    position: absolute !important;
-    left: 0 !important; /* Aligné sur la marge gauche du bouton parent */
+    padding-left: 20px !important; /* Exactement la même marge que les boutons */
     color: #1A1A2E !important;
     font-size: 1rem !important;
     font-weight: 400 !important;
-    text-align: left !important;
-    display: block !important;
-    width: 100% !important;
 }
 
-/* Changement de couleur du texte injecté au survol */
-[data-testid="stFileUploaderDropzone"]:hover > button::after {
+[data-testid="stFileUploaderDropzone"]:hover::after {
     color: #1F5C8B !important;
 }
         
