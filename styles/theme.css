@@ -407,7 +407,7 @@ div[data-testid="stDownloadButton"] button[kind="secondary"]:hover,
     left: 0 !important;
     right: 0 !important;
     text-align: left !important; /* Au lieu de center */
-    padding-left: 60px !important; /* Exactement la même valeur que les autres boutons */
+    padding-left: 10px !important; /* Exactement la même valeur que les autres boutons */
 }
 
 /* Changement de couleur au survol pour rester cohérent */
