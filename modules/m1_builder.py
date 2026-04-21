@@ -191,7 +191,7 @@ def _render_settings(active_node: str):
 
     # ── 2. [A] Bouton « Appliquer ce template » ───────────────────────────
     if st.button(
-        "✅  Appliquer ce modèle",
+        "✅  Appliquer ce modèle",type="secondary",
         use_container_width=True,
         key="m1_btn_apply_template",
     ):
