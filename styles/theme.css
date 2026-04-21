@@ -397,16 +397,17 @@ div[data-testid="stDownloadButton"] button[kind="secondary"]:hover,
     position: relative !important;
 }
 
-/* Injection du nouveau texte */
+/* Injection du nouveau texte avec le même retrait */
 [data-testid="stFileUploaderDropzone"] button::after {
     content: "📂 Charger un modèle (.json)" !important;
     position: absolute !important;
-    color: var(--rl-text) !important; /* Utilise la couleur de votre thème */
+    color: var(--rl-text) !important;
     font-size: 1rem !important;
     font-weight: 400 !important;
     left: 0 !important;
     right: 0 !important;
-    text-align: center !important;
+    text-align: left !important; /* Au lieu de center */
+    padding-left: 60px !important; /* Exactement la même valeur que les autres boutons */
 }
 
 /* Changement de couleur au survol pour rester cohérent */
