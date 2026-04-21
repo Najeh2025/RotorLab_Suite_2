@@ -16,12 +16,12 @@ except ImportError:
 
 from config import MATERIALS_DB, BEARING_PRESETS
 
-
 # =============================================================================
-# POINT D'ENTRÉE PRINCIPAL
+# POINT D'ENTRÉE PRINCIPAL  material
 # =============================================================================
 def render_m1(col_settings, col_graphics):
-    active_node = st.session_state.get("active_node", "shaft")
+    #active_node = st.session_state.get("active_node", "shaft")
+    active_node = st.session_state.get("active_node", "material")
     
     # Initialisation des flags UX
     if "m1_has_unsaved_changes" not in st.session_state:
