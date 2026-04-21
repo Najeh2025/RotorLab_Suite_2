@@ -333,33 +333,44 @@ div[data-testid="stProgress"] > div > div {
     width: 100% !important;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   UNIFORMISATION ABSOLUE (Appliquer, Charger, Sauvegarder)
+ /* ══════════════════════════════════════════════════════════════════════════
+   RÉSOLUTION FINALE - BOUTONS IDENTIQUES ET CENTRÉS ABSOLUS
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* 1. Style universel pour les boutons Appliquer et Sauvegarder */
-button[kind="secondary"] {
-    border: 1px solid #D0D8E4 !important; /* Force la bordure */
-    background-color: #FFFFFF !important;
+/* 1. On force la boîte sur tous les boutons SAUF le primaire (Assembler) */
+div[data-testid="stButton"] button:not([kind="primary"]),
+div[data-testid="stDownloadButton"] button {
+    border: 1px solid #D0D8E4 !important; /* Force la bordure grise */
+    background-color: #FFFFFF !important; /* Force le fond blanc */
     border-radius: 8px !important;
     height: 42px !important;
     min-height: 42px !important;
-    display: flex !important;
-    justify-content: flex-start !important; /* Alignement à gauche */
-    padding-left: 20px !important; /* Marge pour aligner les icônes */
     width: 100% !important;
-    color: #1A1A2E !important;
-    font-size: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important; /* Centrage absolu */
+    padding: 0 !important;
+    margin: 0 !important;
     box-shadow: none !important;
 }
 
-button[kind="secondary"]:hover {
-    border-color: #1F5C8B !important;
-    background-color: #F7F9FC !important;
-    color: #1F5C8B !important;
+/* On force le texte interne des boutons à être parfaitement au milieu */
+div[data-testid="stButton"] button:not([kind="primary"]) div,
+div[data-testid="stButton"] button:not([kind="primary"]) p,
+div[data-testid="stDownloadButton"] button div,
+div[data-testid="stDownloadButton"] button p {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    margin: 0 !important;
+    width: 100% !important;
+    color: #1A1A2E !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
 }
 
-/* 2. Transformation de la Dropzone de l'Uploader en bouton */
+/* 2. Uploader : même boîte, même centrage absolu */
 [data-testid="stFileUploaderDropzone"] {
     border: 1px solid #D0D8E4 !important;
     background-color: #FFFFFF !important;
@@ -369,31 +380,37 @@ button[kind="secondary"]:hover {
     padding: 0 !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: flex-start !important;
+    justify-content: center !important; /* Centrage absolu */
     cursor: pointer !important;
 }
 
-[data-testid="stFileUploaderDropzone"]:hover {
-    border-color: #1F5C8B !important;
-    background-color: #F7F9FC !important;
-}
-
-/* 3. On vaporise tout le contenu interne natif de l'Uploader */
+/* On vaporise le contenu natif de l'uploader */
 [data-testid="stFileUploaderDropzone"] > div,
 [data-testid="stFileUploaderDropzone"] button,
 [data-testid="stFileUploaderDropzoneInstructions"] {
     display: none !important;
 }
 
-/* 4. On injecte notre texte directement sur la Dropzone globale */
+/* On injecte le texte de l'uploader parfaitement centré */
 [data-testid="stFileUploaderDropzone"]::after {
     content: "📂 Charger un modèle (.json)" !important;
-    padding-left: 20px !important; /* Exactement la même marge que les boutons */
     color: #1A1A2E !important;
     font-size: 1rem !important;
     font-weight: 400 !important;
+    text-align: center !important;
+    width: 100% !important;
 }
 
+/* 3. Effets de survol (Hover) uniformes et professionnels */
+div[data-testid="stButton"] button:not([kind="primary"]):hover,
+div[data-testid="stDownloadButton"] button:hover,
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #1F5C8B !important;
+    background-color: #F7F9FC !important;
+}
+
+div[data-testid="stButton"] button:not([kind="primary"]):hover p,
+div[data-testid="stDownloadButton"] button:hover p,
 [data-testid="stFileUploaderDropzone"]:hover::after {
     color: #1F5C8B !important;
 }
