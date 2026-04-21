@@ -383,19 +383,35 @@ div[data-testid="stDownloadButton"] button[kind="secondary"]:hover,
     display: none !important; /* Cache l'icône de flèche d'upload native de Streamlit */
 }
 
-/* 5. On force le texte interne de l'uploader à prendre tout l'espace et à se centrer */
+/* 5. Remplacement du texte natif "Upload" par votre texte personnalisé */
 [data-testid="stFileUploaderDropzone"] button {
     background: transparent !important;
     border: none !important;
-    color: inherit !important;
-    font-size: 1rem !important;
+    color: transparent !important; /* Cache le mot "Upload" natif */
     padding: 0 !important;
     width: 100% !important;
     height: 100% !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    position: relative !important;
+}
+
+/* Injection du nouveau texte */
+[data-testid="stFileUploaderDropzone"] button::after {
+    content: "📂 Charger un modèle (.json)" !important;
+    position: absolute !important;
+    color: var(--rl-text) !important; /* Utilise la couleur de votre thème */
+    font-size: 1rem !important;
     font-weight: 400 !important;
+    left: 0 !important;
+    right: 0 !important;
+    text-align: center !important;
+}
+
+/* Changement de couleur au survol pour rester cohérent */
+[data-testid="stFileUploaderDropzone"]:hover button::after {
+    color: var(--rl-primary) !important;
 }
         
 </style>
