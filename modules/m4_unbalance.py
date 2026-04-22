@@ -63,20 +63,34 @@ def _render_settings(rotor):
         if bal_mode == "Automatique ISO 1940":
             c1, c2 = st.columns(2)
             with c1:
-                grade = st.selectbox(
-                    "Grade ISO 1940 :",
-                    ["G0.4", "G1.0", "G2.5", "G6.3", "G16", "G40"],
-                    index=2,
-                    key="m4_grade",
-                    help="G2.5 = turbines, compresseurs"
-                )
-                grade_val = float(grade[1:])
+                _grade_help = {
+                "G0.4":  "G0.4 — Gyroscopes, turbines ultra-precision",
+                "G1.0":  "G1.0 — Turbines a gaz / vapeur (production)",
+                "G2.5":  "G2.5 — Turbines vapeur, compresseurs, turbosoufflantes",
+                "G6.3":  "G6.3 — Machines-outils, ventilateurs industriels",
+                "G16":   "G16  — Vilebrequins, transmissions automobiles",
+                "G40":   "G40  — Machines agricoles, equipements generaux",
+            }
+            _grade_current = st.session_state.get("m4_grade", "G2.5")
+            grade = st.selectbox(
+                "Grade ISO 1940 :",
+                ["G0.4", "G1.0", "G2.5", "G6.3", "G16", "G40"],
+                index=["G0.4","G1.0","G2.5","G6.3","G16","G40"].index(_grade_current)
+                      if _grade_current in ["G0.4","G1.0","G2.5","G6.3","G16","G40"]
+                      else 2,
+                key="m4_grade",
+                help=_grade_help.get(_grade_current, "")
+            )
+            grade_val = float(grade[1:])
             with c2:
-                op_rpm_iso = st.number_input(
-                    "Vitesse operationnelle (RPM)",
-                    100.0, 50000.0, 3000.0,
-                    key="m4_op_iso"
-                )
+            op_rpm_iso = st.number_input(
+                "Vitesse operationnelle (RPM)",
+                min_value=100.0, max_value=50000.0,
+                value=float(st.session_state.get("m4_op_iso", 3000.0)),
+                step=100.0,
+                format="%.0f",
+                key="m4_op_iso"
+            )
             omega_iso = op_rpm_iso * np.pi / 30
             mag_iso   = (rotor.m * grade_val) / (1000.0 * omega_iso)
             st.info(
