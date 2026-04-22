@@ -414,6 +414,34 @@ div[data-testid="stDownloadButton"] button:hover p,
 [data-testid="stFileUploaderDropzone"]:hover::after {
     color: #1F5C8B !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CORRECTION BUGS M4 : Nettoyage des sous-colonnes imbriquées
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Annule les cadres (borders) pour les st.columns créées À L'INTÉRIEUR des panneaux */
+div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 8px !important;
+    min-height: auto !important;
+    overflow: visible !important; /* Empêche de couper les sliders */
+}
+
+/* 2. Empêche les curseurs rouges des sliders d'être rognés en bas */
+div[data-testid="stSliderTickBar"], 
+div[data-testid="stThumbValue"],
+div[data-baseweb="slider"] {
+    overflow: visible !important;
+}
+
+/* 3. Donne de l'espace au texte d'aide sous le Grade ISO 1940 */
+[data-testid="stCaptionContainer"] {
+    margin-top: -5px !important;
+    margin-bottom: 10px !important;
+    color: var(--rl-text-muted) !important;
+}
         
 </style>
 """
