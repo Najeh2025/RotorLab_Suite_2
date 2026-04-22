@@ -86,7 +86,7 @@ def _render_settings(rotor):
             use_container_width=True,
             on_click=_run_campbell
         )
-
+    #
     with tab_ucs:
         st.markdown(
             '<div class="rl-section-header">▼ Undamped Critical Speed Map</div>',
@@ -99,36 +99,70 @@ def _render_settings(rotor):
           dimensionnement des paliers.</small>
         </div>
         """, unsafe_allow_html=True)
+
+        # ── Sélection du palier à faire varier ───────────────────────────
+        rotor_ucs = st.session_state.get("rotor")
+        if rotor_ucs is not None and hasattr(rotor_ucs, "bearing_elements"):
+            bear_labels = [
+                "Palier {} (nœud {})".format(i, b.n)
+                for i, b in enumerate(rotor_ucs.bearing_elements)
+            ]
+            st.markdown(
+                '<div class="rl-section-header">▼ Palier(s) à faire varier</div>',
+                unsafe_allow_html=True
+            )
+            st.caption(
+                "Les paliers non sélectionnés conservent leur raideur d'origine."
+            )
+            selected_bears = st.multiselect(
+                "Sélectionnez les paliers :",
+                options=list(range(len(bear_labels))),
+                default=list(range(len(bear_labels))),   # tous par défaut
+                format_func=lambda i: bear_labels[i],
+                key="m3_ucs_bear_sel"
+            )
+            if not selected_bears:
+                st.warning("Sélectionnez au moins un palier.")
+
+            # Tableau de référence des raideurs actuelles
+            with st.expander("Raideurs actuelles des paliers", expanded=False):
+                rows = []
+                for i, b in enumerate(rotor_ucs.bearing_elements):
+                    def _get(attr, b=b):
+                        v = getattr(b, attr, 0)
+                        return float(v[0]) if hasattr(v, "__iter__") else float(v)
+                    rows.append({
+                        "Index":     i,
+                        "Nœud":      b.n,
+                        "Kxx (N/m)": "{:.2e}".format(_get("kxx")),
+                        "Kyy (N/m)": "{:.2e}".format(_get("kyy")),
+                        "Fixé ?":    "Non" if i in (selected_bears or []) else "✔ Oui",
+                    })
+                st.dataframe(pd.DataFrame(rows), use_container_width=True,
+                             hide_index=True)
+        else:
+            st.info("Assemblez d'abord un rotor dans M1.")
+
+        st.markdown(
+            '<div class="rl-section-header">▼ Plage de raideur</div>',
+            unsafe_allow_html=True
+        )
         st.number_input(
-            "Log10(K_min) [N/m]",
-            min_value=3,
-            max_value=8,
-            value=5,
-            step=1,
+            "Log10(K_min) [N/m]", min_value=3, max_value=8, value=5, step=1,
             key="m3_kmin_log"
         )
         st.number_input(
-            "Log10(K_max) [N/m]",
-            min_value=6,
-            max_value=12,
-            value=9,
-            step=1,
+            "Log10(K_max) [N/m]", min_value=6, max_value=12, value=9, step=1,
             key="m3_kmax_log"
         )
         st.number_input(
-            "Nombre de points K",
-            min_value=10,
-            max_value=60,
-            value=20,
-            step=1,
+            "Nombre de points K", min_value=10, max_value=60, value=20, step=1,
             key="m3_k_npts"
         )
         st.button(
             "🗺️ Générer la carte UCS",
-            type="primary",
-            key="m3_run_ucs",
-            use_container_width=True,
-            on_click=_run_ucs
+            type="primary", key="m3_run_ucs",
+            use_container_width=True, on_click=_run_ucs
         )
 
     with tab_api:
@@ -230,56 +264,88 @@ def _run_ucs():
     if rotor is None:
         return
 
-    kmin_log = int(st.session_state.get("m3_kmin_log", 5))
-    kmax_log = int(st.session_state.get("m3_kmax_log", 9))
-    k_npts   = int(st.session_state.get("m3_k_npts",  20))
-
+    kmin_log      = int(st.session_state.get("m3_kmin_log", 5))
+    kmax_log      = int(st.session_state.get("m3_kmax_log", 9))
+    k_npts        = int(st.session_state.get("m3_k_npts",  20))
+    selected_bears = st.session_state.get("m3_ucs_bear_sel", None)
     stiffness_range = np.logspace(kmin_log, kmax_log, k_npts)
 
     try:
-        ucs = rotor.run_ucs(
-            stiffness_range=stiffness_range,
-            num_modes=6
-        )
+        ucs = rotor.run_ucs(stiffness_range=stiffness_range, num_modes=6)
         st.session_state["res_ucs"] = ucs
         _log("UCS Map calculée ({} points K)".format(k_npts), "ok")
-    except Exception as e:
-        # Fallback manuel si run_ucs() non disponible dans cette version ROSS
-        _run_ucs_manual(rotor, stiffness_range)
+    except Exception:
+        _run_ucs_manual(rotor, stiffness_range, selected_bears)
 
 
-def _run_ucs_manual(rotor, stiffness_range):
-    """Calcul manuel de la carte UCS si run_ucs() absent."""
+def _run_ucs_manual(rotor, stiffness_range, selected_bears=None):
+    """
+    Calcul manuel de la carte UCS.
+    selected_bears : liste d'indices des paliers à faire varier.
+                     None ou liste vide → tous les paliers varient.
+    Les paliers non sélectionnés conservent leur Kxx/Kyy d'origine.
+    L'amortissement est mis à 0 dans tous les cas (UCS = non amorti).
+    """
     try:
+        # Snapshot des raideurs originales
+        original_bears = []
+        for b in rotor.bearing_elements:
+            def _get(attr, b=b):
+                v = getattr(b, attr, 0)
+                return float(v[0]) if hasattr(v, "__iter__") else float(v)
+            original_bears.append({
+                "n":   b.n,
+                "kxx": _get("kxx"), "kyy": _get("kyy"),
+                "kxy": _get("kxy"), "kyx": _get("kyx"),
+            })
+
+        vary_all = not selected_bears   # si liste vide ou None → tous varient
+
         results = []
         for k in stiffness_range:
-            # Reconstruction des paliers avec raideur k
             new_bears = []
-            for b in rotor.bearing_elements:
+            for idx, orig in enumerate(original_bears):
+                if vary_all or idx in selected_bears:
+                    kxx_used, kyy_used = k, k       # palier varié
+                else:
+                    kxx_used = orig["kxx"]           # palier fixe
+                    kyy_used = orig["kyy"]
+
                 new_bears.append(rs.BearingElement(
-                    n=b.n, kxx=k, kyy=k, kxy=0.0, kyx=0.0,
-                    cxx=0.0, cyy=0.0
+                    n=orig["n"],
+                    kxx=kxx_used, kyy=kyy_used,
+                    kxy=orig["kxy"], kyx=orig["kyx"],
+                    cxx=0.0, cyy=0.0               # UCS = sans amortissement
                 ))
-            r_tmp  = rs.Rotor(
-                rotor.shaft_elements,
-                rotor.disk_elements,
-                new_bears
-            )
-            modal  = r_tmp.run_modal(speed=0)
-            fn_hz  = modal.wn / (2 * np.pi)
-            fn_rpm = fn_hz * 60
+
+            r_tmp = rs.Rotor(rotor.shaft_elements,
+                             rotor.disk_elements, new_bears)
+            modal = r_tmp.run_modal(speed=0)
+            fn_rpm = modal.wn / (2 * np.pi) * 60
             results.append(fn_rpm[:6].tolist())
+
+        # Libellé pour la légende du graphique
+        if vary_all:
+            bear_label = "Tous les paliers"
+        else:
+            bear_label = ", ".join(
+                "P{} nœud {}".format(i, original_bears[i]["n"])
+                for i in selected_bears
+            )
 
         st.session_state["res_ucs"] = {
             "manual"    : True,
             "stiffness" : stiffness_range,
             "fn_rpm"    : np.array(results),
+            "bear_label": bear_label,
+            "selected"  : selected_bears if selected_bears else list(range(len(original_bears))),
+            "original"  : original_bears,
         }
-        _log("UCS Map calculée manuellement", "ok")
+        _log("UCS Map calculée — palier(s) : {}".format(bear_label), "ok")
+
     except Exception as e:
         _log("Erreur UCS : {}".format(e), "err")
         st.session_state["m3_ucs_error"] = str(e)
-
 
 # =============================================================================
 # VÉRIFICATION API 684
@@ -577,17 +643,32 @@ def _display_ucs():
 
     # Objet natif ROSS ou calcul manuel
     if isinstance(ucs, dict) and ucs.get("manual"):
-        k_vals = ucs["stiffness"]
-        fn_mat = ucs["fn_rpm"]
-        n_modes = fn_mat.shape[1]
+        k_vals     = ucs["stiffness"]
+        fn_mat     = ucs["fn_rpm"]
+        n_modes    = fn_mat.shape[1]
+        bear_label = ucs.get("bear_label", "Paliers sélectionnés")
+        original   = ucs.get("original", [])
+        selected   = ucs.get("selected", list(range(len(original))))
+
+        # Info sur les paliers fixes
+        fixed_bears = [
+            (i, original[i]) for i in range(len(original)) if i not in selected
+        ]
+        if fixed_bears:
+            fix_txt = " | ".join(
+                "P{} nœud {} → Kxx={:.2e} N/m".format(i, b["n"], b["kxx"])
+                for i, b in fixed_bears
+            )
+            st.info("🔒 Paliers **fixes** (raideur constante) : {}".format(fix_txt))
+
         for i in range(n_modes):
             fig.add_trace(go.Scatter(
                 x=k_vals, y=fn_mat[:, i],
                 name="Mode {}".format(i + 1),
                 line=dict(color=colors[i % len(colors)], width=2),
                 hovertemplate=(
-                    "K = %{x:.2e} N/m<br>"
-                    "Vc = %{y:.0f} RPM<extra></extra>"
+                    "K = %{{x:.2e}} N/m<br>"
+                    "Vc = %{{y:.0f}} RPM<extra>Mode {}</extra>".format(i + 1)
                 )
             ))
     else:
@@ -617,7 +698,7 @@ def _display_ucs():
         height       = 460,
         xaxis_title  = "Raideur des paliers K (N/m)",
         yaxis_title  = "Vitesse critique (RPM)",
-        title        = "Undamped Critical Speed Map",
+        title        = title = "UCS Map — Palier(s) varié(s) : {}".format(bear_label),
         xaxis_type   = "log",
         plot_bgcolor = "white",
         xaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
