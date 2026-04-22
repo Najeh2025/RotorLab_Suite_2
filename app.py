@@ -48,7 +48,7 @@ load_css()
 # =============================================================================
 def init_session_state():
     defaults = {
-        "active_node"   : "shaft",
+        "active_node"   : "material",
         "active_module" : "M1",
         "nav_mode"      : "dashboard",
         "rotor"         : None,
