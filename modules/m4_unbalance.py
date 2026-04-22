@@ -1,5 +1,6 @@
-# modules/m3_campbell.py — Campbell + UCS Map + API 684 Level 1
+# modules/m4_unbalance.py — Balourd & Reponse Frequentielle H(jw)
 # RotorLab Suite 2.0 — Pr. Najeh Ben Guedria
+# Couvre : ISO 1940, Bode, Polaire, Nyquist, H(jw), multi-noeuds, multi-sondes
 # =============================================================================
 
 import streamlit as st
@@ -16,14 +17,12 @@ except ImportError:
 
 
 # =============================================================================
-# POINT D'ENTRÉE
+# POINT D ENTREE
 # =============================================================================
-def render_m3(col_settings, col_graphics):
+def render_m4(col_settings, col_graphics):
     rotor = st.session_state.get("rotor")
-
     with col_settings:
         _render_settings(rotor)
-
     with col_graphics:
         _render_graphics(rotor)
 
@@ -32,8 +31,28 @@ def render_m3(col_settings, col_graphics):
 # PANNEAU SETTINGS
 # =============================================================================
 def _render_settings(rotor):
+    # ── Pb3-fix : ciblage des stHorizontalBlock INTÉRIEURS uniquement ─────
+    # Le sélecteur précédent était trop large et capturait aussi le bloc
+    # principal de 5 colonnes. On descend d'un niveau pour n'affecter que
+    # les colonnes imbriquées à l'intérieur du panneau settings.
+    st.markdown("""
+    <style>
+    /* Pb3-fix — Supprime les cadres des colonnes imbriquées dans M4
+       (ciblage des stHorizontalBlock INTÉRIEURS uniquement)           */
+    div[data-testid="stVerticalBlock"]
+        div[data-testid="stHorizontalBlock"]
+        > div[data-testid="column"]
+        > div[data-testid="stVerticalBlock"] {
+        background  : transparent !important;
+        border      : none        !important;
+        box-shadow  : none        !important;
+        padding     : 0 2px       !important;
+        min-height  : unset       !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     st.markdown(
-        '<div class="rl-settings-title">Campbell + UCS Map + API 684</div>',
+        '<div class="rl-settings-title">Unbalance Response & H(jw)</div>',
         unsafe_allow_html=True
     )
 
@@ -41,164 +60,239 @@ def _render_settings(rotor):
         st.warning("Aucun rotor — construisez d'abord un modele dans M1.")
         return
 
-    tab_camp, tab_ucs, tab_api = st.tabs(
-        ["Campbell", "UCS Map", "API 684"]
-    )
+    n_nodes = len(rotor.nodes) - 1
+    n_dof   = rotor.ndof
 
-    # ── Onglet Campbell ───────────────────────────────────────────────────
-    with tab_camp:
+    tab_bal, tab_freq = st.tabs(["Balourd ISO 1940", "H(jw) Frequentielle"])
+
+    # ── ONGLET BALOURD ────────────────────────────────────────────────────
+    with tab_bal:
         st.markdown(
-            '<div class="rl-section-header">Parametres Campbell</div>',
+            '<div class="rl-section-header">Definition du balourd</div>',
             unsafe_allow_html=True
         )
-        st.number_input(
-            "Vitesse operationnelle (RPM)",
-            min_value=100.0, max_value=50000.0,
-            value=3000.0, step=100.0,
-            key="m3_op_rpm"
+
+        # Mode de definition
+        bal_mode = st.radio(
+            "Mode de definition :",
+            ["Manuel (kg.m)", "Automatique ISO 1940"],
+            horizontal=True,
+            key="m4_bal_mode"
         )
-        st.number_input(
-            "Vitesse maximale d'analyse (RPM)",
-            min_value=2000, max_value=30000,
-            value=10000, step=500,
-            key="m3_vmax"
+
+        if bal_mode == "Automatique ISO 1940":
+            # Pb1-fix : dictionnaire défini AVANT les colonnes pour être
+            # disponible dès le rendu du selectbox.
+            _grade_help = {
+                "G0.4": "Gyroscopes, turbines ultra-précision",
+                "G1.0": "Turbines à gaz / vapeur (production)",
+                "G2.5": "Turbines vapeur, compresseurs, turbosoufflantes",
+                "G6.3": "Machines-outils, ventilateurs industriels",
+                "G16":  "Vilebrequins, transmissions automobiles",
+                "G40":  "Machines agricoles, équipements généraux",
+            }
+            c1, c2 = st.columns(2)
+            with c1:
+                _grade_current = st.session_state.get("m4_grade", "G2.5")
+                grade = st.selectbox(
+                    "Grade ISO 1940 :",
+                    ["G0.4", "G1.0", "G2.5", "G6.3", "G16", "G40"],
+                    index=["G0.4","G1.0","G2.5","G6.3","G16","G40"].index(_grade_current)
+                          if _grade_current in ["G0.4","G1.0","G2.5","G6.3","G16","G40"]
+                          else 2,
+                    key="m4_grade",
+                    # Pb1-fix : help= figé sur la valeur initiale → supprimé.
+                    # st.caption ci-dessous est réévalué à chaque sélection.
+                )
+                st.caption(_grade_help.get(grade, ""))   # ← réactif au choix courant
+                grade_val = float(grade[1:])
+            with c2:
+                # Pb2-fix : correctement indenté sous "with c2:" + format="%.0f"
+                # L'absence d'indentation précédente plaçait le widget hors
+                # du contexte colonne, causant step=0.01 par défaut Streamlit.
+                op_rpm_iso = st.number_input(
+                    "Vitesse opérationnelle (RPM)",
+                    min_value=100.0, max_value=50000.0,
+                    value=float(st.session_state.get("m4_op_iso", 3000.0)),
+                    step=100.0,
+                    format="%.0f",
+                    key="m4_op_iso"
+                )
+            omega_iso = op_rpm_iso * np.pi / 30
+            mag_iso   = (rotor.m * grade_val) / (1000.0 * omega_iso)
+            st.info(
+                "Balourd tolere ({}): **{:.6f} kg.m**\n\n"
+                "Masse rotor : {:.2f} kg".format(grade, mag_iso, rotor.m)
+            )
+            st.session_state["m4_mag_computed"] = mag_iso
+        else:
+            st.session_state["m4_mag_computed"] = None
+
+        st.markdown(
+            '<div class="rl-section-header">Noeuds et sondes</div>',
+            unsafe_allow_html=True
         )
-        st.number_input(
-            "Resolution (points de calcul)",
-            min_value=20, max_value=150,
-            value=60, step=10,
-            key="m3_npts"
+
+        # Nombre de balourds
+        n_unb = st.slider(
+            "Nombre de balourds simultanees",
+            1, min(4, n_nodes + 1), 1,
+            key="m4_n_unb"
         )
-        st.radio(
-            "Harmoniques a tracer",
-            ["1X seulement", "1X + 2X", "1X + 2X + 3X"],
-            index=1, horizontal=True,
-            key="m3_harmonics"
+
+        unb_nodes = []
+        unb_mags  = []
+        unb_phases = []
+
+        for i in range(n_unb):
+            st.markdown("**Balourd {} :**".format(i + 1))
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                node = st.slider(
+                    "Noeud",
+                    0, n_nodes,
+                    min(i * 2, n_nodes),
+                    key="m4_un_{}".format(i)
+                )
+            with c2:
+                if st.session_state.get("m4_mag_computed"):
+                    mag = st.number_input(
+                        "Magnitude (kg.m)",
+                        1e-7, 1.0,
+                        float(st.session_state["m4_mag_computed"]),
+                        format="%.7f",
+                        key="m4_mag_{}".format(i)
+                    )
+                else:
+                    mag = st.number_input(
+                        "Magnitude (kg.m)",
+                        1e-7, 1.0, 0.001,
+                        format="%.6f",
+                        key="m4_mag_{}".format(i)
+                    )
+            with c3:
+                phase = st.slider(
+                    "Phase (deg)",
+                    0, 360, i * 90,
+                    key="m4_ph_{}".format(i)
+                )
+            unb_nodes.append(node)
+            unb_mags.append(mag)
+            unb_phases.append(np.radians(phase))
+
+        st.session_state["m4_unb_nodes"]  = unb_nodes
+        st.session_state["m4_unb_mags"]   = unb_mags
+        st.session_state["m4_unb_phases"] = unb_phases
+
+        st.markdown(
+            '<div class="rl-section-header">Sondes de mesure</div>',
+            unsafe_allow_html=True
         )
+
+        n_probes = st.slider(
+            "Nombre de sondes",
+            1, min(4, n_nodes + 1), 1,
+            key="m4_n_probes"
+        )
+
+        probe_nodes = []
+        probe_dirs  = []
+        for i in range(n_probes):
+            c1, c2 = st.columns(2)
+            with c1:
+                pn = st.slider(
+                    "Sonde {} — Noeud".format(i + 1),
+                    0, n_nodes,
+                    min(i + 1, n_nodes),
+                    key="m4_pn_{}".format(i)
+                )
+            with c2:
+                pd_sel = st.radio(
+                    "Direction",
+                    ["X", "Y"],
+                    horizontal=True,
+                    key="m4_pd_{}".format(i)
+                )
+            probe_nodes.append(pn)
+            probe_dirs.append(0 if pd_sel == "X" else 1)
+
+        st.session_state["m4_probe_nodes"] = probe_nodes
+        st.session_state["m4_probe_dirs"]  = probe_dirs
+
+        st.markdown(
+            '<div class="rl-section-header">Plage de frequences</div>',
+            unsafe_allow_html=True
+        )
+
+        fmax = st.slider(
+            "Frequence maximale (Hz)",
+            100, 5000, 2000,
+            key="m4_fmax"
+        )
+        n_pts = st.slider(
+            "Resolution (points)",
+            100, 1000, 500,
+            key="m4_npts"
+        )
+
         st.button(
-            "Calculer le Campbell",
+            "Calculer la reponse au balourd",
             type="primary",
-            key="m3_run_camp",
+            key="m4_run_bal",
             use_container_width=True,
-            on_click=_run_campbell
+            on_click=_run_unbalance
         )
 
-    # ── Onglet UCS Map ────────────────────────────────────────────────────
-    with tab_ucs:
+    # ── ONGLET H(jw) ──────────────────────────────────────────────────────
+    with tab_freq:
         st.markdown(
-            '<div class="rl-section-header">Undamped Critical Speed Map</div>',
+            '<div class="rl-section-header">Fonction de transfert H(jw)</div>',
             unsafe_allow_html=True
         )
-        st.markdown("""
-        <div class="rl-card-info">
-          <small>La carte UCS montre les vitesses critiques non amorties
-          en fonction de la raideur des paliers — outil cle pour le
-          dimensionnement des paliers.</small>
-        </div>
-        """, unsafe_allow_html=True)
+        st.caption(
+            "H(jw) entre un DDL d excitation (inp) "
+            "et un DDL de reponse (out)."
+        )
 
-        # ── Sélection du palier à faire varier ───────────────────────────
-        rotor_ucs = st.session_state.get("rotor")
-        if rotor_ucs is not None and hasattr(rotor_ucs, "bearing_elements"):
-            bear_labels = [
-                "Palier {} (noeud {})".format(i, b.n)
-                for i, b in enumerate(rotor_ucs.bearing_elements)
-            ]
-            st.markdown(
-                '<div class="rl-section-header">Palier(s) a faire varier</div>',
-                unsafe_allow_html=True
+        c1, c2 = st.columns(2)
+        with c1:
+            inp_n = st.slider(
+                "DDL excitation (inp)",
+                0, min(n_dof - 1, 31), 0,
+                key="m4_inp"
             )
             st.caption(
-                "Les paliers non selectionnes conservent leur raideur d'origine."
+                "Noeud {}, DDL {}".format(inp_n // 4, inp_n % 4)
             )
-            st.multiselect(
-                "Selectionnez les paliers :",
-                options=list(range(len(bear_labels))),
-                default=list(range(len(bear_labels))),
-                format_func=lambda i: bear_labels[i],
-                key="m3_ucs_bear_sel"
+        with c2:
+            out_n = st.slider(
+                "DDL reponse (out)",
+                0, min(n_dof - 1, 31),
+                min(8, n_dof - 1),
+                key="m4_out"
             )
-            selected_ucs = st.session_state.get("m3_ucs_bear_sel", [])
-            if not selected_ucs:
-                st.warning("Selectionnez au moins un palier.")
+            st.caption(
+                "Noeud {}, DDL {}".format(out_n // 4, out_n % 4)
+            )
 
-            with st.expander("Raideurs actuelles des paliers", expanded=False):
-                rows = []
-                for i, b in enumerate(rotor_ucs.bearing_elements):
-                    def _get_k(attr, b=b):
-                        v = getattr(b, attr, 0)
-                        return float(v[0]) if hasattr(v, "__iter__") else float(v)
-                    rows.append({
-                        "Index":     i,
-                        "Noeud":     b.n,
-                        "Kxx (N/m)": "{:.2e}".format(_get_k("kxx")),
-                        "Kyy (N/m)": "{:.2e}".format(_get_k("kyy")),
-                        "Varie ?":   "Oui" if i in selected_ucs else "Non (fixe)",
-                    })
-                st.dataframe(pd.DataFrame(rows), use_container_width=True,
-                             hide_index=True)
-        else:
-            st.info("Assemblez d'abord un rotor dans M1.")
+        fmax_h = st.slider(
+            "Frequence max H(jw) (Hz)",
+            100, 5000, 2000,
+            key="m4_fmax_h"
+        )
+        n_pts_h = st.slider(
+            "Resolution H(jw)",
+            100, 1000, 500,
+            key="m4_npts_h"
+        )
 
-        st.markdown(
-            '<div class="rl-section-header">Plage de raideur</div>',
-            unsafe_allow_html=True
-        )
-        st.number_input(
-            "Log10(K_min) [N/m]",
-            min_value=3, max_value=8, value=5, step=1,
-            key="m3_kmin_log"
-        )
-        st.number_input(
-            "Log10(K_max) [N/m]",
-            min_value=6, max_value=12, value=9, step=1,
-            key="m3_kmax_log"
-        )
-        st.number_input(
-            "Nombre de points K",
-            min_value=10, max_value=60, value=20, step=1,
-            key="m3_k_npts"
-        )
         st.button(
-            "Generer la carte UCS",
+            "Calculer H(jw)",
             type="primary",
-            key="m3_run_ucs",
+            key="m4_run_freq",
             use_container_width=True,
-            on_click=_run_ucs
+            on_click=_run_freq_response
         )
-
-    # ── Onglet API 684 ────────────────────────────────────────────────────
-    with tab_api:
-        st.markdown(
-            '<div class="rl-section-header">Verification API 684</div>',
-            unsafe_allow_html=True
-        )
-        st.markdown("""
-        <div class="rl-card-info">
-          <small>La verification est automatique apres le calcul Campbell.
-          Modifiez la vitesse operationnelle dans l'onglet Campbell,
-          puis relancez le calcul.</small>
-        </div>
-        """, unsafe_allow_html=True)
-
-        camp = st.session_state.get("res_campbell")
-        if camp is not None:
-            op_rpm = st.session_state.get("m3_op_rpm", 3000.0)
-            st.info(
-                "Vitesse operationnelle : **{:.0f} RPM**\n\n"
-                "Zone interdite : **{:.0f} – {:.0f} RPM**".format(
-                    op_rpm, op_rpm * 0.85, op_rpm * 1.15
-                )
-            )
-            st.button(
-                "Lancer la verification API 684",
-                type="primary",
-                key="m3_run_api",
-                use_container_width=True,
-                on_click=_run_api_check
-            )
-        else:
-            st.info("Calculez d'abord le diagramme de Campbell.")
 
 
 # =============================================================================
@@ -206,7 +300,9 @@ def _render_settings(rotor):
 # =============================================================================
 def _render_graphics(rotor):
     st.markdown(
-        '<div class="rl-graphics-title">Campbell Diagram — Results</div>',
+        '<div class="rl-graphics-title">'
+        'Unbalance Response & H(jw) — Results'
+        '</div>',
         unsafe_allow_html=True
     )
 
@@ -214,737 +310,1022 @@ def _render_graphics(rotor):
         st.info("Construisez un rotor dans M1 pour acceder aux analyses.")
         return
 
-    tab_camp, tab_ucs, tab_stab, tab_api = st.tabs([
-        "Campbell",
-        "UCS Map",
-        "Stabilite",
-        "API 684"
+    tab_bode, tab_polar, tab_camp, tab_orbit, tab_hfw, tab_nyq, tab_iso = st.tabs([
+        "Bode (Balourd)",
+        "Polaire",
+        "Camp. + Balourd",
+        "Orbites",
+        "H(jw) Bode",
+        "Nyquist",
+        "ISO 1940"
     ])
 
+    with tab_bode:
+        _display_bode_unbalance()
+
+    with tab_polar:
+        _display_polar()
+
     with tab_camp:
-        _display_campbell()
+        _display_campbell_unbalance()
 
-    with tab_ucs:
-        _display_ucs()
+    with tab_orbit:
+        _display_orbits()
 
-    with tab_stab:
-        _display_stability()
+    with tab_hfw:
+        _display_freq_response_bode()
 
-    with tab_api:
-        _display_api()
+    with tab_nyq:
+        _display_nyquist()
+
+    with tab_iso:
+        _display_iso1940(rotor)
 
 
 # =============================================================================
-# CALCUL CAMPBELL
+# CALCUL BALOURD
 # =============================================================================
-def _run_campbell():
+def _run_unbalance():
     rotor = st.session_state.get("rotor")
     if rotor is None:
         return
 
-    vmax = float(st.session_state.get("m3_vmax", 10000))
-    npts = int(st.session_state.get("m3_npts", 60))
+    nodes  = st.session_state.get("m4_unb_nodes",  [0])
+    mags   = st.session_state.get("m4_unb_mags",   [0.001])
+    phases = st.session_state.get("m4_unb_phases",  [0.0])
+    fmax   = float(st.session_state.get("m4_fmax",  2000))
+    n_pts  = int(st.session_state.get("m4_npts",    500))
+
+    freqs = np.linspace(0, fmax, n_pts)
 
     try:
-        speeds = np.linspace(0, vmax * np.pi / 30, npts)
-        camp   = rotor.run_campbell(speeds, frequencies=12)
-        st.session_state["res_campbell"]  = camp
-        st.session_state["m3_camp_vmax"]  = vmax
-        st.session_state["m3_camp_npts"]  = npts
-        st.session_state["df_api"]        = None
-        _log("Campbell calcule sur 0–{:.0f} RPM ({} pts)".format(vmax, npts), "ok")
-    except Exception as e:
-        st.session_state["m3_camp_error"] = str(e)
-        _log("Erreur Campbell : {}".format(e), "err")
+        resp = rotor.run_unbalance_response(
+            node=nodes,
+            unbalance_magnitude=mags,
+            unbalance_phase=phases,
+            frequency=freqs
+        )
+    except TypeError:
+        try:
+            resp = rotor.run_unbalance_response(
+                node=nodes,
+                magnitude=mags,
+                phase=phases,
+                frequency_range=freqs
+            )
+        except TypeError:
+            try:
+                resp = rotor.run_unbalance_response(
+                    node=nodes[0],
+                    magnitude=mags[0],
+                    phase=phases[0],
+                    frequency_range=freqs
+                )
+            except Exception as e:
+                _log("Erreur balourd : {}".format(e), "err")
+                st.session_state["m4_unbal_error"] = str(e)
+                return
+
+    st.session_state["res_unbalance"] = resp
+    st.session_state["m4_unbal_error"] = None
+    _log("Reponse au balourd calculee ({} noeuds, fmax={} Hz)".format(
+        len(nodes), fmax), "ok")
 
 
 # =============================================================================
-# CALCUL UCS MAP
+# CALCUL H(jω)
 # =============================================================================
-def _run_ucs():
+def _run_freq_response():
     rotor = st.session_state.get("rotor")
     if rotor is None:
         return
 
-    kmin_log       = int(st.session_state.get("m3_kmin_log", 5))
-    kmax_log       = int(st.session_state.get("m3_kmax_log", 9))
-    k_npts         = int(st.session_state.get("m3_k_npts", 20))
-    selected_bears = st.session_state.get("m3_ucs_bear_sel", None)
-    stiffness_range = np.logspace(kmin_log, kmax_log, k_npts)
+    fmax      = float(st.session_state.get("m4_fmax_h",  2000))
+    n_pts     = int(st.session_state.get("m4_npts_h",    500))
+    freqs_hz  = np.linspace(0, fmax, n_pts)
+    freqs_rad = freqs_hz * 2 * np.pi
 
-    try:
-        ucs = rotor.run_ucs(stiffness_range=stiffness_range, num_modes=6)
-        st.session_state["res_ucs"] = ucs
-        _log("UCS Map calculee ({} points K)".format(k_npts), "ok")
-    except Exception:
-        _run_ucs_manual(rotor, stiffness_range, selected_bears)
+    last_err = ""
+
+    for kwargs in [
+        {"frequency":       freqs_hz},
+        {"speed_range":     freqs_rad},
+        {"frequency_range": freqs_hz},
+        {"frequency_range": freqs_rad},
+    ]:
+        try:
+            fr = rotor.run_freq_response(**kwargs)
+            st.session_state["res_freq"]         = fr
+            st.session_state["m4_freq_hz_range"] = freqs_hz
+            st.session_state["m4_freq_error"]    = None
+            _log("H(jw) calculee", "ok")
+            return
+        except Exception as e:
+            last_err = str(e)
+
+    _log("Erreur H(jw) : {}".format(last_err), "err")
+    st.session_state["m4_freq_error"] = last_err
 
 
-def _run_ucs_manual(rotor, stiffness_range, selected_bears=None):
+# =============================================================================
+# EXTRACTION ROBUSTE DES DONNEES DE REPONSE
+# =============================================================================
+def _extract_response(res, probe_node, probe_dof):
     """
-    Calcul manuel de la carte UCS.
-    selected_bears : liste d'indices (dans rotor.bearing_elements) a faire
-                     varier. Les autres conservent leur raideur d'origine.
-                     None ou liste vide = tous les paliers varient.
-    L'amortissement est force a 0 (UCS = non amorti par definition).
+    Extrait (freqs_hz, amplitudes_m, phases_rad) depuis un objet
+    UnbalanceResponse ROSS, quelle que soit la version de l API.
     """
-    try:
-        # Snapshot des proprietes originales de chaque palier
-        original_bears = []
-        for b in rotor.bearing_elements:
-            def _get(attr, b=b):
-                v = getattr(b, attr, 0)
-                return float(v[0]) if hasattr(v, "__iter__") else float(v)
-            original_bears.append({
-                "n":   b.n,
-                "kxx": _get("kxx"),
-                "kyy": _get("kyy"),
-                "kxy": _get("kxy"),
-                "kyx": _get("kyx"),
-            })
-
-        vary_all = not selected_bears  # si vide ou None → tous varient
-
-        results = []
-        for k in stiffness_range:
-            new_bears = []
-            for idx, orig in enumerate(original_bears):
-                if vary_all or idx in selected_bears:
-                    # Palier varie : remplacer kxx et kyy par k
-                    kxx_used = k
-                    kyy_used = k
-                else:
-                    # Palier fixe : conserver ses valeurs originales
-                    kxx_used = orig["kxx"]
-                    kyy_used = orig["kyy"]
-
-                new_bears.append(rs.BearingElement(
-                    n=orig["n"],
-                    kxx=kxx_used, kyy=kyy_used,
-                    kxy=orig["kxy"], kyx=orig["kyx"],
-                    cxx=0.0, cyy=0.0  # UCS = sans amortissement
-                ))
-
-            r_tmp = rs.Rotor(
-                rotor.shaft_elements,
-                rotor.disk_elements,
-                new_bears
-            )
-            modal  = r_tmp.run_modal(speed=0)
-            fn_rpm = modal.wn / (2 * np.pi) * 60
-            results.append(fn_rpm[:6].tolist())
-
-        # Libelle pour la legende
-        if vary_all:
-            bear_label = "Tous les paliers"
-        else:
-            bear_label = ", ".join(
-                "P{} noeud {}".format(i, original_bears[i]["n"])
-                for i in selected_bears
-            )
-
-        st.session_state["res_ucs"] = {
-            "manual"    : True,
-            "stiffness" : stiffness_range,
-            "fn_rpm"    : np.array(results),
-            "bear_label": bear_label,
-            "selected"  : selected_bears if selected_bears
-                          else list(range(len(original_bears))),
-            "original"  : original_bears,
-        }
-        _log("UCS Map calculee — palier(s) : {}".format(bear_label), "ok")
-
-    except Exception as e:
-        _log("Erreur UCS : {}".format(e), "err")
-        st.session_state["m3_ucs_error"] = str(e)
-
-
-# =============================================================================
-# VÉRIFICATION API 684
-# =============================================================================
-def _run_api_check():
-    camp   = st.session_state.get("res_campbell")
-    op_rpm = float(st.session_state.get("m3_op_rpm", 3000.0))
-    vmax   = float(st.session_state.get("m3_camp_vmax", 10000))
-    npts   = int(st.session_state.get("m3_camp_npts", 60))
-
-    if camp is None:
-        return
-
-    zl = op_rpm * 0.85
-    zh = op_rpm * 1.15
-
-    speed_rad = np.array(camp.speed_range) \
-        if hasattr(camp, "speed_range") \
-        else np.linspace(0, vmax * np.pi / 30, npts)
-
-    if hasattr(camp, "wd") and camp.wd is not None:
-        freqs_mat = camp.wd
-    elif hasattr(camp, "wn") and camp.wn is not None:
-        freqs_mat = camp.wn
+    if hasattr(res, 'speed_range') and res.speed_range is not None:
+        freqs = np.array(res.speed_range) / (2 * np.pi)
+    elif hasattr(res, 'frequency') and res.frequency is not None:
+        freqs = np.array(res.frequency)
+    elif hasattr(res, 'frequency_range') and res.frequency_range is not None:
+        freqs = np.array(res.frequency_range)
     else:
-        return
+        freqs = np.linspace(0, 2000, 500)
 
-    whirl   = getattr(camp, "whirl", None)
-    log_dec = getattr(camp, "log_dec", None)
-    n_modes = freqs_mat.shape[1]
-    results = []
+    freqs = np.atleast_1d(freqs).flatten()
+    probe = [probe_node, probe_dof]
 
-    for mode in range(min(10, n_modes)):
-        wn_mode = freqs_mat[:, mode]
-        diff    = wn_mode - speed_rad
+    if hasattr(res, 'data_magnitude') and callable(res.data_magnitude):
+        try:
+            amps   = np.atleast_1d(res.data_magnitude(probe=probe)).flatten()
+            phases = np.atleast_1d(res.data_phase(probe=probe)).flatten()
+            n = min(len(amps), len(freqs))
+            return freqs[:n], amps[:n], phases[:n]
+        except Exception:
+            pass
 
-        for i in range(len(diff) - 1):
-            if diff[i] * diff[i + 1] <= 0:
-                denom = diff[i + 1] - diff[i]
-                if abs(denom) < 1e-12:
-                    continue
-                vc_rad = speed_rad[i] - diff[i] * (
-                    speed_rad[i + 1] - speed_rad[i]) / denom
-                vc_rpm   = vc_rad * 30 / np.pi
-                fn_exact = vc_rad / (2 * np.pi)
-
-                ld_exact = 0.0
-                if log_dec is not None:
-                    ld_mode  = log_dec[:, mode]
-                    ld_exact = float(np.interp(vc_rad, speed_rad, ld_mode))
-
-                if whirl is not None:
-                    mid   = len(speed_rad) // 2
-                    w_v   = str(whirl[mid, mode]).lower()
-                    prec  = "FW" if "forward" in w_v else "BW"
-                else:
-                    slope = wn_mode[i + 1] - wn_mode[i]
-                    prec  = "FW" if slope > 0 else "BW"
-
-                in_zone = zl <= vc_rpm <= zh
-                ld_ok   = ld_exact >= 0.1
-                conform = (not in_zone) and ld_ok
-
-                results.append({
-                    "Mode":           mode + 1,
-                    "Precession":     prec,
-                    "fn (Hz)":        "{:.2f}".format(fn_exact),
-                    "Vc (RPM)":       "{:.0f}".format(vc_rpm),
-                    "Log Dec":        "{:.4f}".format(ld_exact),
-                    "Zone interdite": "OUI" if in_zone else "NON",
-                    "Log Dec >= 0.1": "OUI" if ld_ok   else "NON",
-                    "Conforme API":   "OUI" if conform  else "NON",
-                })
-
-    if results:
-        df_api = pd.DataFrame(results)
-        n_ok   = sum(1 for r in results if r["Conforme API"] == "OUI")
-        score  = n_ok / len(results) * 100
-        st.session_state["df_api"]    = df_api
-        st.session_state["api_params"] = {
-            "op_rpm": op_rpm,
-            "zl": zl, "zh": zh,
-            "score": score
-        }
-        _log("API 684 : score {:.0f}% ({}/{} conformes)".format(
-            score, n_ok, len(results)), "ok")
+    for attr in ("forced_resp", "response"):
+        if hasattr(res, attr):
+            arr = np.array(getattr(res, attr))
+            break
     else:
-        st.session_state["df_api"] = pd.DataFrame()
-        _log("API 684 : aucune vitesse critique trouvee dans la plage.", "warn")
+        raise AttributeError(
+            "Donnees vibratoires introuvables (ni data_magnitude, "
+            "ni forced_resp, ni response)."
+        )
+
+    mag = np.abs(arr)
+    ph  = np.angle(arr)
+    mag = np.atleast_1d(mag)
+    ph  = np.atleast_1d(ph)
+
+    if mag.ndim >= 2:
+        if mag.shape[0] == len(freqs) and mag.shape[1] != len(freqs):
+            mag = mag.T
+            ph  = ph.T
+
+    dof      = probe_node * 4 + probe_dof
+    safe_dof = min(dof, mag.shape[0] - 1) if mag.ndim > 0 else 0
+
+    if mag.ndim == 3:
+        amps   = mag[safe_dof, 0, :]
+        phases = ph[safe_dof, 0, :]
+    elif mag.ndim == 2:
+        amps   = mag[safe_dof, :]
+        phases = ph[safe_dof, :]
+    else:
+        amps   = mag
+        phases = ph
+
+    amps   = np.atleast_1d(amps).flatten()
+    phases = np.atleast_1d(phases).flatten()
+    n      = min(len(amps), len(freqs))
+    return freqs[:n], amps[:n], phases[:n]
 
 
 # =============================================================================
-# AFFICHAGE CAMPBELL
+# AFFICHAGE BODE BALOURD
 # =============================================================================
-def _display_campbell():
-    camp = st.session_state.get("res_campbell")
+def _display_bode_unbalance():
+    if st.session_state.get("m4_unbal_error"):
+        st.error("Erreur : {}".format(st.session_state["m4_unbal_error"]))
 
-    if "m3_camp_error" in st.session_state:
-        st.error("Erreur : {}".format(st.session_state.pop("m3_camp_error")))
-
-    if camp is None:
+    res = st.session_state.get("res_unbalance")
+    if res is None:
         st.info(
-            "Parametrez le calcul dans le panneau Settings "
-            "puis cliquez sur **Calculer le Campbell**."
+            "Configurez et lancez le calcul dans le panneau Settings."
         )
         return
 
-    vmax     = float(st.session_state.get("m3_camp_vmax", 10000))
-    op_rpm   = float(st.session_state.get("m3_op_rpm",   3000.0))
-    zl, zh   = op_rpm * 0.85, op_rpm * 1.15
-    harmonic = st.session_state.get("m3_harmonics", "1X + 2X")
+    probe_nodes = st.session_state.get("m4_probe_nodes", [1])
+    probe_dirs  = st.session_state.get("m4_probe_dirs",  [0])
+    modal       = st.session_state.get("res_modal")
 
-    if hasattr(camp, "speed_range") and camp.speed_range is not None:
-        speed_rad = np.array(camp.speed_range)
-    else:
-        npts      = int(st.session_state.get("m3_camp_npts", 60))
-        speed_rad = np.linspace(0, vmax * np.pi / 30, npts)
+    colors = ["#1F5C8B", "#C55A11", "#22863A", "#7B1FA2"]
 
-    speed_rpm = speed_rad * 30 / np.pi
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        subplot_titles=["Amplitude (µm)", "Phase (deg)"],
+        vertical_spacing=0.10
+    )
 
-    if hasattr(camp, "wd") and camp.wd is not None:
-        freqs_mat = camp.wd / (2 * np.pi)
-    elif hasattr(camp, "wn") and camp.wn is not None:
-        freqs_mat = camp.wn / (2 * np.pi)
-    else:
-        st.error("Donnees de frequences introuvables.")
-        return
+    all_amps = []
 
-    whirl   = getattr(camp, "whirl", None)
-    n_modes = freqs_mat.shape[1]
+    for idx, (pn, pd) in enumerate(zip(probe_nodes, probe_dirs)):
+        try:
+            freqs, amps, phases = _extract_response(res, pn, pd)
+        except Exception as e:
+            st.warning("Sonde {} : {}".format(idx + 1, e))
+            continue
 
-    fig = go.Figure()
-
-    colors_fw = ["#1F5C8B","#1565C0","#0288D1","#0097A7","#00796B","#388E3C"]
-    colors_bw = ["#C55A11","#E64A19","#F57C00","#FFA000","#C62828","#AD1457"]
-
-    for i in range(min(8, n_modes)):
-        fn_i = freqs_mat[:, i]
-
-        if whirl is not None:
-            mid   = len(speed_rpm) // 2
-            w_val = str(whirl[mid, i]).lower()
-            is_fw = "forward" in w_val
-        else:
-            is_fw = (fn_i[-1] > fn_i[0])
-
-        color     = colors_fw[i % len(colors_fw)] if is_fw \
-                    else colors_bw[i % len(colors_bw)]
-        dash_type = "solid" if is_fw else "dash"
-        label     = "Mode {} ({})".format(i + 1, "FW" if is_fw else "BW")
+        amps_um = amps * 1e6
+        all_amps.extend(amps_um.tolist())
+        color = colors[idx % len(colors)]
+        label = "Sonde {} — N{} {}".format(
+            idx + 1, pn, "X" if pd == 0 else "Y")
 
         fig.add_trace(go.Scatter(
-            x=speed_rpm, y=fn_i,
+            x=freqs, y=amps_um,
             name=label,
-            line=dict(color=color, width=2, dash=dash_type),
+            line=dict(color=color, width=2),
             hovertemplate=(
-                "Mode {}<br>N = %{{x:.0f}} RPM"
-                "<br>fn = %{{y:.2f}} Hz<extra></extra>".format(i + 1)
+                "f = %{x:.1f} Hz<br>"
+                "A = %{y:.3f} µm<extra>" + label + "</extra>"
             )
-        ))
+        ), row=1, col=1)
 
-    x_line = np.array([0, vmax])
-    fig.add_trace(go.Scatter(
-        x=x_line, y=x_line / 60,
-        name="1X", mode="lines",
-        line=dict(color="#E53935", width=1.5, dash="dot"),
-    ))
-    if "2X" in harmonic:
         fig.add_trace(go.Scatter(
-            x=x_line, y=x_line / 30,
-            name="2X", mode="lines",
-            line=dict(color="#FB8C00", width=1, dash="dot"),
-        ))
-    if "3X" in harmonic:
-        fig.add_trace(go.Scatter(
-            x=x_line, y=x_line / 20,
-            name="3X", mode="lines",
-            line=dict(color="#FDD835", width=1, dash="dot"),
-        ))
+            x=freqs, y=np.degrees(phases),
+            name=label + " (phase)",
+            line=dict(color=color, width=1.5, dash="dot"),
+            showlegend=False
+        ), row=2, col=1)
 
-    fig.add_vrect(
-        x0=zl, x1=zh,
-        fillcolor="#E53935", opacity=0.08,
-        line_width=1, line_color="#E53935",
-        annotation_text="Zone interdite API 684",
-        annotation_position="top left",
-        annotation_font=dict(color="#E53935", size=11)
-    )
-    fig.add_vline(
-        x=op_rpm, line_dash="dashdot",
-        line_color="#E53935", line_width=1.5,
-        annotation_text=" Nop = {:.0f} RPM".format(op_rpm),
-        annotation_font=dict(color="#E53935")
-    )
+    if modal is not None:
+        for i, wn in enumerate(modal.wn[:6]):
+            fn = wn / (2 * np.pi)
+            for row in [1, 2]:
+                fig.add_vline(
+                    x=fn, line_dash="dot",
+                    line_color="#22863A",
+                    line_width=1,
+                    opacity=0.6,
+                    annotation_text="M{}".format(i + 1) if row == 1 else "",
+                    annotation_font=dict(color="#22863A", size=10),
+                    row=row, col=1
+                )
 
+    fig.update_xaxes(
+        title_text="Frequence (Hz)", row=2, col=1,
+        showgrid=True, gridcolor="#F0F4FF"
+    )
+    fig.update_yaxes(
+        title_text="Amplitude (µm)", row=1, col=1,
+        showgrid=True, gridcolor="#F0F4FF"
+    )
+    fig.update_yaxes(
+        title_text="Phase (deg)", row=2, col=1,
+        showgrid=True, gridcolor="#F0F4FF"
+    )
     fig.update_layout(
-        height       = 480,
-        xaxis_title  = "Vitesse de rotation (RPM)",
-        yaxis_title  = "Frequence (Hz)",
-        title        = "Diagramme de Campbell",
-        legend       = dict(
+        height=500,
+        title="Diagramme de Bode — Reponse au balourd",
+        plot_bgcolor="white",
+        legend=dict(
             orientation="h", yanchor="bottom",
             y=1.02, xanchor="right", x=1
-        ),
-        hovermode    = "x unified",
-        plot_bgcolor = "white",
-        xaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
-        yaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
+        )
     )
 
-    st.plotly_chart(fig, use_container_width=True, key="m3_camp_fig")
+    st.plotly_chart(fig, use_container_width=True, key="m4_bode_fig")
+
+    if all_amps:
+        idx_max = int(np.argmax(all_amps))
+        a_max   = max(all_amps)
+        try:
+            freqs_0, amps_0, _ = _extract_response(
+                res, probe_nodes[0], probe_dirs[0])
+            a_stat = float(amps_0[1]) * 1e6 if len(amps_0) > 1 else 1e-12
+            a_stat = max(a_stat, 1e-12)
+            daf    = a_max / a_stat
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.markdown("""
+            <div class="rl-metric-card">
+              <div class="rl-metric-label">Amplitude max</div>
+              <div class="rl-metric-value">{:.3f}</div>
+              <div class="rl-metric-unit">µm</div>
+            </div>""".format(a_max), unsafe_allow_html=True)
+
+            f_res = freqs_0[np.argmax(amps_0 * 1e6)] \
+                if len(freqs_0) > 0 else 0.0
+            c2.markdown("""
+            <div class="rl-metric-card">
+              <div class="rl-metric-label">Frequence resonance</div>
+              <div class="rl-metric-value">{:.1f}</div>
+              <div class="rl-metric-unit">Hz</div>
+            </div>""".format(f_res), unsafe_allow_html=True)
+
+            c3.markdown("""
+            <div class="rl-metric-card">
+              <div class="rl-metric-label">DAF</div>
+              <div class="rl-metric-value">{:.1f}</div>
+              <div class="rl-metric-unit">—</div>
+            </div>""".format(daf), unsafe_allow_html=True)
+
+            c4.markdown("""
+            <div class="rl-metric-card">
+              <div class="rl-metric-label">Amplitude statique</div>
+              <div class="rl-metric-value">{:.4f}</div>
+              <div class="rl-metric-unit">µm</div>
+            </div>""".format(a_stat), unsafe_allow_html=True)
+
+        except Exception:
+            pass
 
     try:
-        import kaleido  # noqa
-        st.session_state["img_campbell"] = fig.to_image(
-            format="png", width=700, height=450)
-    except ImportError:
+        freqs_e, amps_e, phases_e = _extract_response(
+            res, probe_nodes[0], probe_dirs[0])
+        df_exp = pd.DataFrame({
+            "Frequence (Hz)":   freqs_e,
+            "Amplitude (µm)":   amps_e * 1e6,
+            "Phase (deg)":      np.degrees(phases_e),
+        })
+        st.download_button(
+            "Export CSV balourd",
+            data=df_exp.to_csv(index=False).encode(),
+            file_name="balourd_response.csv",
+            mime="text/csv",
+            key="m4_bode_csv"
+        )
+    except Exception:
         pass
 
-    _display_critical_speeds(camp, speed_rad, speed_rpm, whirl, freqs_mat)
-
-
-def _display_critical_speeds(camp, speed_rad, speed_rpm, whirl, freqs_mat):
-    n_modes = freqs_mat.shape[1]
-    crits   = []
-
-    for mode in range(min(10, n_modes)):
-        fn_mode = freqs_mat[:, mode]
-        diff    = fn_mode - speed_rpm / 60
-
-        for i in range(len(diff) - 1):
-            if diff[i] * diff[i + 1] <= 0:
-                denom = diff[i + 1] - diff[i]
-                if abs(denom) < 1e-12:
-                    continue
-                vc_rpm = speed_rpm[i] - diff[i] * (
-                    speed_rpm[i + 1] - speed_rpm[i]) / denom
-                fn_vc  = float(np.interp(vc_rpm, speed_rpm, fn_mode))
-
-                if whirl is not None:
-                    mid   = len(speed_rpm) // 2
-                    w_val = str(whirl[mid, mode]).lower()
-                    prec  = "FW" if "forward" in w_val else "BW"
-                else:
-                    prec  = "FW" if fn_mode[-1] > fn_mode[0] else "BW"
-
-                crits.append({
-                    "Mode":       mode + 1,
-                    "Precession": prec,
-                    "fn (Hz)":    "{:.2f}".format(fn_vc),
-                    "Vc (RPM)":   "{:.0f}".format(vc_rpm),
-                })
-
-    if crits:
-        df_vc = pd.DataFrame(crits)
-        df_vc = df_vc.drop_duplicates(subset=["Vc (RPM)"])
-        st.markdown("**Vitesses critiques (intersections 1X) :**")
-        st.dataframe(df_vc, use_container_width=True, hide_index=True)
-        st.session_state["df_campbell"] = df_vc
-    else:
-        st.info("Aucune intersection 1X detectee dans cette plage.")
-
 
 # =============================================================================
-# AFFICHAGE UCS MAP
+# AFFICHAGE POLAIRE
 # =============================================================================
-def _display_ucs():
-    ucs = st.session_state.get("res_ucs")
-
-    if "m3_ucs_error" in st.session_state:
-        st.error("Erreur UCS : {}".format(st.session_state.pop("m3_ucs_error")))
-
-    if ucs is None:
-        st.info(
-            "Parametrez la carte UCS dans le panneau Settings "
-            "puis cliquez sur **Generer la carte UCS**."
-        )
+def _display_polar():
+    res = st.session_state.get("res_unbalance")
+    if res is None:
+        st.info("Calculez d'abord la reponse au balourd.")
         return
+
+    probe_nodes = st.session_state.get("m4_probe_nodes", [1])
+    probe_dirs  = st.session_state.get("m4_probe_dirs",  [0])
+    colors      = ["#1F5C8B", "#C55A11", "#22863A", "#7B1FA2"]
 
     fig = go.Figure()
-    colors = ["#1F5C8B","#C55A11","#22863A","#7B1FA2","#C00000","#00796B"]
 
-    if isinstance(ucs, dict) and ucs.get("manual"):
-        k_vals     = ucs["stiffness"]
-        fn_mat     = ucs["fn_rpm"]
-        n_modes    = fn_mat.shape[1]
-        bear_label = ucs.get("bear_label", "Paliers selectionnes")
-        original   = ucs.get("original", [])
-        selected   = ucs.get("selected", list(range(len(original))))
-
-        # Bandeau informatif sur les paliers fixes
-        fixed_bears = [
-            (i, original[i])
-            for i in range(len(original))
-            if i not in selected
-        ]
-        if fixed_bears:
-            fix_txt = " | ".join(
-                "P{} noeud {} → Kxx={:.2e} N/m".format(i, b["n"], b["kxx"])
-                for i, b in fixed_bears
-            )
-            st.info("Paliers **fixes** (raideur constante) : {}".format(fix_txt))
-
-        for i in range(n_modes):
-            fig.add_trace(go.Scatter(
-                x=k_vals, y=fn_mat[:, i],
-                name="Mode {}".format(i + 1),
-                line=dict(color=colors[i % len(colors)], width=2),
-                hovertemplate=(
-                    "K = %{{x:.2e}} N/m<br>"
-                    "Vc = %{{y:.0f}} RPM<extra>Mode {}</extra>".format(i + 1)
-                )
-            ))
-
-        title_ucs = "UCS Map — Palier(s) varie(s) : {}".format(bear_label)
-
-    else:
-        # Objet natif ROSS
+    for idx, (pn, pd) in enumerate(zip(probe_nodes, probe_dirs)):
         try:
-            st.plotly_chart(ucs.plot(), use_container_width=True,
-                            key="m3_ucs_native")
-            return
+            freqs, amps, phases = _extract_response(res, pn, pd)
         except Exception:
-            st.warning("Affichage natif UCS non disponible.")
-            return
+            continue
 
-        title_ucs = "Undamped Critical Speed Map"
-
-    # Ligne de vitesse operationnelle
-    op_rpm = float(st.session_state.get("m3_op_rpm", 3000.0))
-    fig.add_hline(
-        y=op_rpm, line_dash="dash", line_color="#E53935",
-        annotation_text=" Nop = {:.0f} RPM".format(op_rpm),
-        annotation_font=dict(color="#E53935")
-    )
-    fig.add_hrect(
-        y0=op_rpm * 0.85, y1=op_rpm * 1.15,
-        fillcolor="#E53935", opacity=0.07,
-        line_width=0
-    )
-
-    fig.update_layout(
-        height       = 460,
-        xaxis_title  = "Raideur des paliers K (N/m)",
-        yaxis_title  = "Vitesse critique (RPM)",
-        title        = title_ucs,
-        xaxis_type   = "log",
-        plot_bgcolor = "white",
-        xaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
-        yaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
-        legend       = dict(
-            orientation="h", yanchor="bottom",
-            y=1.02, xanchor="right", x=1
-        ),
-    )
-
-    st.plotly_chart(fig, use_container_width=True, key="m3_ucs_fig")
-    st.caption(
-        "La carte UCS permet de choisir la raideur des paliers pour "
-        "que les vitesses critiques soient hors de la plage operationnelle."
-    )
-
-
-# =============================================================================
-# AFFICHAGE STABILITÉ
-# =============================================================================
-def _display_stability():
-    camp = st.session_state.get("res_campbell")
-
-    if camp is None:
-        st.info("Calculez d'abord le Campbell.")
-        return
-
-    log_dec = getattr(camp, "log_dec", None)
-    if log_dec is None:
-        st.warning("Log Decrement non disponible dans cette version de ROSS.")
-        return
-
-    vmax = float(st.session_state.get("m3_camp_vmax", 10000))
-    npts = int(st.session_state.get("m3_camp_npts",  60))
-
-    if hasattr(camp, "speed_range") and camp.speed_range is not None:
-        speed_rad = np.array(camp.speed_range)
-    else:
-        speed_rad = np.linspace(0, vmax * np.pi / 30, npts)
-
-    speed_rpm = speed_rad * 30 / np.pi
-    whirl     = getattr(camp, "whirl", None)
-
-    fig    = go.Figure()
-    colors = [
-        "#1F5C8B","#C55A11","#22863A","#7B1FA2","#C00000","#00796B",
-        "#E64A19","#0288D1","#00897B","#6A1B9A"
-    ]
-
-    n_modes = log_dec.shape[1]
-    for i in range(min(10, n_modes)):
-        if whirl is not None:
-            mid   = len(speed_rpm) // 2
-            w_val = str(whirl[mid, i]).lower()
-            prec  = "FW" if "forward" in w_val else "BW"
-        else:
-            if hasattr(camp, "wd") and camp.wd is not None:
-                slope = camp.wd[-1, i] - camp.wd[0, i]
-            else:
-                slope = 1
-            prec = "FW" if slope > 0 else "BW"
+        x_re  = amps * np.cos(phases) * 1e6
+        y_im  = amps * np.sin(phases) * 1e6
+        color = colors[idx % len(colors)]
+        label = "Sonde {} — N{} {}".format(
+            idx + 1, pn, "X" if pd == 0 else "Y")
 
         fig.add_trace(go.Scatter(
-            x=speed_rpm,
-            y=log_dec[:, i],
-            name="Mode {} ({})".format(i + 1, prec),
-            line=dict(color=colors[i % len(colors)], width=2),
+            x=x_re, y=y_im,
+            mode="lines+markers",
+            marker=dict(
+                size=4,
+                color=freqs,
+                colorscale="Viridis",
+                colorbar=dict(title="Hz") if idx == 0 else None,
+                showscale=(idx == 0)
+            ),
+            line=dict(color=color, width=1.5),
+            name=label,
             hovertemplate=(
-                "Mode {}<br>N = %{{x:.0f}} RPM"
-                "<br>delta = %{{y:.4f}}<extra></extra>".format(i + 1)
+                "Re = %{x:.3f} µm<br>Im = %{y:.3f} µm"
+                "<extra>" + label + "</extra>"
             )
         ))
 
-    fig.add_hline(
-        y=0, line_dash="dash", line_color="#E53935", line_width=2,
-        annotation_text=" Seuil instabilite (delta = 0)",
-        annotation_font=dict(color="#E53935")
-    )
-    fig.add_hline(
-        y=0.1, line_dash="dot", line_color="#FB8C00", line_width=1.5,
-        annotation_text=" Seuil API 684 (delta = 0.1)",
-        annotation_font=dict(color="#FB8C00")
-    )
-
-    op_rpm = float(st.session_state.get("m3_op_rpm", 3000.0))
-    fig.add_vrect(
-        x0=op_rpm * 0.85, x1=op_rpm * 1.15,
-        fillcolor="#E53935", opacity=0.06, line_width=0
-    )
+        idx_res = int(np.argmax(amps))
+        fig.add_trace(go.Scatter(
+            x=[x_re[idx_res]], y=[y_im[idx_res]],
+            mode="markers+text",
+            marker=dict(size=14, color="#C00000", symbol="star"),
+            text=["{:.0f} Hz".format(freqs[idx_res])],
+            textposition="top center",
+            name="Resonance {}".format(idx + 1),
+            showlegend=True
+        ))
 
     fig.update_layout(
-        height       = 460,
-        xaxis_title  = "Vitesse de rotation (RPM)",
-        yaxis_title  = "Log Decrement (delta)",
-        title        = "Carte de stabilite — Log Dec vs Vitesse",
-        legend       = dict(
-            orientation="h", yanchor="bottom",
-            y=1.02, xanchor="right", x=1
-        ),
-        plot_bgcolor = "white",
-        xaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
-        yaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
+        height=500,
+        title="Diagramme Polaire de Bode",
+        xaxis_title="Re (µm)",
+        yaxis_title="Im (µm)",
+        yaxis_scaleanchor="x",
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=True),
+        yaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=True),
     )
 
-    st.plotly_chart(fig, use_container_width=True, key="m3_stab_fig")
+    st.plotly_chart(fig, use_container_width=True, key="m4_polar_fig")
+    st.caption(
+        "Le diagramme polaire montre la trajectoire complexe de la reponse. "
+        "Les cercles correspondent aux resonances (pics d amplitude)."
+    )
 
 
 # =============================================================================
-# AFFICHAGE API 684
+# AFFICHAGE CAMPBELL + BALOURD SUPERPOSE
 # =============================================================================
-def _display_api():
-    df_api     = st.session_state.get("df_api")
-    api_params = st.session_state.get("api_params")
+def _display_campbell_unbalance():
+    res   = st.session_state.get("res_unbalance")
+    camp  = st.session_state.get("res_campbell")
+    rotor = st.session_state.get("rotor")
 
-    if df_api is None:
-        st.info(
-            "Calculez le Campbell puis lancez la "
-            "**verification API 684** depuis le panneau Settings."
+    if res is None:
+        st.info("Calculez d'abord la reponse au balourd.")
+        return
+
+    probe_nodes = st.session_state.get("m4_probe_nodes", [1])
+    probe_dirs  = st.session_state.get("m4_probe_dirs",  [0])
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    if camp is not None:
+        if hasattr(camp, 'speed_range') and camp.speed_range is not None:
+            spd_rad = np.array(camp.speed_range)
+        else:
+            vmax    = float(st.session_state.get("m3_camp_vmax", 10000))
+            npts    = int(st.session_state.get("m3_camp_npts",   60))
+            spd_rad = np.linspace(0, vmax * np.pi / 30, npts)
+
+        spd_rpm = spd_rad * 30 / np.pi
+
+        if hasattr(camp, 'wd') and camp.wd is not None:
+            fn_mat = camp.wd / (2 * np.pi)
+        elif hasattr(camp, 'wn') and camp.wn is not None:
+            fn_mat = camp.wn / (2 * np.pi)
+        else:
+            fn_mat = None
+
+        if fn_mat is not None:
+            colors_m = ["#B0C4DE", "#87CEEB", "#90EE90", "#DDA0DD"]
+            for i in range(min(4, fn_mat.shape[1])):
+                fig.add_trace(go.Scatter(
+                    x=spd_rpm, y=fn_mat[:, i],
+                    name="Mode {}".format(i + 1),
+                    line=dict(
+                        color=colors_m[i % len(colors_m)],
+                        dash="dot", width=1.5
+                    ),
+                    opacity=0.7
+                ), secondary_y=False)
+
+        fig.add_trace(go.Scatter(
+            x=spd_rpm, y=spd_rpm / 60,
+            name="1X",
+            line=dict(color="#E53935", dash="dash", width=1),
+            opacity=0.6
+        ), secondary_y=False)
+
+    colors_b = ["#FF6B00", "#C55A11", "#22863A", "#7B1FA2"]
+    for idx, (pn, pd) in enumerate(zip(probe_nodes, probe_dirs)):
+        try:
+            freqs, amps, _ = _extract_response(res, pn, pd)
+        except Exception:
+            continue
+
+        label = "Sonde {} N{} {}".format(
+            idx + 1, pn, "X" if pd == 0 else "Y")
+
+        fig.add_trace(go.Scatter(
+            x=freqs * 60,
+            y=amps * 1e6,
+            name=label,
+            line=dict(
+                color=colors_b[idx % len(colors_b)],
+                width=3
+            ),
+            fill="tozeroy",
+            fillcolor="rgba(255,107,0,0.07)"
+        ), secondary_y=True)
+
+    fig.update_yaxes(
+        title_text="Frequence modale (Hz)",
+        secondary_y=False,
+        showgrid=True, gridcolor="#F0F4FF"
+    )
+    fig.update_yaxes(
+        title_text="Amplitude balourd (µm)",
+        secondary_y=True,
+        showgrid=False
+    )
+    fig.update_xaxes(
+        title_text="Vitesse (RPM)",
+        showgrid=True, gridcolor="#F0F4FF"
+    )
+    fig.update_layout(
+        height=480,
+        title="Campbell + Reponse au balourd superposes",
+        plot_bgcolor="white",
+        legend=dict(
+            orientation="h", yanchor="bottom",
+            y=1.02, xanchor="right", x=1
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True, key="m4_camp_unb_fig")
+    st.caption(
+        "Les pics de la courbe orange coincident avec les "
+        "vitesses critiques (intersections 1X)."
+    )
+
+
+# =============================================================================
+# AFFICHAGE ORBITES
+# =============================================================================
+def _display_orbits():
+    res   = st.session_state.get("res_unbalance")
+    if res is None:
+        st.info("Calculez d'abord la reponse au balourd.")
+        return
+
+    probe_nodes = st.session_state.get("m4_probe_nodes", [1])
+    probe_dirs  = st.session_state.get("m4_probe_dirs",  [0])
+
+    try:
+        for method in ["plot_orbit", "plot_orbits"]:
+            if hasattr(res, method):
+                fig = getattr(res, method)()
+                st.plotly_chart(fig, use_container_width=True,
+                                key="m4_orbit_native")
+                return
+    except Exception:
+        pass
+
+    st.caption("Construction des orbites depuis les donnees de reponse.")
+    n_orbits = min(len(probe_nodes), 4)
+    cols = st.columns(min(n_orbits, 2))
+
+    for idx in range(n_orbits):
+        pn = probe_nodes[idx]
+
+        try:
+            freqs, amps_x, phases_x = _extract_response(res, pn, 0)
+            freqs, amps_y, phases_y = _extract_response(res, pn, 1)
+        except Exception as e:
+            st.warning("Orbite noeud {} : {}".format(pn, e))
+            continue
+
+        idx_res = int(np.argmax(amps_x))
+        f_res   = freqs[idx_res]
+        ax      = float(amps_x[idx_res]) * 1e6
+        ay      = float(amps_y[idx_res]) * 1e6
+        phx     = float(phases_x[idx_res])
+        phy     = float(phases_y[idx_res])
+
+        theta   = np.linspace(0, 2 * np.pi, 200)
+        x_orb   = ax * np.cos(theta + phx)
+        y_orb   = ay * np.cos(theta + phy)
+
+        fig_orb = go.Figure()
+        fig_orb.add_trace(go.Scatter(
+            x=x_orb, y=y_orb,
+            mode="lines",
+            line=dict(color="#1F5C8B", width=2),
+            name="Orbite N{}".format(pn)
+        ))
+        fig_orb.add_trace(go.Scatter(
+            x=[0], y=[0],
+            mode="markers",
+            marker=dict(size=6, color="#C00000", symbol="x"),
+            name="Centre"
+        ))
+        fig_orb.update_layout(
+            height=320,
+            title="Orbite Noeud {} @ {:.1f} Hz".format(pn, f_res),
+            xaxis_title="X (µm)",
+            yaxis_title="Y (µm)",
+            yaxis_scaleanchor="x",
+            plot_bgcolor="white",
+            xaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=True),
+            yaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=True),
+        )
+
+        with cols[idx % len(cols)]:
+            st.plotly_chart(fig_orb, use_container_width=True,
+                            key="m4_orbit_{}".format(idx))
+
+    st.caption(
+        "Les orbites sont tracees a la frequence de resonance. "
+        "Une orbite circulaire = amortissement isotrope. "
+        "Une orbite elliptique = anisotropie des paliers."
+    )
+
+
+# =============================================================================
+# AFFICHAGE H(jω) BODE
+# =============================================================================
+def _display_freq_response_bode():
+    if st.session_state.get("m4_freq_error"):
+        st.error("Erreur : {}".format(st.session_state["m4_freq_error"]))
+
+    fr    = st.session_state.get("res_freq")
+    modal = st.session_state.get("res_modal")
+
+    if fr is None:
+        st.info("Configurez et calculez H(jw) dans le panneau Settings.")
+        return
+
+    inp_n = int(st.session_state.get("m4_inp", 0))
+    out_n = int(st.session_state.get("m4_out", 8))
+    fmax  = float(st.session_state.get("m4_fmax_h", 2000))
+
+    H_raw = None
+    for attr in ("freq_resp", "response", "H"):
+        if hasattr(fr, attr) and getattr(fr, attr) is not None:
+            H_raw = np.array(getattr(fr, attr))
+            break
+
+    if H_raw is None:
+        st.warning("Structure FreqResponse non reconnue — attributs disponibles : {}".format(
+            [a for a in dir(fr) if not a.startswith("_")]))
+        return
+
+    if H_raw.ndim == 3:
+        ndof_rows, ndof_cols, n_freqs = H_raw.shape
+        safe_out = min(out_n, ndof_rows - 1)
+        safe_inp = min(inp_n, ndof_cols - 1)
+        H = H_raw[safe_out, safe_inp, :]
+    elif H_raw.ndim == 2:
+        safe_out = min(out_n, H_raw.shape[0] - 1)
+        H = H_raw[safe_out, :]
+    else:
+        H = H_raw.flatten()
+
+    freqs_hz = st.session_state.get("m4_freq_hz_range")
+
+    if freqs_hz is None or len(freqs_hz) != len(H):
+        freqs_hz = None
+        for attr in ("frequency", "frequency_range", "speed_range"):
+            if hasattr(fr, attr) and getattr(fr, attr) is not None:
+                arr = np.array(getattr(fr, attr)).flatten()
+                if len(arr) == len(H):
+                    if "speed" in attr or arr[-1] > fmax * 10:
+                        arr = arr / (2 * np.pi)
+                    freqs_hz = arr
+                    break
+
+    if freqs_hz is None or len(freqs_hz) != len(H):
+        freqs_hz = np.linspace(0, fmax, len(H))
+
+    mag_db = 20 * np.log10(np.abs(H) + 1e-30)
+    phase  = np.degrees(np.unwrap(np.angle(H)))
+
+    dof_labels = ["x", "y", "θx", "θy"]
+    inp_node = inp_n // 4
+    inp_dof  = dof_labels[inp_n % 4]
+    out_node = out_n // 4
+    out_dof  = dof_labels[out_n % 4]
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        subplot_titles=["Magnitude (dB)", "Phase (°)"],
+        vertical_spacing=0.10
+    )
+
+    trace_label = "inp: nœud {} | dof: {}<br>out: nœud {} | dof: {}".format(
+        inp_node, inp_dof, out_node, out_dof)
+
+    fig.add_trace(go.Scatter(
+        x=freqs_hz, y=mag_db,
+        line=dict(color="#1F5C8B", width=2),
+        name=trace_label,
+        hovertemplate="f = %{x:.1f} Hz<br>|H| = %{y:.1f} dB<extra></extra>"
+    ), row=1, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=freqs_hz, y=phase,
+        line=dict(color="#C55A11", width=1.8),
+        name="Phase",
+        showlegend=False,
+        hovertemplate="f = %{x:.1f} Hz<br>φ = %{y:.1f}°<extra></extra>"
+    ), row=2, col=1)
+
+    if modal is not None and hasattr(modal, 'wn'):
+        for i, wn in enumerate(modal.wn[:8]):
+            fn = float(np.real(wn)) / (2 * np.pi)
+            if np.isfinite(fn) and 0 < fn <= fmax:
+                for row in [1, 2]:
+                    fig.add_vline(
+                        x=fn,
+                        line_dash="dot",
+                        line_color="#22863A",
+                        line_width=1,
+                        opacity=0.55,
+                        annotation_text="M{}".format(i + 1) if row == 1 else "",
+                        annotation_font=dict(color="#22863A", size=9),
+                        row=row, col=1
+                    )
+
+    fig.update_xaxes(
+        title_text="Fréquence (Hz)", row=2, col=1,
+        showgrid=True, gridcolor="#F0F4FF",
+        range=[0, fmax]
+    )
+    fig.update_yaxes(
+        title_text="dB", row=1, col=1,
+        showgrid=True, gridcolor="#F0F4FF"
+    )
+    fig.update_yaxes(
+        title_text="°", row=2, col=1,
+        showgrid=True, gridcolor="#F0F4FF"
+    )
+    fig.update_layout(
+        height=520,
+        title="H(jω) — nœud {} ({}) → nœud {} ({})  |  0 – {} Hz".format(
+            inp_node, inp_dof, out_node, out_dof, int(fmax)),
+        plot_bgcolor="white",
+        showlegend=True,
+        legend=dict(
+            orientation="h", yanchor="bottom",
+            y=1.02, xanchor="right", x=1,
+            font=dict(size=10)
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True, key="m4_hjw_manual")
+
+    df_h = pd.DataFrame({
+        "Fréquence (Hz)": freqs_hz,
+        "Magnitude (dB)": mag_db,
+        "Phase (°)":      phase,
+    })
+    st.download_button(
+        "Export CSV H(jw)",
+        data=df_h.to_csv(index=False).encode(),
+        file_name="freq_response_{}_{}.csv".format(inp_node, out_node),
+        mime="text/csv",
+        key="m4_hjw_csv"
+    )
+
+
+# =============================================================================
+# AFFICHAGE NYQUIST
+# =============================================================================
+def _display_nyquist():
+    fr = st.session_state.get("res_freq")
+
+    if fr is None:
+        st.info("Calculez d'abord H(jw) dans le panneau Settings.")
+        return
+
+    inp_n = int(st.session_state.get("m4_inp", 0))
+    out_n = int(st.session_state.get("m4_out", 8))
+    fmax  = float(st.session_state.get("m4_fmax_h", 2000))
+
+    H_raw = None
+    for attr in ("freq_resp", "response", "H"):
+        if hasattr(fr, attr):
+            val = getattr(fr, attr)
+            if val is not None:
+                candidate = np.array(val)
+                if candidate.size > 0:
+                    H_raw = candidate
+                    break
+
+    if H_raw is None:
+        st.warning(
+            "Données H(jω) non disponibles. "
+            "Attributs trouvés : {}".format(
+                [a for a in dir(fr) if not a.startswith("_")])
         )
         return
 
-    if df_api.empty:
-        st.success(
-            "Aucune vitesse critique trouvee dans la plage analysee — "
-            "pas d'intersection 1X."
-        )
+    if H_raw.ndim == 3:
+        ndof_rows, ndof_cols, _ = H_raw.shape
+        safe_out = min(out_n, ndof_rows - 1)
+        safe_inp = min(inp_n, ndof_cols - 1)
+        H = H_raw[safe_out, safe_inp, :]
+    elif H_raw.ndim == 2:
+        safe_out = min(out_n, H_raw.shape[0] - 1)
+        H = H_raw[safe_out, :]
+    else:
+        H = H_raw.flatten()
+
+    freqs_hz = st.session_state.get("m4_freq_hz_range")
+
+    if freqs_hz is None or len(freqs_hz) != len(H):
+        freqs_hz = None
+        for attr in ("frequency", "frequency_range", "speed_range"):
+            if hasattr(fr, attr) and getattr(fr, attr) is not None:
+                arr = np.array(getattr(fr, attr)).flatten()
+                if len(arr) == len(H):
+                    if "speed" in attr or (arr[-1] > fmax * 10):
+                        arr = arr / (2 * np.pi)
+                    freqs_hz = arr
+                    break
+        if freqs_hz is None or len(freqs_hz) != len(H):
+            freqs_hz = np.linspace(0, fmax, len(H))
+
+    dof_labels = ["x", "y", "θx", "θy"]
+    inp_node = inp_n // 4
+    inp_dof  = dof_labels[inp_n % 4]
+    out_node = out_n // 4
+    out_dof  = dof_labels[out_n % 4]
+
+    H_max = np.max(np.abs(H))
+    if H_max < 1e-30:
+        st.warning("H(jω) est numériquement nulle — vérifiez les DDL sélectionnés.")
         return
 
-    if api_params:
-        op_rpm = api_params["op_rpm"]
-        zl     = api_params["zl"]
-        zh     = api_params["zh"]
-        score  = api_params["score"]
+    H_norm    = H / H_max
+    scale_str = "{:.2e} m/N".format(H_max)
 
-        c1, c2, c3 = st.columns(3)
-        c1.markdown("""
-        <div class="rl-metric-card">
-          <div class="rl-metric-label">Vitesse operationnelle</div>
-          <div class="rl-metric-value">{:.0f}</div>
-          <div class="rl-metric-unit">RPM</div>
-        </div>""".format(op_rpm), unsafe_allow_html=True)
-        c2.markdown("""
-        <div class="rl-metric-card">
-          <div class="rl-metric-label">Zone interdite</div>
-          <div class="rl-metric-value" style="font-size:0.95em;">
-            {:.0f} – {:.0f}
-          </div>
-          <div class="rl-metric-unit">RPM</div>
-        </div>""".format(zl, zh), unsafe_allow_html=True)
+    fig = go.Figure()
 
-        color_score = "#22863A" if score >= 100 \
-                      else "#C55A11" if score >= 67 \
-                      else "#C00000"
-        c3.markdown("""
-        <div class="rl-metric-card">
-          <div class="rl-metric-label">Score API 684</div>
-          <div class="rl-metric-value" style="color:{};">{:.0f}%</div>
-        </div>""".format(color_score, score), unsafe_allow_html=True)
+    fig.add_trace(go.Scatter(
+        x=H_norm.real,
+        y=H_norm.imag,
+        mode="lines",
+        line=dict(color="#1F5C8B", width=2),
+        name="H(jω)",
+        hovertemplate="Re = %{x:.4f}<br>Im = %{y:.4f}<extra></extra>",
+    ))
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    n_pts = len(H_norm)
+    step  = max(1, n_pts // 200)
+    fig.add_trace(go.Scatter(
+        x=H_norm.real[::step],
+        y=H_norm.imag[::step],
+        mode="markers",
+        marker=dict(
+            size=3,
+            color=freqs_hz[::step],
+            colorscale="Viridis",
+            colorbar=dict(title="Hz", len=0.6, thickness=12, x=1.02),
+            showscale=True,
+        ),
+        name="fréquence",
+        hovertemplate="f = %{marker.color:.1f} Hz<br>Re = %{x:.4f}<br>Im = %{y:.4f}<extra></extra>",
+        showlegend=False,
+    ))
 
-    st.markdown("**Resultats detailles :**")
-    st.dataframe(df_api, use_container_width=True, hide_index=True)
+    fig.add_trace(go.Scatter(
+        x=[H_norm.real[0]], y=[H_norm.imag[0]],
+        mode="markers+text",
+        marker=dict(size=12, color="#22863A", symbol="circle"),
+        text=["  f=0 Hz"],
+        textposition="top right",
+        textfont=dict(size=10),
+        name="Début",
+    ))
 
-    n_nc = (df_api["Conforme API"] == "NON").sum() \
-           if "Conforme API" in df_api.columns else 0
+    fig.add_trace(go.Scatter(
+        x=[H_norm.real[-1]], y=[H_norm.imag[-1]],
+        mode="markers+text",
+        marker=dict(size=10, color="#C00000", symbol="square"),
+        text=["  f={:.0f} Hz".format(freqs_hz[-1])],
+        textposition="top right",
+        textfont=dict(size=10),
+        name="Fin",
+    ))
 
-    if n_nc == 0:
+    fig.add_trace(go.Scatter(
+        x=[-1], y=[0],
+        mode="markers",
+        marker=dict(size=14, color="#C00000", symbol="x"),
+        name="Point critique (−1, 0)",
+    ))
+
+    fig.add_hline(y=0, line_color="lightgray", line_width=1)
+    fig.add_vline(x=0, line_color="lightgray", line_width=1)
+
+    fig.update_layout(
+        height=520,
+        title=(
+            "Diagramme de Nyquist — nœud {} ({}) → nœud {} ({}) | "
+            "amplitude de référence : {}".format(
+                inp_node, inp_dof, out_node, out_dof, scale_str)
+        ),
+        xaxis_title="Re[H(jω)]  (normalisé)",
+        yaxis_title="Im[H(jω)]  (normalisé)",
+        yaxis_scaleanchor="x",
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=False),
+        legend=dict(orientation="v", x=1.10, y=1, font=dict(size=10)),
+    )
+
+    st.plotly_chart(fig, use_container_width=True, key="m4_nyq_fig")
+
+    re_vals = H_norm.real
+    im_vals = H_norm.imag
+    crosses_critical = np.any(re_vals < -1.0)
+
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("|H|_max", scale_str)
+    col2.metric("Re(H) min normalisé", "{:.4f}".format(float(np.min(re_vals))))
+    col3.metric("Re(H) max normalisé", "{:.4f}".format(float(np.max(re_vals))))
+
+    if crosses_critical:
         st.markdown("""
-        <div class="rl-card-ok">
-          <strong>Rotor conforme a la norme API 684.</strong><br>
-          Toutes les vitesses critiques respectent la marge de +/-15 %
-          et le Log Decrement est suffisant.
+        <div class="rl-card-danger">
+          <strong>⚠️ Le tracé passe à gauche du point critique (−1, 0).</strong><br>
+          Cela peut indiquer un risque d'instabilité en boucle fermée.
         </div>""", unsafe_allow_html=True)
     else:
         st.markdown("""
-        <div class="rl-card-danger">
-          <strong>{} vitesse(s) critique(s) non conforme(s).</strong><br>
-          Augmentez la raideur ou l'amortissement des paliers,
-          ou modifiez la geometrie de l'arbre.
-        </div>""".format(n_nc), unsafe_allow_html=True)
+        <div class="rl-card-ok">
+          <strong>✅ Le tracé n'encercle pas le point critique (−1, 0).</strong><br>
+          Le système est stable en boucle fermée (critère de Nyquist simplifié).
+        </div>""", unsafe_allow_html=True)
 
-    st.download_button(
-        label    = "Exporter rapport API 684 (HTML)",
-        data     = _generate_api_html(df_api, api_params).encode(),
-        file_name= "rapport_api684.html",
-        mime     = "text/html",
-        key      = "m3_api_export"
+    st.caption(
+        "📌 Valeur normalisée par |H|_max = {} pour la lisibilité.".format(scale_str)
     )
 
 
 # =============================================================================
-# EXPORT HTML API 684
+# TABLEAU ISO 1940
 # =============================================================================
-def _generate_api_html(df_api, api_params):
-    rows = ""
-    for _, r in df_api.iterrows():
-        color = "#E8F5E9" if r.get("Conforme API") == "OUI" else "#FFEBEE"
-        rows += "<tr style='background:{};'>".format(color)
-        for v in r:
-            rows += "<td>{}</td>".format(v)
-        rows += "</tr>"
+def _display_iso1940(rotor):
+    st.markdown("### Verification ISO 1940 — Qualite d'equilibrage")
 
-    params_html = ""
-    if api_params:
-        params_html = """
-        <p><b>Vitesse operationnelle :</b> {:.0f} RPM</p>
-        <p><b>Zone interdite :</b> {:.0f} – {:.0f} RPM</p>
-        <p><b>Score de conformite :</b> {:.0f}%</p>
-        """.format(
-            api_params["op_rpm"],
-            api_params["zl"], api_params["zh"],
-            api_params["score"]
-        )
+    op_rpm = float(st.session_state.get("m4_op_iso",
+                   st.session_state.get("m3_op_rpm", 3000.0)))
+    omega  = op_rpm * np.pi / 30
+    m_rot  = rotor.m
 
-    return """<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<title>Rapport API 684 — RotorLab Suite 2.0</title>
-<style>
-  body {{ font-family:Arial,sans-serif; max-width:960px; margin:40px auto; }}
-  h1   {{ color:#1F5C8B; border-bottom:3px solid #1F5C8B; padding-bottom:8px; }}
-  h2   {{ color:#C55A11; }}
-  table {{ width:100%; border-collapse:collapse; margin:12px 0; }}
-  th  {{ background:#1F5C8B; color:#fff; padding:8px; text-align:center; }}
-  td  {{ padding:6px 10px; border:1px solid #ddd; text-align:center; }}
-  .footer {{ color:#999; font-size:.85em; margin-top:40px; }}
-</style></head><body>
-<h1>Rapport de conformite API 684</h1>
-<h2>Parametres</h2>
-{params}
-<h2>Resultats</h2>
-<table>
-  <tr>{headers}</tr>
-  {rows}
-</table>
-<div class="footer">RotorLab Suite 2.0 — Pr. Najeh Ben Guedria — ISTLS</div>
-</body></html>""".format(
-        params  = params_html,
-        headers = "".join(
-            "<th>{}</th>".format(c) for c in df_api.columns),
-        rows    = rows
+    grades = [0.4, 1.0, 2.5, 6.3, 16.0, 40.0]
+    apps   = [
+        "Gyroscopes, turbines ultra-precision",
+        "Turbines a gaz, turbines vapeur (production)",
+        "Turbines vapeur, compresseurs, turbosoufflantes",
+        "Machines-outils, ventilateurs industriels",
+        "Vilebrequins, transmissions",
+        "Machines agricoles, equipements generaux"
+    ]
+
+    rows = []
+    for g, app in zip(grades, apps):
+        uper  = (m_rot * g) / (1000.0 * omega)
+        e_per = uper / m_rot * 1e6
+        rows.append({
+            "Grade":              "G{:.1f}".format(g),
+            "Application":        app,
+            "Uper (kg.m)":        "{:.6f}".format(uper),
+            "Excentricite (µm)":  "{:.2f}".format(e_per),
+        })
+
+    df_iso = pd.DataFrame(rows)
+    st.dataframe(df_iso, use_container_width=True, hide_index=True)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=["G{:.1f}".format(g) for g in grades],
+        y=[(m_rot * g) / (1000.0 * omega) * 1e6 for g in grades],
+        marker_color=["#22863A" if g == 2.5 else "#1F5C8B" for g in grades],
+        name="Uper (g.mm)",
+        hovertemplate="Grade %{x}<br>Uper = %{y:.4f} g.mm<extra></extra>"
+    ))
+    fig.update_layout(
+        height=340,
+        title="Balourd tolere Uper vs Grade ISO 1940 "
+              "(Nop = {:.0f} RPM, m = {:.2f} kg)".format(op_rpm, m_rot),
+        xaxis_title="Grade ISO 1940",
+        yaxis_title="Uper (g.mm)",
+        plot_bgcolor="white",
+        yaxis=dict(showgrid=True, gridcolor="#F0F4FF"),
+    )
+    st.plotly_chart(fig, use_container_width=True, key="m4_iso_fig")
+
+    unb_mags = st.session_state.get("m4_unb_mags", [0.001])
+    if unb_mags:
+        u_applied = float(unb_mags[0])
+        u_g25     = (m_rot * 2.5) / (1000.0 * omega)
+        ratio     = u_applied / u_g25 if u_g25 > 0 else 0
+
+        if ratio <= 1.0:
+            st.markdown("""
+            <div class="rl-card-ok">
+              <strong>Balourd applique conforme G2.5</strong><br>
+              Uper applique = {:.6f} kg.m | Uper tolere G2.5 = {:.6f} kg.m<br>
+              Ratio = {:.2f} (doit etre <= 1.0)
+            </div>""".format(u_applied, u_g25, ratio),
+                unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="rl-card-danger">
+              <strong>Balourd applique depasse le grade G2.5</strong><br>
+              Uper applique = {:.6f} kg.m | Uper tolere G2.5 = {:.6f} kg.m<br>
+              Ratio = {:.2f} (doit etre <= 1.0)
+            </div>""".format(u_applied, u_g25, ratio),
+                unsafe_allow_html=True)
+
+    st.download_button(
+        "Export tableau ISO 1940 (CSV)",
+        data=df_iso.to_csv(index=False).encode(),
+        file_name="iso1940_verification.csv",
+        mime="text/csv",
+        key="m4_iso_csv"
     )
 
 
