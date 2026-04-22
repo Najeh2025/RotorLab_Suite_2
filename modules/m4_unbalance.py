@@ -31,26 +31,44 @@ def render_m4(col_settings, col_graphics):
 # PANNEAU SETTINGS
 # =============================================================================
 def _render_settings(rotor):
-    # ── Pb3-fix : ciblage des stHorizontalBlock INTÉRIEURS uniquement ─────
-    # Le sélecteur précédent était trop large et capturait aussi le bloc
-    # principal de 5 colonnes. On descend d'un niveau pour n'affecter que
-    # les colonnes imbriquées à l'intérieur du panneau settings.
+    # ── CORRECTION DÉFINITIVE : Nettoyage des cadres imbriqués ─────────────
     st.markdown("""
     <style>
-    /* Pb3-fix — Supprime les cadres des colonnes imbriquées dans M4
-       (ciblage des stHorizontalBlock INTÉRIEURS uniquement)           */
-    div[data-testid="stVerticalBlock"]
-        div[data-testid="stHorizontalBlock"]
-        > div[data-testid="column"]
-        > div[data-testid="stVerticalBlock"] {
-        background  : transparent !important;
-        border      : none        !important;
-        box-shadow  : none        !important;
-        padding     : 0 2px       !important;
-        min-height  : unset       !important;
+    /* 1. Enlève la bordure globale sur les rangées (st.columns) à l'intérieur du panneau principal */
+    [data-testid="column"] [data-testid="stHorizontalBlock"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-bottom: 0px !important;
+        overflow: visible !important;
+    }
+
+    /* 2. Enlève la bordure sur les colonnes individuelles internes et ajuste l'espacement */
+    [data-testid="column"] [data-testid="stHorizontalBlock"] > [data-testid="column"] > [data-testid="stVerticalBlock"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 8px !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* 3. Empêche les éléments interactifs (sliders, inputs) d'être rognés en bas */
+    [data-testid="stSliderTickBar"], 
+    [data-testid="stThumbValue"],
+    div[data-baseweb="slider"] {
+        overflow: visible !important;
+    }
+    
+    /* 4. Donne un peu d'air au texte d'aide (Caption) sous les selectbox */
+    [data-testid="stCaptionContainer"] {
+        margin-top: -10px;
+        margin-bottom: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
+
     st.markdown(
         '<div class="rl-settings-title">Unbalance Response & H(jw)</div>',
         unsafe_allow_html=True
@@ -81,8 +99,6 @@ def _render_settings(rotor):
         )
 
         if bal_mode == "Automatique ISO 1940":
-            # Pb1-fix : dictionnaire défini AVANT les colonnes pour être
-            # disponible dès le rendu du selectbox.
             _grade_help = {
                 "G0.4": "Gyroscopes, turbines ultra-précision",
                 "G1.0": "Turbines à gaz / vapeur (production)",
@@ -101,15 +117,10 @@ def _render_settings(rotor):
                           if _grade_current in ["G0.4","G1.0","G2.5","G6.3","G16","G40"]
                           else 2,
                     key="m4_grade",
-                    # Pb1-fix : help= figé sur la valeur initiale → supprimé.
-                    # st.caption ci-dessous est réévalué à chaque sélection.
                 )
-                st.caption(_grade_help.get(grade, ""))   # ← réactif au choix courant
+                st.caption(f"💡 {_grade_help.get(grade, '')}")   # ← Texte d'aide propre
                 grade_val = float(grade[1:])
             with c2:
-                # Pb2-fix : correctement indenté sous "with c2:" + format="%.0f"
-                # L'absence d'indentation précédente plaçait le widget hors
-                # du contexte colonne, causant step=0.01 par défaut Streamlit.
                 op_rpm_iso = st.number_input(
                     "Vitesse opérationnelle (RPM)",
                     min_value=100.0, max_value=50000.0,
@@ -293,7 +304,6 @@ def _render_settings(rotor):
             use_container_width=True,
             on_click=_run_freq_response
         )
-
 
 # =============================================================================
 # PANNEAU GRAPHICS
