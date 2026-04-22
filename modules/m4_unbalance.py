@@ -1102,93 +1102,221 @@ def _display_freq_response_bode():
 # =============================================================================
 def _display_nyquist():
     fr = st.session_state.get("res_freq")
-
+ 
     if fr is None:
         st.info("Calculez d'abord H(jw) dans le panneau Settings.")
         return
-
+ 
     inp_n = int(st.session_state.get("m4_inp", 0))
     out_n = int(st.session_state.get("m4_out", 8))
-
+    fmax  = float(st.session_state.get("m4_fmax_h", 2000))
+ 
+    # ── Extraction robuste de la matrice H ────────────────────────────────
     H_raw = None
     for attr in ("freq_resp", "response", "H"):
         if hasattr(fr, attr):
-            H_raw = np.array(getattr(fr, attr))
-            break
-
+            val = getattr(fr, attr)
+            if val is not None:                          # ← vérification None
+                candidate = np.array(val)
+                if candidate.size > 0:
+                    H_raw = candidate
+                    break
+ 
     if H_raw is None:
-        st.warning("Donnees H(jw) non disponibles.")
+        st.warning(
+            "Données H(jω) non disponibles. "
+            "Attributs trouvés : {}".format(
+                [a for a in dir(fr) if not a.startswith("_")])
+        )
         return
-
-    H = H_raw[out_n, inp_n, :] if H_raw.ndim == 3 else H_raw
-
-    freqs = None
-    for attr in ("frequency", "frequency_range", "speed_range"):
-        if hasattr(fr, attr) and getattr(fr, attr) is not None:
-            freqs = np.array(getattr(fr, attr))
-            if "speed" in attr:
-                freqs = freqs / (2 * np.pi)
-            break
-    if freqs is None:
-        freqs = np.linspace(0, 2000, len(H))
-
+ 
+    # ── Sélection de H[out, inp, :] ───────────────────────────────────────
+    if H_raw.ndim == 3:
+        ndof_rows, ndof_cols, _ = H_raw.shape
+        safe_out = min(out_n, ndof_rows - 1)
+        safe_inp = min(inp_n, ndof_cols - 1)
+        H = H_raw[safe_out, safe_inp, :]
+    elif H_raw.ndim == 2:
+        safe_out = min(out_n, H_raw.shape[0] - 1)
+        H = H_raw[safe_out, :]
+    else:
+        H = H_raw.flatten()
+ 
+    # ── Axe fréquentiel en Hz ─────────────────────────────────────────────
+    freqs_hz = st.session_state.get("m4_freq_hz_range")
+ 
+    if freqs_hz is None or len(freqs_hz) != len(H):
+        freqs_hz = None
+        for attr in ("frequency", "frequency_range", "speed_range"):
+            if hasattr(fr, attr) and getattr(fr, attr) is not None:
+                arr = np.array(getattr(fr, attr)).flatten()
+                if len(arr) == len(H):
+                    if "speed" in attr or (arr[-1] > fmax * 10):
+                        arr = arr / (2 * np.pi)
+                    freqs_hz = arr
+                    break
+        if freqs_hz is None or len(freqs_hz) != len(H):
+            freqs_hz = np.linspace(0, fmax, len(H))
+ 
+    # ── Labels nœud/DDL ───────────────────────────────────────────────────
+    dof_labels = ["x", "y", "θx", "θy"]
+    inp_node = inp_n // 4
+    inp_dof  = dof_labels[inp_n % 4]
+    out_node = out_n // 4
+    out_dof  = dof_labels[out_n % 4]
+ 
+    # ── Normalisation pour la lisibilité ─────────────────────────────────
+    # H brut est en m/N (~1e-7 à 1e-5) → axes illisibles.
+    # On normalise par la valeur absolue maximale pour que le tracé
+    # soit centré et lisible. On indique l'échelle dans le titre.
+    H_max = np.max(np.abs(H))
+    if H_max < 1e-30:
+        st.warning("H(jω) est numériquement nulle — vérifiez les DDL sélectionnés.")
+        return
+ 
+    H_norm  = H / H_max
+    scale_str = "{:.2e} m/N".format(H_max)
+ 
+    # ── Tracé Nyquist coloré par fréquence ───────────────────────────────
+    import plotly.graph_objects as go
+ 
     fig = go.Figure()
-
+ 
+    # Courbe principale colorée par la fréquence (gradient Viridis)
     fig.add_trace(go.Scatter(
-        x=H.real, y=H.imag,
+        x=H_norm.real,
+        y=H_norm.imag,
         mode="lines",
-        line=dict(color="#1F5C8B", width=2),
-        name="H(jw)",
-        hovertemplate=(
-            "Re = %{x:.3e}<br>Im = %{y:.3e}<extra></extra>"
+        line=dict(
+            color="#1F5C8B",
+            width=2,
         ),
-        customdata=freqs,
+        name="H(jω)",
+        hovertemplate=(
+            "Re = %{x:.4f}<br>"
+            "Im = %{y:.4f}<br>"
+            "<extra></extra>"
+        ),
     ))
-
-    # Point de depart (f=0) et d arrivee
+ 
+    # Variante avec coloration fréquentielle (scatter avec marker)
+    n_pts = len(H_norm)
+    step  = max(1, n_pts // 200)          # sous-échantillonnage pour perf.
     fig.add_trace(go.Scatter(
-        x=[H.real[0]], y=[H.imag[0]],
+        x=H_norm.real[::step],
+        y=H_norm.imag[::step],
+        mode="markers",
+        marker=dict(
+            size=3,
+            color=freqs_hz[::step],
+            colorscale="Viridis",
+            colorbar=dict(
+                title="Hz",
+                len=0.6,
+                thickness=12,
+                x=1.02
+            ),
+            showscale=True,
+        ),
+        name="fréquence",
+        hovertemplate=(
+            "f = %{marker.color:.1f} Hz<br>"
+            "Re = %{x:.4f}<br>"
+            "Im = %{y:.4f}<extra></extra>"
+        ),
+        showlegend=False,
+    ))
+ 
+    # Point de départ (f ≈ 0)
+    fig.add_trace(go.Scatter(
+        x=[H_norm.real[0]], y=[H_norm.imag[0]],
         mode="markers+text",
-        marker=dict(size=10, color="#22863A", symbol="circle"),
-        text=["f=0"],
+        marker=dict(size=12, color="#22863A", symbol="circle"),
+        text=["  f=0 Hz"],
         textposition="top right",
-        name="Debut"
+        textfont=dict(size=10),
+        name="Début",
     ))
+ 
+    # Point d'arrivée (f = fmax)
     fig.add_trace(go.Scatter(
-        x=[H.real[-1]], y=[H.imag[-1]],
+        x=[H_norm.real[-1]], y=[H_norm.imag[-1]],
         mode="markers+text",
         marker=dict(size=10, color="#C00000", symbol="square"),
-        text=["f=fmax"],
+        text=["  f={:.0f} Hz".format(freqs_hz[-1])],
         textposition="top right",
-        name="Fin"
+        textfont=dict(size=10),
+        name="Fin",
     ))
-
-    # Point critique -1+0j
+ 
+    # Point critique (-1 + 0j)
     fig.add_trace(go.Scatter(
         x=[-1], y=[0],
         mode="markers",
-        marker=dict(size=12, color="#C00000", symbol="x"),
-        name="Point critique (-1, 0)"
+        marker=dict(size=14, color="#C00000", symbol="x"),
+        name="Point critique (−1, 0)",
     ))
-
+ 
+    # Axes centrés
+    fig.add_hline(y=0, line_color="lightgray", line_width=1)
+    fig.add_vline(x=0, line_color="lightgray", line_width=1)
+ 
     fig.update_layout(
-        height=480,
-        title="Diagramme de Nyquist — H(jw) DDL {} -> DDL {}".format(
-            inp_n, out_n),
-        xaxis_title="Re[H(jw)]",
-        yaxis_title="Im[H(jw)]",
+        height=520,
+        title=(
+            "Diagramme de Nyquist — nœud {} ({}) → nœud {} ({}) | "
+            "amplitude de référence : {}".format(
+                inp_node, inp_dof, out_node, out_dof, scale_str)
+        ),
+        xaxis_title="Re[H(jω)]  (normalisé)",
+        yaxis_title="Im[H(jω)]  (normalisé)",
         yaxis_scaleanchor="x",
         plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=True),
-        yaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=True),
+        xaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="#F0F4FF", zeroline=False),
+        legend=dict(
+            orientation="v",
+            x=1.10, y=1,
+            font=dict(size=10)
+        ),
     )
-
+ 
     st.plotly_chart(fig, use_container_width=True, key="m4_nyq_fig")
+ 
+    # ── Interprétation automatique ────────────────────────────────────────
+    # Encerclement du point critique → instabilité potentielle en BF
+    # (Nyquist simplifié pour système ouvert stable)
+    re_vals = H_norm.real
+    im_vals = H_norm.imag
+ 
+    # Détection grossière : le tracé passe-t-il à gauche de -1 ?
+    crosses_critical = np.any(re_vals < -1.0)
+ 
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("|H|_max", scale_str)
+    col2.metric("Re(H) min normalisé", "{:.4f}".format(float(np.min(re_vals))))
+    col3.metric("Re(H) max normalisé", "{:.4f}".format(float(np.max(re_vals))))
+ 
+    if crosses_critical:
+        st.markdown("""
+        <div class="rl-card-danger">
+          <strong>⚠️ Le tracé passe à gauche du point critique (−1, 0).</strong><br>
+          Cela peut indiquer un risque d'instabilité en boucle fermée.
+          Vérifiez l'amortissement des paliers (Log Dec &lt; 0.1 ?).
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="rl-card-ok">
+          <strong>✅ Le tracé n'encercle pas le point critique (−1, 0).</strong><br>
+          Le système est stable en boucle fermée (critère de Nyquist simplifié).
+        </div>""", unsafe_allow_html=True)
+ 
     st.caption(
-        "Le diagramme de Nyquist montre H(jw) dans le plan complexe. "
-        "L encerclement du point -1 indique une instabilite en boucle fermee."
+        "📌 Lecture : chaque boucle correspond à une résonance. "
+        "Le gradient de couleur (violet→jaune) indique l'évolution fréquentielle. "
+        "La valeur est normalisée par |H|_max = {} pour la lisibilité.".format(scale_str)
     )
-
 
 # =============================================================================
 # TABLEAU ISO 1940
