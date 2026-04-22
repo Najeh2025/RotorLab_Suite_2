@@ -933,136 +933,169 @@ def _display_orbits():
 # =============================================================================
 # AFFICHAGE H(jw) BODE
 # =============================================================================
+# =============================================================================
+# AFFICHAGE H(jω) BODE — version corrigée
+# =============================================================================
 def _display_freq_response_bode():
     if st.session_state.get("m4_freq_error"):
         st.error("Erreur : {}".format(st.session_state["m4_freq_error"]))
-
+ 
     fr    = st.session_state.get("res_freq")
     modal = st.session_state.get("res_modal")
-
+ 
     if fr is None:
         st.info("Configurez et calculez H(jw) dans le panneau Settings.")
         return
-
+ 
     inp_n = int(st.session_state.get("m4_inp", 0))
     out_n = int(st.session_state.get("m4_out", 8))
     fmax  = float(st.session_state.get("m4_fmax_h", 2000))
-
-    # Tentative methode native
-    for method in ["plot_bode", "plot_magnitude"]:
-        if hasattr(fr, method):
-            try:
-                fig = getattr(fr, method)(inp=inp_n, out=out_n)
-                fig.update_layout(height=480)
-                st.plotly_chart(fig, use_container_width=True,
-                                key="m4_hjw_native")
-                return
-            except TypeError:
-                try:
-                    fig = getattr(fr, method)()
-                    fig.update_layout(height=480)
-                    st.plotly_chart(fig, use_container_width=True,
-                                    key="m4_hjw_native2")
-                    return
-                except Exception:
-                    pass
-
-    # Construction manuelle
+ 
+    # ── Extraction de la matrice H ────────────────────────────────────────
+    # On cherche la matrice de réponse fréquentielle (ndof × ndof × nfreqs)
     H_raw = None
     for attr in ("freq_resp", "response", "H"):
-        if hasattr(fr, attr):
+        if hasattr(fr, attr) and getattr(fr, attr) is not None:
             H_raw = np.array(getattr(fr, attr))
             break
-
+ 
     if H_raw is None:
-        st.warning("Structure FreqResponse non reconnue.")
+        st.warning("Structure FreqResponse non reconnue — attributs disponibles : {}".format(
+            [a for a in dir(fr) if not a.startswith("_")]))
         return
-
-    H = H_raw[out_n, inp_n, :] if H_raw.ndim == 3 else H_raw
-
-    freqs = None
-    for attr in ("frequency", "frequency_range", "speed_range"):
-        if hasattr(fr, attr) and getattr(fr, attr) is not None:
-            freqs = np.array(getattr(fr, attr))
-            if "speed" in attr:
-                freqs = freqs / (2 * np.pi)
-            break
-    if freqs is None:
-        freqs = np.linspace(0, fmax, len(H))
-
+ 
+    # ── Sélection de la colonne H[out, inp, :] ────────────────────────────
+    if H_raw.ndim == 3:
+        ndof_rows, ndof_cols, n_freqs = H_raw.shape
+        safe_out = min(out_n, ndof_rows - 1)
+        safe_inp = min(inp_n, ndof_cols - 1)
+        H = H_raw[safe_out, safe_inp, :]
+    elif H_raw.ndim == 2:
+        # Certaines versions : (ndof, nfreqs)
+        safe_out = min(out_n, H_raw.shape[0] - 1)
+        H = H_raw[safe_out, :]
+    else:
+        H = H_raw.flatten()
+ 
+    # ── Reconstruction de l'axe fréquentiel en Hz ────────────────────────
+    # Priorité : plage sauvegardée lors du calcul (garantit la cohérence)
+    freqs_hz = st.session_state.get("m4_freq_hz_range")
+ 
+    if freqs_hz is None or len(freqs_hz) != len(H):
+        # Fallback : extraire depuis l'objet ROSS
+        freqs_hz = None
+        for attr in ("frequency", "frequency_range", "speed_range"):
+            if hasattr(fr, attr) and getattr(fr, attr) is not None:
+                arr = np.array(getattr(fr, attr)).flatten()
+                if len(arr) == len(H):
+                    # Convertir en Hz si l'attribut est en rad/s
+                    if "speed" in attr or arr[-1] > fmax * 10:
+                        arr = arr / (2 * np.pi)
+                    freqs_hz = arr
+                    break
+ 
+    if freqs_hz is None or len(freqs_hz) != len(H):
+        freqs_hz = np.linspace(0, fmax, len(H))
+ 
+    # ── Calcul magnitude (dB) et phase ───────────────────────────────────
     mag_db = 20 * np.log10(np.abs(H) + 1e-30)
     phase  = np.degrees(np.unwrap(np.angle(H)))
-
+ 
+    # Labels nœud/DDL
+    dof_labels = ["x", "y", "θx", "θy"]
+    inp_node = inp_n // 4
+    inp_dof  = dof_labels[inp_n % 4]
+    out_node = out_n // 4
+    out_dof  = dof_labels[out_n % 4]
+ 
+    # ── Tracé Bode (toujours manuel → axe X en Hz garanti) ───────────────
+    from plotly.subplots import make_subplots
+    import plotly.graph_objects as go
+ 
     fig = make_subplots(
         rows=2, cols=1,
         shared_xaxes=True,
-        subplot_titles=["Magnitude (dB)", "Phase (deg)"],
+        subplot_titles=["Magnitude (dB)", "Phase (°)"],
         vertical_spacing=0.10
     )
-
+ 
+    trace_label = "inp: nœud {} | dof: {}<br>out: nœud {} | dof: {}".format(
+        inp_node, inp_dof, out_node, out_dof)
+ 
     fig.add_trace(go.Scatter(
-        x=freqs, y=mag_db,
+        x=freqs_hz, y=mag_db,
         line=dict(color="#1F5C8B", width=2),
-        name="Magnitude",
-        hovertemplate="f=%{x:.1f} Hz<br>|H|=%{y:.1f} dB<extra></extra>"
+        name=trace_label,
+        hovertemplate="f = %{x:.1f} Hz<br>|H| = %{y:.1f} dB<extra></extra>"
     ), row=1, col=1)
-
+ 
     fig.add_trace(go.Scatter(
-        x=freqs, y=phase,
-        line=dict(color="#C55A11", width=2),
-        name="Phase"
+        x=freqs_hz, y=phase,
+        line=dict(color="#C55A11", width=1.8),
+        name="Phase",
+        showlegend=False,
+        hovertemplate="f = %{x:.1f} Hz<br>φ = %{y:.1f}°<extra></extra>"
     ), row=2, col=1)
-
-    # Modes propres
-    if modal is not None:
-        for i, wn in enumerate(modal.wn[:6]):
-            fn = wn / (2 * np.pi)
-            for row in [1, 2]:
-                fig.add_vline(
-                    x=fn, line_dash="dot",
-                    line_color="#22863A",
-                    line_width=1,
-                    opacity=0.5,
-                    annotation_text="M{}".format(i + 1) if row == 1 else "",
-                    annotation_font=dict(color="#22863A", size=10),
-                    row=row, col=1
-                )
-
+ 
+    # ── Marqueurs des modes propres ───────────────────────────────────────
+    if modal is not None and hasattr(modal, 'wn'):
+        for i, wn in enumerate(modal.wn[:8]):
+            fn = float(np.real(wn)) / (2 * np.pi)
+            if np.isfinite(fn) and 0 < fn <= fmax:
+                for row in [1, 2]:
+                    fig.add_vline(
+                        x=fn,
+                        line_dash="dot",
+                        line_color="#22863A",
+                        line_width=1,
+                        opacity=0.55,
+                        annotation_text="M{}".format(i + 1) if row == 1 else "",
+                        annotation_font=dict(color="#22863A", size=9),
+                        row=row, col=1
+                    )
+ 
     fig.update_xaxes(
-        title_text="Frequence (Hz)", row=2, col=1,
-        showgrid=True, gridcolor="#F0F4FF"
+        title_text="Fréquence (Hz)", row=2, col=1,
+        showgrid=True, gridcolor="#F0F4FF",
+        range=[0, fmax]
     )
     fig.update_yaxes(
         title_text="dB", row=1, col=1,
         showgrid=True, gridcolor="#F0F4FF"
     )
     fig.update_yaxes(
-        title_text="deg", row=2, col=1,
+        title_text="°", row=2, col=1,
         showgrid=True, gridcolor="#F0F4FF"
     )
     fig.update_layout(
-        height=500,
-        title="H(jw) — DDL {} -> DDL {}".format(inp_n, out_n),
+        height=520,
+        title="H(jω) — nœud {} ({}) → nœud {} ({})  |  0 – {} Hz".format(
+            inp_node, inp_dof, out_node, out_dof, int(fmax)),
         plot_bgcolor="white",
-        showlegend=False
+        showlegend=True,
+        legend=dict(
+            orientation="h", yanchor="bottom",
+            y=1.02, xanchor="right", x=1,
+            font=dict(size=10)
+        )
     )
-
+ 
     st.plotly_chart(fig, use_container_width=True, key="m4_hjw_manual")
-
-    # Export
+ 
+    # ── Export CSV ────────────────────────────────────────────────────────
+    import pandas as pd
     df_h = pd.DataFrame({
-        "Frequence (Hz)": freqs,
+        "Fréquence (Hz)": freqs_hz,
         "Magnitude (dB)": mag_db,
-        "Phase (deg)":    phase,
+        "Phase (°)":      phase,
     })
     st.download_button(
         "Export CSV H(jw)",
         data=df_h.to_csv(index=False).encode(),
-        file_name="freq_response.csv",
+        file_name="freq_response_{}_{}.csv".format(inp_node, out_node),
         mime="text/csv",
         key="m4_hjw_csv"
     )
-
 
 # =============================================================================
 # AFFICHAGE NYQUIST
