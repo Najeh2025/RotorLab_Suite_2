@@ -357,50 +357,69 @@ def _run_unbalance():
 # =============================================================================
 # CALCUL H(jw)
 # =============================================================================
+# =============================================================================
+# CALCUL H(jω) — version corrigée
+# =============================================================================
 def _run_freq_response():
     rotor = st.session_state.get("rotor")
     if rotor is None:
         return
-
-    fmax  = float(st.session_state.get("m4_fmax_h",  2000))
+ 
+    fmax  = float(st.session_state.get("m4_fmax_h",  2000))   # Hz
     n_pts = int(st.session_state.get("m4_npts_h",    500))
-    freqs = np.linspace(0, fmax, n_pts)
-
+    # Tableau de fréquences en Hz
+    freqs_hz  = np.linspace(0, fmax, n_pts)
+    # Tableau en rad/s pour les APIs ROSS qui l'exigent
+    freqs_rad = freqs_hz * 2 * np.pi
+ 
     last_err = ""
-
-    # Tentative 1 : sans argument
+ 
+    # Tentative 1 : argument 'frequency' en Hz
     try:
-        fr = rotor.run_freq_response()
-        st.session_state["res_freq"]      = fr
-        st.session_state["m4_freq_error"] = None
-        _log("H(jw) calculee", "ok")
+        fr = rotor.run_freq_response(frequency=freqs_hz)
+        st.session_state["res_freq"]        = fr
+        st.session_state["m4_freq_hz_range"] = freqs_hz
+        st.session_state["m4_freq_error"]   = None
+        _log("H(jw) calculée (frequency=, Hz)", "ok")
         return
     except Exception as e:
         last_err = str(e)
-
-    # Tentative 2 : argument 'frequency'
+ 
+    # Tentative 2 : argument 'speed_range' en rad/s
     try:
-        fr = rotor.run_freq_response(frequency=freqs)
-        st.session_state["res_freq"]      = fr
-        st.session_state["m4_freq_error"] = None
-        _log("H(jw) calculee (frequency=)", "ok")
+        fr = rotor.run_freq_response(speed_range=freqs_rad)
+        st.session_state["res_freq"]        = fr
+        st.session_state["m4_freq_hz_range"] = freqs_hz
+        st.session_state["m4_freq_error"]   = None
+        _log("H(jw) calculée (speed_range=, rad/s)", "ok")
         return
     except Exception as e:
         last_err = str(e)
-
-    # Tentative 3 : argument 'speed_range' en rad/s
+ 
+    # Tentative 3 : argument 'frequency_range' en Hz
     try:
-        fr = rotor.run_freq_response(speed_range=freqs * 2 * np.pi)
-        st.session_state["res_freq"]      = fr
-        st.session_state["m4_freq_error"] = None
-        _log("H(jw) calculee (speed_range=)", "ok")
+        fr = rotor.run_freq_response(frequency_range=freqs_hz)
+        st.session_state["res_freq"]        = fr
+        st.session_state["m4_freq_hz_range"] = freqs_hz
+        st.session_state["m4_freq_error"]   = None
+        _log("H(jw) calculée (frequency_range=, Hz)", "ok")
         return
     except Exception as e:
         last_err = str(e)
-
+ 
+    # Tentative 4 : argument 'frequency_range' en rad/s
+    try:
+        fr = rotor.run_freq_response(frequency_range=freqs_rad)
+        st.session_state["res_freq"]        = fr
+        st.session_state["m4_freq_hz_range"] = freqs_hz
+        st.session_state["m4_freq_error"]   = None
+        _log("H(jw) calculée (frequency_range=, rad/s)", "ok")
+        return
+    except Exception as e:
+        last_err = str(e)
+ 
     _log("Erreur H(jw) : {}".format(last_err), "err")
     st.session_state["m4_freq_error"] = last_err
-
 
 # =============================================================================
 # EXTRACTION ROBUSTE DES DONNEES DE REPONSE
