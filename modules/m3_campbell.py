@@ -33,69 +33,66 @@ def render_m3(col_settings, col_graphics):
 # =============================================================================
 def _render_settings(rotor):
     st.markdown(
-        '<div class="rl-settings-title">📈 Campbell + UCS Map + API 684</div>',
+        '<div class="rl-settings-title">Campbell + UCS Map + API 684</div>',
         unsafe_allow_html=True
     )
 
     if rotor is None:
-        st.warning("Aucun rotor — construisez d'abord un modèle dans M1.")
+        st.warning("Aucun rotor — construisez d'abord un modele dans M1.")
         return
 
-    # ── Onglets de paramétrage ────────────────────────────────────────────
     tab_camp, tab_ucs, tab_api = st.tabs(
-        ["📈 Campbell", "🗺️ UCS Map", "📜 API 684"]
+        ["Campbell", "UCS Map", "API 684"]
     )
 
+    # ── Onglet Campbell ───────────────────────────────────────────────────
     with tab_camp:
         st.markdown(
-            '<div class="rl-section-header">▼ Paramètres Campbell</div>',
+            '<div class="rl-section-header">Parametres Campbell</div>',
             unsafe_allow_html=True
         )
         st.number_input(
-            "Vitesse opérationnelle (RPM)",
+            "Vitesse operationnelle (RPM)",
             min_value=100.0, max_value=50000.0,
             value=3000.0, step=100.0,
             key="m3_op_rpm"
         )
-        vmax_analyse = st.number_input(
-        "Vitesse maximale d'analyse (RPM)",
-        min_value=2000,
-        max_value=30000,
-        value=10000,
-        step=500,
-        key="m3_vmax"
+        st.number_input(
+            "Vitesse maximale d'analyse (RPM)",
+            min_value=2000, max_value=30000,
+            value=10000, step=500,
+            key="m3_vmax"
         )
-        resolution_npts = st.number_input(
-        "Résolution (points de calcul)",
-        min_value=20,
-        max_value=150,
-        value=60,
-        step=10,
-        key="m3_npts"
+        st.number_input(
+            "Resolution (points de calcul)",
+            min_value=20, max_value=150,
+            value=60, step=10,
+            key="m3_npts"
         )
         st.radio(
-            "Harmoniques à tracer",
+            "Harmoniques a tracer",
             ["1X seulement", "1X + 2X", "1X + 2X + 3X"],
             index=1, horizontal=True,
             key="m3_harmonics"
         )
         st.button(
-            "📈 Calculer le Campbell",
+            "Calculer le Campbell",
             type="primary",
             key="m3_run_camp",
             use_container_width=True,
             on_click=_run_campbell
         )
-    #
+
+    # ── Onglet UCS Map ────────────────────────────────────────────────────
     with tab_ucs:
         st.markdown(
-            '<div class="rl-section-header">▼ Undamped Critical Speed Map</div>',
+            '<div class="rl-section-header">Undamped Critical Speed Map</div>',
             unsafe_allow_html=True
         )
         st.markdown("""
         <div class="rl-card-info">
           <small>La carte UCS montre les vitesses critiques non amorties
-          en fonction de la raideur des paliers — outil clé pour le
+          en fonction de la raideur des paliers — outil cle pour le
           dimensionnement des paliers.</small>
         </div>
         """, unsafe_allow_html=True)
@@ -104,39 +101,39 @@ def _render_settings(rotor):
         rotor_ucs = st.session_state.get("rotor")
         if rotor_ucs is not None and hasattr(rotor_ucs, "bearing_elements"):
             bear_labels = [
-                "Palier {} (nœud {})".format(i, b.n)
+                "Palier {} (noeud {})".format(i, b.n)
                 for i, b in enumerate(rotor_ucs.bearing_elements)
             ]
             st.markdown(
-                '<div class="rl-section-header">▼ Palier(s) à faire varier</div>',
+                '<div class="rl-section-header">Palier(s) a faire varier</div>',
                 unsafe_allow_html=True
             )
             st.caption(
-                "Les paliers non sélectionnés conservent leur raideur d'origine."
+                "Les paliers non selectionnes conservent leur raideur d'origine."
             )
-            selected_bears = st.multiselect(
-                "Sélectionnez les paliers :",
+            st.multiselect(
+                "Selectionnez les paliers :",
                 options=list(range(len(bear_labels))),
-                default=list(range(len(bear_labels))),   # tous par défaut
+                default=list(range(len(bear_labels))),
                 format_func=lambda i: bear_labels[i],
                 key="m3_ucs_bear_sel"
             )
-            if not selected_bears:
-                st.warning("Sélectionnez au moins un palier.")
+            selected_ucs = st.session_state.get("m3_ucs_bear_sel", [])
+            if not selected_ucs:
+                st.warning("Selectionnez au moins un palier.")
 
-            # Tableau de référence des raideurs actuelles
             with st.expander("Raideurs actuelles des paliers", expanded=False):
                 rows = []
                 for i, b in enumerate(rotor_ucs.bearing_elements):
-                    def _get(attr, b=b):
+                    def _get_k(attr, b=b):
                         v = getattr(b, attr, 0)
                         return float(v[0]) if hasattr(v, "__iter__") else float(v)
                     rows.append({
                         "Index":     i,
-                        "Nœud":      b.n,
-                        "Kxx (N/m)": "{:.2e}".format(_get("kxx")),
-                        "Kyy (N/m)": "{:.2e}".format(_get("kyy")),
-                        "Fixé ?":    "Non" if i in (selected_bears or []) else "✔ Oui",
+                        "Noeud":     b.n,
+                        "Kxx (N/m)": "{:.2e}".format(_get_k("kxx")),
+                        "Kyy (N/m)": "{:.2e}".format(_get_k("kyy")),
+                        "Varie ?":   "Oui" if i in selected_ucs else "Non (fixe)",
                     })
                 st.dataframe(pd.DataFrame(rows), use_container_width=True,
                              hide_index=True)
@@ -144,36 +141,42 @@ def _render_settings(rotor):
             st.info("Assemblez d'abord un rotor dans M1.")
 
         st.markdown(
-            '<div class="rl-section-header">▼ Plage de raideur</div>',
+            '<div class="rl-section-header">Plage de raideur</div>',
             unsafe_allow_html=True
         )
         st.number_input(
-            "Log10(K_min) [N/m]", min_value=3, max_value=8, value=5, step=1,
+            "Log10(K_min) [N/m]",
+            min_value=3, max_value=8, value=5, step=1,
             key="m3_kmin_log"
         )
         st.number_input(
-            "Log10(K_max) [N/m]", min_value=6, max_value=12, value=9, step=1,
+            "Log10(K_max) [N/m]",
+            min_value=6, max_value=12, value=9, step=1,
             key="m3_kmax_log"
         )
         st.number_input(
-            "Nombre de points K", min_value=10, max_value=60, value=20, step=1,
+            "Nombre de points K",
+            min_value=10, max_value=60, value=20, step=1,
             key="m3_k_npts"
         )
         st.button(
-            "🗺️ Générer la carte UCS",
-            type="primary", key="m3_run_ucs",
-            use_container_width=True, on_click=_run_ucs
+            "Generer la carte UCS",
+            type="primary",
+            key="m3_run_ucs",
+            use_container_width=True,
+            on_click=_run_ucs
         )
 
+    # ── Onglet API 684 ────────────────────────────────────────────────────
     with tab_api:
         st.markdown(
-            '<div class="rl-section-header">▼ Vérification API 684</div>',
+            '<div class="rl-section-header">Verification API 684</div>',
             unsafe_allow_html=True
         )
         st.markdown("""
         <div class="rl-card-info">
-          <small>La vérification est automatique après le calcul Campbell.
-          Modifiez la vitesse opérationnelle dans l'onglet Campbell,
+          <small>La verification est automatique apres le calcul Campbell.
+          Modifiez la vitesse operationnelle dans l'onglet Campbell,
           puis relancez le calcul.</small>
         </div>
         """, unsafe_allow_html=True)
@@ -182,13 +185,13 @@ def _render_settings(rotor):
         if camp is not None:
             op_rpm = st.session_state.get("m3_op_rpm", 3000.0)
             st.info(
-                "Vitesse opérationnelle : **{:.0f} RPM**\n\n"
+                "Vitesse operationnelle : **{:.0f} RPM**\n\n"
                 "Zone interdite : **{:.0f} – {:.0f} RPM**".format(
                     op_rpm, op_rpm * 0.85, op_rpm * 1.15
                 )
             )
             st.button(
-                "📜 Lancer la vérification API 684",
+                "Lancer la verification API 684",
                 type="primary",
                 key="m3_run_api",
                 use_container_width=True,
@@ -203,19 +206,19 @@ def _render_settings(rotor):
 # =============================================================================
 def _render_graphics(rotor):
     st.markdown(
-        '<div class="rl-graphics-title">📈 Campbell Diagram — Results</div>',
+        '<div class="rl-graphics-title">Campbell Diagram — Results</div>',
         unsafe_allow_html=True
     )
 
     if rotor is None:
-        st.info("Construisez un rotor dans M1 pour accéder aux analyses.")
+        st.info("Construisez un rotor dans M1 pour acceder aux analyses.")
         return
 
     tab_camp, tab_ucs, tab_stab, tab_api = st.tabs([
-        "📈 Campbell",
-        "🗺️ UCS Map",
-        "📉 Stabilité",
-        "📜 API 684"
+        "Campbell",
+        "UCS Map",
+        "Stabilite",
+        "API 684"
     ])
 
     with tab_camp:
@@ -248,9 +251,8 @@ def _run_campbell():
         st.session_state["res_campbell"]  = camp
         st.session_state["m3_camp_vmax"]  = vmax
         st.session_state["m3_camp_npts"]  = npts
-        # Invalider l'API check précédent
         st.session_state["df_api"]        = None
-        _log("Campbell calculé sur 0–{:.0f} RPM ({} pts)".format(vmax, npts), "ok")
+        _log("Campbell calcule sur 0–{:.0f} RPM ({} pts)".format(vmax, npts), "ok")
     except Exception as e:
         st.session_state["m3_camp_error"] = str(e)
         _log("Erreur Campbell : {}".format(e), "err")
@@ -264,16 +266,16 @@ def _run_ucs():
     if rotor is None:
         return
 
-    kmin_log      = int(st.session_state.get("m3_kmin_log", 5))
-    kmax_log      = int(st.session_state.get("m3_kmax_log", 9))
-    k_npts        = int(st.session_state.get("m3_k_npts",  20))
+    kmin_log       = int(st.session_state.get("m3_kmin_log", 5))
+    kmax_log       = int(st.session_state.get("m3_kmax_log", 9))
+    k_npts         = int(st.session_state.get("m3_k_npts", 20))
     selected_bears = st.session_state.get("m3_ucs_bear_sel", None)
     stiffness_range = np.logspace(kmin_log, kmax_log, k_npts)
 
     try:
         ucs = rotor.run_ucs(stiffness_range=stiffness_range, num_modes=6)
         st.session_state["res_ucs"] = ucs
-        _log("UCS Map calculée ({} points K)".format(k_npts), "ok")
+        _log("UCS Map calculee ({} points K)".format(k_npts), "ok")
     except Exception:
         _run_ucs_manual(rotor, stiffness_range, selected_bears)
 
@@ -281,13 +283,13 @@ def _run_ucs():
 def _run_ucs_manual(rotor, stiffness_range, selected_bears=None):
     """
     Calcul manuel de la carte UCS.
-    selected_bears : liste d'indices des paliers à faire varier.
-                     None ou liste vide → tous les paliers varient.
-    Les paliers non sélectionnés conservent leur Kxx/Kyy d'origine.
-    L'amortissement est mis à 0 dans tous les cas (UCS = non amorti).
+    selected_bears : liste d'indices (dans rotor.bearing_elements) a faire
+                     varier. Les autres conservent leur raideur d'origine.
+                     None ou liste vide = tous les paliers varient.
+    L'amortissement est force a 0 (UCS = non amorti par definition).
     """
     try:
-        # Snapshot des raideurs originales
+        # Snapshot des proprietes originales de chaque palier
         original_bears = []
         for b in rotor.bearing_elements:
             def _get(attr, b=b):
@@ -295,41 +297,49 @@ def _run_ucs_manual(rotor, stiffness_range, selected_bears=None):
                 return float(v[0]) if hasattr(v, "__iter__") else float(v)
             original_bears.append({
                 "n":   b.n,
-                "kxx": _get("kxx"), "kyy": _get("kyy"),
-                "kxy": _get("kxy"), "kyx": _get("kyx"),
+                "kxx": _get("kxx"),
+                "kyy": _get("kyy"),
+                "kxy": _get("kxy"),
+                "kyx": _get("kyx"),
             })
 
-        vary_all = not selected_bears   # si liste vide ou None → tous varient
+        vary_all = not selected_bears  # si vide ou None → tous varient
 
         results = []
         for k in stiffness_range:
             new_bears = []
             for idx, orig in enumerate(original_bears):
                 if vary_all or idx in selected_bears:
-                    kxx_used, kyy_used = k, k       # palier varié
+                    # Palier varie : remplacer kxx et kyy par k
+                    kxx_used = k
+                    kyy_used = k
                 else:
-                    kxx_used = orig["kxx"]           # palier fixe
+                    # Palier fixe : conserver ses valeurs originales
+                    kxx_used = orig["kxx"]
                     kyy_used = orig["kyy"]
 
                 new_bears.append(rs.BearingElement(
                     n=orig["n"],
                     kxx=kxx_used, kyy=kyy_used,
                     kxy=orig["kxy"], kyx=orig["kyx"],
-                    cxx=0.0, cyy=0.0               # UCS = sans amortissement
+                    cxx=0.0, cyy=0.0  # UCS = sans amortissement
                 ))
 
-            r_tmp = rs.Rotor(rotor.shaft_elements,
-                             rotor.disk_elements, new_bears)
-            modal = r_tmp.run_modal(speed=0)
+            r_tmp = rs.Rotor(
+                rotor.shaft_elements,
+                rotor.disk_elements,
+                new_bears
+            )
+            modal  = r_tmp.run_modal(speed=0)
             fn_rpm = modal.wn / (2 * np.pi) * 60
             results.append(fn_rpm[:6].tolist())
 
-        # Libellé pour la légende du graphique
+        # Libelle pour la legende
         if vary_all:
             bear_label = "Tous les paliers"
         else:
             bear_label = ", ".join(
-                "P{} nœud {}".format(i, original_bears[i]["n"])
+                "P{} noeud {}".format(i, original_bears[i]["n"])
                 for i in selected_bears
             )
 
@@ -338,14 +348,16 @@ def _run_ucs_manual(rotor, stiffness_range, selected_bears=None):
             "stiffness" : stiffness_range,
             "fn_rpm"    : np.array(results),
             "bear_label": bear_label,
-            "selected"  : selected_bears if selected_bears else list(range(len(original_bears))),
+            "selected"  : selected_bears if selected_bears
+                          else list(range(len(original_bears))),
             "original"  : original_bears,
         }
-        _log("UCS Map calculée — palier(s) : {}".format(bear_label), "ok")
+        _log("UCS Map calculee — palier(s) : {}".format(bear_label), "ok")
 
     except Exception as e:
         _log("Erreur UCS : {}".format(e), "err")
         st.session_state["m3_ucs_error"] = str(e)
+
 
 # =============================================================================
 # VÉRIFICATION API 684
@@ -362,22 +374,21 @@ def _run_api_check():
     zl = op_rpm * 0.85
     zh = op_rpm * 1.15
 
-    # Récupération des données Campbell
     speed_rad = np.array(camp.speed_range) \
-        if hasattr(camp, 'speed_range') \
+        if hasattr(camp, "speed_range") \
         else np.linspace(0, vmax * np.pi / 30, npts)
 
-    if hasattr(camp, 'wd') and camp.wd is not None:
+    if hasattr(camp, "wd") and camp.wd is not None:
         freqs_mat = camp.wd
-    elif hasattr(camp, 'wn') and camp.wn is not None:
+    elif hasattr(camp, "wn") and camp.wn is not None:
         freqs_mat = camp.wn
     else:
         return
 
-    whirl    = getattr(camp, 'whirl', None)
-    log_dec  = getattr(camp, 'log_dec', None)
-    n_modes  = freqs_mat.shape[1]
-    results  = []
+    whirl   = getattr(camp, "whirl", None)
+    log_dec = getattr(camp, "log_dec", None)
+    n_modes = freqs_mat.shape[1]
+    results = []
 
     for mode in range(min(10, n_modes)):
         wn_mode = freqs_mat[:, mode]
@@ -388,22 +399,20 @@ def _run_api_check():
                 denom = diff[i + 1] - diff[i]
                 if abs(denom) < 1e-12:
                     continue
-                vc_rad   = speed_rad[i] - diff[i] * (
+                vc_rad = speed_rad[i] - diff[i] * (
                     speed_rad[i + 1] - speed_rad[i]) / denom
                 vc_rpm   = vc_rad * 30 / np.pi
                 fn_exact = vc_rad / (2 * np.pi)
 
-                # Log Dec interpolé
                 ld_exact = 0.0
                 if log_dec is not None:
                     ld_mode  = log_dec[:, mode]
                     ld_exact = float(np.interp(vc_rad, speed_rad, ld_mode))
 
-                # Direction de précession
                 if whirl is not None:
-                    mid = len(speed_rad) // 2
-                    w_v = str(whirl[mid, mode]).lower()
-                    prec = "FW" if "forward" in w_v else "BW"
+                    mid   = len(speed_rad) // 2
+                    w_v   = str(whirl[mid, mode]).lower()
+                    prec  = "FW" if "forward" in w_v else "BW"
                 else:
                     slope = wn_mode[i + 1] - wn_mode[i]
                     prec  = "FW" if slope > 0 else "BW"
@@ -413,11 +422,11 @@ def _run_api_check():
                 conform = (not in_zone) and ld_ok
 
                 results.append({
-                    "Mode":          mode + 1,
-                    "Précession":    prec,
-                    "fn (Hz)":       "{:.2f}".format(fn_exact),
-                    "Vc (RPM)":      "{:.0f}".format(vc_rpm),
-                    "Log Dec":       "{:.4f}".format(ld_exact),
+                    "Mode":           mode + 1,
+                    "Precession":     prec,
+                    "fn (Hz)":        "{:.2f}".format(fn_exact),
+                    "Vc (RPM)":       "{:.0f}".format(vc_rpm),
+                    "Log Dec":        "{:.4f}".format(ld_exact),
                     "Zone interdite": "OUI" if in_zone else "NON",
                     "Log Dec >= 0.1": "OUI" if ld_ok   else "NON",
                     "Conforme API":   "OUI" if conform  else "NON",
@@ -437,7 +446,7 @@ def _run_api_check():
             score, n_ok, len(results)), "ok")
     else:
         st.session_state["df_api"] = pd.DataFrame()
-        _log("API 684 : aucune vitesse critique trouvée dans la plage.", "warn")
+        _log("API 684 : aucune vitesse critique trouvee dans la plage.", "warn")
 
 
 # =============================================================================
@@ -451,7 +460,7 @@ def _display_campbell():
 
     if camp is None:
         st.info(
-            "Paramétrez le calcul dans le panneau Settings "
+            "Parametrez le calcul dans le panneau Settings "
             "puis cliquez sur **Calculer le Campbell**."
         )
         return
@@ -461,8 +470,7 @@ def _display_campbell():
     zl, zh   = op_rpm * 0.85, op_rpm * 1.15
     harmonic = st.session_state.get("m3_harmonics", "1X + 2X")
 
-    # Récupération des fréquences
-    if hasattr(camp, 'speed_range') and camp.speed_range is not None:
+    if hasattr(camp, "speed_range") and camp.speed_range is not None:
         speed_rad = np.array(camp.speed_range)
     else:
         npts      = int(st.session_state.get("m3_camp_npts", 60))
@@ -470,18 +478,17 @@ def _display_campbell():
 
     speed_rpm = speed_rad * 30 / np.pi
 
-    if hasattr(camp, 'wd') and camp.wd is not None:
+    if hasattr(camp, "wd") and camp.wd is not None:
         freqs_mat = camp.wd / (2 * np.pi)
-    elif hasattr(camp, 'wn') and camp.wn is not None:
+    elif hasattr(camp, "wn") and camp.wn is not None:
         freqs_mat = camp.wn / (2 * np.pi)
     else:
-        st.error("Données de fréquences introuvables.")
+        st.error("Donnees de frequences introuvables.")
         return
 
-    whirl   = getattr(camp, 'whirl', None)
+    whirl   = getattr(camp, "whirl", None)
     n_modes = freqs_mat.shape[1]
 
-    # ── Construction du graphique Plotly ──────────────────────────────────
     fig = go.Figure()
 
     colors_fw = ["#1F5C8B","#1565C0","#0288D1","#0097A7","#00796B","#388E3C"]
@@ -490,7 +497,6 @@ def _display_campbell():
     for i in range(min(8, n_modes)):
         fn_i = freqs_mat[:, i]
 
-        # Direction de précession
         if whirl is not None:
             mid   = len(speed_rpm) // 2
             w_val = str(whirl[mid, i]).lower()
@@ -508,15 +514,12 @@ def _display_campbell():
             name=label,
             line=dict(color=color, width=2, dash=dash_type),
             hovertemplate=(
-                "Mode {}<br>Ω = %{{x:.0f}} RPM"
+                "Mode {}<br>N = %{{x:.0f}} RPM"
                 "<br>fn = %{{y:.2f}} Hz<extra></extra>".format(i + 1)
             )
         ))
 
-    # Harmoniques
-    max_fn = freqs_mat.max()
     x_line = np.array([0, vmax])
-
     fig.add_trace(go.Scatter(
         x=x_line, y=x_line / 60,
         name="1X", mode="lines",
@@ -535,7 +538,6 @@ def _display_campbell():
             line=dict(color="#FDD835", width=1, dash="dot"),
         ))
 
-    # Zone interdite API 684
     fig.add_vrect(
         x0=zl, x1=zh,
         fillcolor="#E53935", opacity=0.08,
@@ -554,7 +556,7 @@ def _display_campbell():
     fig.update_layout(
         height       = 480,
         xaxis_title  = "Vitesse de rotation (RPM)",
-        yaxis_title  = "Fréquence (Hz)",
+        yaxis_title  = "Frequence (Hz)",
         title        = "Diagramme de Campbell",
         legend       = dict(
             orientation="h", yanchor="bottom",
@@ -568,7 +570,6 @@ def _display_campbell():
 
     st.plotly_chart(fig, use_container_width=True, key="m3_camp_fig")
 
-    # Capture pour le rapport PDF
     try:
         import kaleido  # noqa
         st.session_state["img_campbell"] = fig.to_image(
@@ -576,18 +577,16 @@ def _display_campbell():
     except ImportError:
         pass
 
-    # Tableau des vitesses critiques
     _display_critical_speeds(camp, speed_rad, speed_rpm, whirl, freqs_mat)
 
 
 def _display_critical_speeds(camp, speed_rad, speed_rpm, whirl, freqs_mat):
-    """Tableau des intersections 1X."""
-    n_modes   = freqs_mat.shape[1]
-    crits     = []
+    n_modes = freqs_mat.shape[1]
+    crits   = []
 
     for mode in range(min(10, n_modes)):
         fn_mode = freqs_mat[:, mode]
-        diff    = fn_mode - speed_rpm / 60  # fn en Hz, speed/60 aussi
+        diff    = fn_mode - speed_rpm / 60
 
         for i in range(len(diff) - 1):
             if diff[i] * diff[i + 1] <= 0:
@@ -606,10 +605,10 @@ def _display_critical_speeds(camp, speed_rad, speed_rpm, whirl, freqs_mat):
                     prec  = "FW" if fn_mode[-1] > fn_mode[0] else "BW"
 
                 crits.append({
-                    "Mode":     mode + 1,
-                    "Précession": prec,
-                    "fn (Hz)":  "{:.2f}".format(fn_vc),
-                    "Vc (RPM)": "{:.0f}".format(vc_rpm),
+                    "Mode":       mode + 1,
+                    "Precession": prec,
+                    "fn (Hz)":    "{:.2f}".format(fn_vc),
+                    "Vc (RPM)":   "{:.0f}".format(vc_rpm),
                 })
 
     if crits:
@@ -619,7 +618,7 @@ def _display_critical_speeds(camp, speed_rad, speed_rpm, whirl, freqs_mat):
         st.dataframe(df_vc, use_container_width=True, hide_index=True)
         st.session_state["df_campbell"] = df_vc
     else:
-        st.info("Aucune intersection 1X détectée dans cette plage.")
+        st.info("Aucune intersection 1X detectee dans cette plage.")
 
 
 # =============================================================================
@@ -633,33 +632,34 @@ def _display_ucs():
 
     if ucs is None:
         st.info(
-            "Paramétrez la carte UCS dans le panneau Settings "
-            "puis cliquez sur **Générer la carte UCS**."
+            "Parametrez la carte UCS dans le panneau Settings "
+            "puis cliquez sur **Generer la carte UCS**."
         )
         return
 
     fig = go.Figure()
     colors = ["#1F5C8B","#C55A11","#22863A","#7B1FA2","#C00000","#00796B"]
 
-    # Objet natif ROSS ou calcul manuel
     if isinstance(ucs, dict) and ucs.get("manual"):
         k_vals     = ucs["stiffness"]
         fn_mat     = ucs["fn_rpm"]
         n_modes    = fn_mat.shape[1]
-        bear_label = ucs.get("bear_label", "Paliers sélectionnés")
+        bear_label = ucs.get("bear_label", "Paliers selectionnes")
         original   = ucs.get("original", [])
         selected   = ucs.get("selected", list(range(len(original))))
 
-        # Info sur les paliers fixes
+        # Bandeau informatif sur les paliers fixes
         fixed_bears = [
-            (i, original[i]) for i in range(len(original)) if i not in selected
+            (i, original[i])
+            for i in range(len(original))
+            if i not in selected
         ]
         if fixed_bears:
             fix_txt = " | ".join(
-                "P{} nœud {} → Kxx={:.2e} N/m".format(i, b["n"], b["kxx"])
+                "P{} noeud {} → Kxx={:.2e} N/m".format(i, b["n"], b["kxx"])
                 for i, b in fixed_bears
             )
-            st.info("🔒 Paliers **fixes** (raideur constante) : {}".format(fix_txt))
+            st.info("Paliers **fixes** (raideur constante) : {}".format(fix_txt))
 
         for i in range(n_modes):
             fig.add_trace(go.Scatter(
@@ -671,6 +671,9 @@ def _display_ucs():
                     "Vc = %{{y:.0f}} RPM<extra>Mode {}</extra>".format(i + 1)
                 )
             ))
+
+        title_ucs = "UCS Map — Palier(s) varie(s) : {}".format(bear_label)
+
     else:
         # Objet natif ROSS
         try:
@@ -681,7 +684,9 @@ def _display_ucs():
             st.warning("Affichage natif UCS non disponible.")
             return
 
-    # Ligne de vitesse opérationnelle
+        title_ucs = "Undamped Critical Speed Map"
+
+    # Ligne de vitesse operationnelle
     op_rpm = float(st.session_state.get("m3_op_rpm", 3000.0))
     fig.add_hline(
         y=op_rpm, line_dash="dash", line_color="#E53935",
@@ -698,22 +703,26 @@ def _display_ucs():
         height       = 460,
         xaxis_title  = "Raideur des paliers K (N/m)",
         yaxis_title  = "Vitesse critique (RPM)",
-        title        = title = "UCS Map — Palier(s) varié(s) : {}".format(bear_label),
+        title        = title_ucs,
         xaxis_type   = "log",
         plot_bgcolor = "white",
         xaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
         yaxis        = dict(showgrid=True, gridcolor="#F0F4FF"),
+        legend       = dict(
+            orientation="h", yanchor="bottom",
+            y=1.02, xanchor="right", x=1
+        ),
     )
 
     st.plotly_chart(fig, use_container_width=True, key="m3_ucs_fig")
     st.caption(
         "La carte UCS permet de choisir la raideur des paliers pour "
-        "que les vitesses critiques soient hors de la plage opérationnelle."
+        "que les vitesses critiques soient hors de la plage operationnelle."
     )
 
 
 # =============================================================================
-# AFFICHAGE STABILITÉ (Log Dec vs vitesse)
+# AFFICHAGE STABILITÉ
 # =============================================================================
 def _display_stability():
     camp = st.session_state.get("res_campbell")
@@ -722,25 +731,27 @@ def _display_stability():
         st.info("Calculez d'abord le Campbell.")
         return
 
-    log_dec = getattr(camp, 'log_dec', None)
+    log_dec = getattr(camp, "log_dec", None)
     if log_dec is None:
-        st.warning("Log Décrément non disponible dans cette version de ROSS.")
+        st.warning("Log Decrement non disponible dans cette version de ROSS.")
         return
 
-    vmax     = float(st.session_state.get("m3_camp_vmax", 10000))
-    npts     = int(st.session_state.get("m3_camp_npts",  60))
+    vmax = float(st.session_state.get("m3_camp_vmax", 10000))
+    npts = int(st.session_state.get("m3_camp_npts",  60))
 
-    if hasattr(camp, 'speed_range') and camp.speed_range is not None:
+    if hasattr(camp, "speed_range") and camp.speed_range is not None:
         speed_rad = np.array(camp.speed_range)
     else:
         speed_rad = np.linspace(0, vmax * np.pi / 30, npts)
 
     speed_rpm = speed_rad * 30 / np.pi
-    whirl     = getattr(camp, 'whirl', None)
+    whirl     = getattr(camp, "whirl", None)
 
     fig    = go.Figure()
-    colors = ["#1F5C8B","#C55A11","#22863A","#7B1FA2","#C00000","#00796B",
-              "#E64A19","#0288D1","#00897B","#6A1B9A"]
+    colors = [
+        "#1F5C8B","#C55A11","#22863A","#7B1FA2","#C00000","#00796B",
+        "#E64A19","#0288D1","#00897B","#6A1B9A"
+    ]
 
     n_modes = log_dec.shape[1]
     for i in range(min(10, n_modes)):
@@ -749,11 +760,11 @@ def _display_stability():
             w_val = str(whirl[mid, i]).lower()
             prec  = "FW" if "forward" in w_val else "BW"
         else:
-            if hasattr(camp, 'wd') and camp.wd is not None:
+            if hasattr(camp, "wd") and camp.wd is not None:
                 slope = camp.wd[-1, i] - camp.wd[0, i]
             else:
                 slope = 1
-            prec  = "FW" if slope > 0 else "BW"
+            prec = "FW" if slope > 0 else "BW"
 
         fig.add_trace(go.Scatter(
             x=speed_rpm,
@@ -761,24 +772,22 @@ def _display_stability():
             name="Mode {} ({})".format(i + 1, prec),
             line=dict(color=colors[i % len(colors)], width=2),
             hovertemplate=(
-                "Mode {}<br>Ω = %{{x:.0f}} RPM"
-                "<br>δ = %{{y:.4f}}<extra></extra>".format(i + 1)
+                "Mode {}<br>N = %{{x:.0f}} RPM"
+                "<br>delta = %{{y:.4f}}<extra></extra>".format(i + 1)
             )
         ))
 
-    # Seuils
     fig.add_hline(
         y=0, line_dash="dash", line_color="#E53935", line_width=2,
-        annotation_text=" Seuil instabilité (δ = 0)",
+        annotation_text=" Seuil instabilite (delta = 0)",
         annotation_font=dict(color="#E53935")
     )
     fig.add_hline(
         y=0.1, line_dash="dot", line_color="#FB8C00", line_width=1.5,
-        annotation_text=" Seuil API 684 (δ = 0.1)",
+        annotation_text=" Seuil API 684 (delta = 0.1)",
         annotation_font=dict(color="#FB8C00")
     )
 
-    # Zone opérationnelle
     op_rpm = float(st.session_state.get("m3_op_rpm", 3000.0))
     fig.add_vrect(
         x0=op_rpm * 0.85, x1=op_rpm * 1.15,
@@ -788,8 +797,8 @@ def _display_stability():
     fig.update_layout(
         height       = 460,
         xaxis_title  = "Vitesse de rotation (RPM)",
-        yaxis_title  = "Log Décrément (δ)",
-        title        = "Carte de stabilité — Log Dec vs Vitesse",
+        yaxis_title  = "Log Decrement (delta)",
+        title        = "Carte de stabilite — Log Dec vs Vitesse",
         legend       = dict(
             orientation="h", yanchor="bottom",
             y=1.02, xanchor="right", x=1
@@ -812,18 +821,17 @@ def _display_api():
     if df_api is None:
         st.info(
             "Calculez le Campbell puis lancez la "
-            "**vérification API 684** depuis le panneau Settings."
+            "**verification API 684** depuis le panneau Settings."
         )
         return
 
     if df_api.empty:
         st.success(
-            "Aucune vitesse critique trouvée dans la plage analysée — "
+            "Aucune vitesse critique trouvee dans la plage analysee — "
             "pas d'intersection 1X."
         )
         return
 
-    # Métriques
     if api_params:
         op_rpm = api_params["op_rpm"]
         zl     = api_params["zl"]
@@ -833,7 +841,7 @@ def _display_api():
         c1, c2, c3 = st.columns(3)
         c1.markdown("""
         <div class="rl-metric-card">
-          <div class="rl-metric-label">Vitesse opérationnelle</div>
+          <div class="rl-metric-label">Vitesse operationnelle</div>
           <div class="rl-metric-value">{:.0f}</div>
           <div class="rl-metric-unit">RPM</div>
         </div>""".format(op_rpm), unsafe_allow_html=True)
@@ -857,32 +865,29 @@ def _display_api():
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-    # Tableau de conformité avec coloration
-    st.markdown("**Résultats détaillés :**")
+    st.markdown("**Resultats detailles :**")
     st.dataframe(df_api, use_container_width=True, hide_index=True)
 
-    # Diagnostic
     n_nc = (df_api["Conforme API"] == "NON").sum() \
            if "Conforme API" in df_api.columns else 0
 
     if n_nc == 0:
         st.markdown("""
         <div class="rl-card-ok">
-          <strong>Rotor conforme à la norme API 684.</strong><br>
-          Toutes les vitesses critiques respectent la marge de ±15 %
-          et le Log Décrément est suffisant.
+          <strong>Rotor conforme a la norme API 684.</strong><br>
+          Toutes les vitesses critiques respectent la marge de +/-15 %
+          et le Log Decrement est suffisant.
         </div>""", unsafe_allow_html=True)
     else:
         st.markdown("""
         <div class="rl-card-danger">
           <strong>{} vitesse(s) critique(s) non conforme(s).</strong><br>
           Augmentez la raideur ou l'amortissement des paliers,
-          ou modifiez la géométrie de l'arbre.
+          ou modifiez la geometrie de l'arbre.
         </div>""".format(n_nc), unsafe_allow_html=True)
 
-    # Export rapport HTML
     st.download_button(
-        label    = "📄 Exporter rapport API 684 (HTML)",
+        label    = "Exporter rapport API 684 (HTML)",
         data     = _generate_api_html(df_api, api_params).encode(),
         file_name= "rapport_api684.html",
         mime     = "text/html",
@@ -905,9 +910,9 @@ def _generate_api_html(df_api, api_params):
     params_html = ""
     if api_params:
         params_html = """
-        <p><b>Vitesse opérationnelle :</b> {:.0f} RPM</p>
+        <p><b>Vitesse operationnelle :</b> {:.0f} RPM</p>
         <p><b>Zone interdite :</b> {:.0f} – {:.0f} RPM</p>
-        <p><b>Score de conformité :</b> {:.0f}%</p>
+        <p><b>Score de conformite :</b> {:.0f}%</p>
         """.format(
             api_params["op_rpm"],
             api_params["zl"], api_params["zh"],
@@ -926,10 +931,10 @@ def _generate_api_html(df_api, api_params):
   td  {{ padding:6px 10px; border:1px solid #ddd; text-align:center; }}
   .footer {{ color:#999; font-size:.85em; margin-top:40px; }}
 </style></head><body>
-<h1>Rapport de conformité API 684</h1>
-<h2>Paramètres</h2>
+<h1>Rapport de conformite API 684</h1>
+<h2>Parametres</h2>
 {params}
-<h2>Résultats</h2>
+<h2>Resultats</h2>
 <table>
   <tr>{headers}</tr>
   {rows}
