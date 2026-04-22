@@ -31,6 +31,22 @@ def render_m4(col_settings, col_graphics):
 # PANNEAU SETTINGS
 # =============================================================================
 def _render_settings(rotor):
+    # Suppression des cadres générés par le CSS global sur les st.columns
+    # imbriqués dans le panneau settings (Balourd, Sonde, Phase…)
+    st.markdown("""
+    <style>
+    /* Annule les bordures des colonnes dans le panneau settings M4 */
+    [data-testid="stHorizontalBlock"]
+        > [data-testid="column"]
+        > [data-testid="stVerticalBlock"] {
+        background : transparent !important;
+        border     : none        !important;
+        box-shadow : none        !important;
+        padding    : 0 4px       !important;
+        min-height : unset       !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     st.markdown(
         '<div class="rl-settings-title">Unbalance Response & H(jw)</div>',
         unsafe_allow_html=True
