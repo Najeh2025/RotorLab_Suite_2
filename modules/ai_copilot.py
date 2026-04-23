@@ -301,7 +301,7 @@ def _render_settings_panel(compact=True):
 
     current_model = st.session_state.get("copilot_model_choice", "")
     if not current_model or current_model not in model_options:
-        current_model = model_options[0]
+        current_model = model_options[2]
 
     st.selectbox(
         "Modèle IA",
