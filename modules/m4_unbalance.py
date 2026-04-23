@@ -32,7 +32,43 @@ def render_m4(col_settings, col_graphics):
 # =============================================================================
 def _render_settings(rotor):
     # ── CORRECTION DÉFINITIVE : Nettoyage des cadres imbriqués ─────────────
+    st.markdown("""
+    <style>
+    /* 1. Enlève la bordure globale sur les rangées (st.columns) à l'intérieur du panneau principal */
+    [data-testid="column"] [data-testid="stHorizontalBlock"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-bottom: 0px !important;
+        overflow: visible !important;
+    }
+
+    /* 2. Enlève la bordure sur les colonnes individuelles internes et ajuste l'espacement */
+    [data-testid="column"] [data-testid="stHorizontalBlock"] > [data-testid="column"] > [data-testid="stVerticalBlock"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 8px !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* 3. Empêche les éléments interactifs (sliders, inputs) d'être rognés en bas */
+    [data-testid="stSliderTickBar"], 
+    [data-testid="stThumbValue"],
+    div[data-baseweb="slider"] {
+        overflow: visible !important;
+    }
     
+    /* 4. Donne un peu d'air au texte d'aide (Caption) sous les selectbox */
+    [data-testid="stCaptionContainer"] {
+        margin-top: -10px;
+        margin-bottom: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(
         '<div class="rl-settings-title">Unbalance Response & H(jw)</div>',
         unsafe_allow_html=True
