@@ -37,9 +37,13 @@ st.set_page_config(
 def load_css():
     css_path = Path("styles/theme.css")
     if css_path.exists():
-        with open(css_path) as f:
-            st.markdown("<style>{}</style>".format(f.read()),
-                        unsafe_allow_html=True)
+        with open(css_path, encoding="utf-8") as f:
+            st.markdown(
+                "<style>{}</style>".format(f.read()),
+                unsafe_allow_html=True
+            )
+    else:
+        st.warning("⚠️ styles/theme.css introuvable — thème de secours actif.")
 
 load_css()
 
