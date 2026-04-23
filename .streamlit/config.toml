@@ -1,0 +1,16 @@
+# RotorLab Suite 2.0 — Streamlit Native Theme Configuration
+# Ce fichier est le POINT D'ENTRÉE du système de thème.
+# Il définit les valeurs fondamentales que Streamlit utilise nativement
+# pour les widgets (sliders, inputs, checkboxes, tabs...).
+# Le CSS custom dans styles/theme.css surcharge UNIQUEMENT ce que
+# Streamlit ne peut pas gérer nativement.
+
+[theme]
+# ── Couleurs primaires ──────────────────────────────────────────────────
+primaryColor        = "#1F5C8B"   # Bleu RotorLab — boutons, sliders, focus
+backgroundColor     = "#FFFFFF"   # Fond des pages et panneaux principaux
+secondaryBackgroundColor = "#F0F4FA"  # Fond sidebar, panneaux secondaires
+textColor           = "#1A1A2E"   # Texte principal (quasi-noir)
+
+# ── Typographie ─────────────────────────────────────────────────────────
+font = "sans serif"               # Inter / system-ui via CSS custom props
