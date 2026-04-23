@@ -1,762 +1,448 @@
-/* ============================================================================
-   RotorLab Suite 2.0 — Système de Design Unifié
-   styles/theme.css
-   
-   ARCHITECTURE :
-   ① Design Tokens (variables CSS) ......... ligne  20
-   ② Reset & Base .......................... ligne  90
-   ③ Layout (header, nav, log) ............. ligne 130
-   ④ Panneaux simulation (3 colonnes) ...... ligne 200
-   ⑤ Composants UI ......................... ligne 310
-      — Cards, Metrics, Badges, Alerts
-      — Tree, Section Headers
-   ⑥ Overrides Streamlit ciblés ............ ligne 460
-      — Tabs, Buttons, DataEditor, Expander
-   ⑦ Utilitaires ........................... ligne 560
-   
-   RÈGLE D'OR : Aucun module ne doit injecter de CSS global.
-   Les styles propres à un module s'ajoutent ici sous ⑥,
-   préfixés par le sélecteur .rl-m{N} ou via data-testid.
-   ============================================================================ */
+/* RotorLab Suite 2.0 — Thème professionnel COMSOL-inspired */
 
-
-/* ============================================================================
-   ① DESIGN TOKENS
-   Modifiez UNIQUEMENT cette section pour changer le look global.
-   ============================================================================ */
+/* ── Variables globales ──────────────────────────────────────────────── */
 :root {
-  /* ── Palette principale ──────────────────────────────────────────────── */
-  --rl-blue-900  : #0C2340;
-  --rl-blue-800  : #0F2D4A;
-  --rl-blue-700  : #153F62;
-  --rl-blue-600  : #1A5080;
-  --rl-blue-500  : #1F5C8B;   /* Couleur primaire */
-  --rl-blue-400  : #2E7CB8;
-  --rl-blue-300  : #5A9FD4;
-  --rl-blue-100  : #D6E8F7;
-  --rl-blue-050  : #EBF4FB;
-
-  /* ── Palette secondaire ──────────────────────────────────────────────── */
-  --rl-green-700 : #1A5C3A;
-  --rl-green-500 : #22863A;
-  --rl-green-100 : #E8F5E9;
-  --rl-green-050 : #F0FFF4;
-
-  --rl-orange-700: #8C3500;
-  --rl-orange-500: #C55A11;
-  --rl-orange-100: #FFF3E0;
-
-  --rl-red-700   : #8B0000;
-  --rl-red-500   : #C00000;
-  --rl-red-100   : #FFEBEE;
-
-  --rl-purple-500: #7B1FA2;
-  --rl-purple-100: #F3E5F5;
-
-  --rl-teal-500  : #00796B;
-  --rl-teal-100  : #E0F2F1;
-
-  /* ── Neutres ─────────────────────────────────────────────────────────── */
-  --rl-gray-900  : #1A1A2E;   /* Texte principal */
-  --rl-gray-700  : #374151;
-  --rl-gray-500  : #6B7280;   /* Texte secondaire */
-  --rl-gray-300  : #D1D5DB;   /* Bordures */
-  --rl-gray-200  : #E5E7EB;
-  --rl-gray-100  : #F3F4F6;
-  --rl-gray-050  : #F9FAFB;
-
-  /* ── Fond des panneaux ──────────────────────────────────────────────── */
-  --rl-bg-page     : #FFFFFF;
-  --rl-bg-panel    : #FAFBFD;
-  --rl-bg-tree     : #0F1923;   /* Panneau arbre — fond sombre */
-  --rl-bg-settings : #F7F9FC;   /* Panneau paramètres */
-  --rl-bg-graphics : #FFFFFF;   /* Panneau graphiques */
-
-  /* ── Bordures & séparateurs ─────────────────────────────────────────── */
-  --rl-border-color  : #D0D8E4;
-  --rl-border-radius : 10px;
-  --rl-border-light  : 1px solid #D0D8E4;
-  --rl-border-accent : 2px solid var(--rl-blue-500);
-
-  /* ── Ombres ──────────────────────────────────────────────────────────── */
-  --rl-shadow-sm : 0 1px 3px rgba(0,0,0,0.08);
-  --rl-shadow-md : 0 4px 16px rgba(0,0,0,0.10);
-  --rl-shadow-lg : 0 8px 32px rgba(0,0,0,0.12);
-
-  /* ── Typographie ─────────────────────────────────────────────────────── */
-  --rl-font       : 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --rl-font-mono  : 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  --rl-text-xs    : 0.70rem;
-  --rl-text-sm    : 0.80rem;
-  --rl-text-base  : 0.875rem;
-  --rl-text-lg    : 1.00rem;
-  --rl-text-xl    : 1.15rem;
-
-  /* ── Espacements ─────────────────────────────────────────────────────── */
-  --rl-space-1 : 4px;
-  --rl-space-2 : 8px;
-  --rl-space-3 : 12px;
-  --rl-space-4 : 16px;
-  --rl-space-5 : 20px;
-  --rl-space-6 : 24px;
-
-  /* ── Transitions ─────────────────────────────────────────────────────── */
-  --rl-transition : all 0.18s ease;
-
-  /* ── Séparateurs panneaux ─────────────────────────────────────────────── */
-  --rl-sep-tree     : #1F5C8B;
-  --rl-sep-graphics : #22863A;
-
-  /* ── Modules — couleurs d'accent ────────────────────────────────────── */
-  --rl-m1-color : #1F5C8B;
-  --rl-m2-color : #22863A;
-  --rl-m3-color : #C55A11;
-  --rl-m4-color : #7B1FA2;
-  --rl-m5-color : #00796B;
-  --rl-m6-color : #F57C00;
-  --rl-m7-color : #C62828;
-  --rl-m8-color : #4527A0;
-  --rl-m9-color : #37474F;
-  --rl-ai-color : #1F3A5C;
+    --rl-primary:    #1F5C8B;
+    --rl-secondary:  #C55A11;
+    --rl-success:    #22863A;
+    --rl-danger:     #C00000;
+    --rl-bg-panel:   #FAFBFD;
+    --rl-bg-tree:    #F2F5F9;
+    --rl-border:     #D0D8E4;
+    --rl-text:       #1A1A2E;
+    --rl-text-muted: #6B7280;
 }
 
-
-/* ============================================================================
-   ② RESET & BASE
-   ============================================================================ */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-/* Réduction du padding Streamlit par défaut */
+/* ── Suppression padding Streamlit par défaut ───────────────────────── */
 .block-container {
-  padding-top    : 0.5rem  !important;
-  padding-left   : 0.75rem !important;
-  padding-right  : 0.75rem !important;
-  max-width      : 100%    !important;
+    padding-top: 0.5rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    max-width: 100% !important;
 }
 
-/* Police globale */
-html, body, .stApp {
-  font-family : var(--rl-font) !important;
-  color       : var(--rl-gray-900);
-}
-
-/* Scrollbar globale élégante */
-::-webkit-scrollbar        { width: 6px; height: 6px; }
-::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: var(--rl-gray-300); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--rl-blue-500); }
-* { scrollbar-width: thin; scrollbar-color: var(--rl-gray-300) transparent; }
-
-
-/* ============================================================================
-   ③ LAYOUT — Header, Navigation, Log Bar
-   ============================================================================ */
-
-/* ── Header ────────────────────────────────────────────────────────────── */
+/* ── Header de l'application ────────────────────────────────────────── */
 .rl-header {
-  display         : flex;
-  align-items     : center;
-  justify-content : space-between;
-  background      : linear-gradient(135deg, var(--rl-blue-800) 0%, var(--rl-blue-600) 70%, var(--rl-blue-500) 100%);
-  padding         : 9px 18px;
-  border-radius   : 0 0 10px 10px;
-  margin-bottom   : 6px;
-  box-shadow      : var(--rl-shadow-sm);
+    background: linear-gradient(135deg, #1F5C8B 0%, #154F7A 100%);
+    padding: 8px 16px;
+    border-radius: 0 0 8px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
 }
 .rl-header-title {
-  color       : #FFFFFF;
-  font-size   : 1.05rem;
-  font-weight : 800;
-  letter-spacing: -0.3px;
+    color: white;
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: -0.3px;
 }
 .rl-header-sub {
-  color      : rgba(255,255,255,0.65);
-  font-size  : var(--rl-text-sm);
-  margin-left: 10px;
+    color: rgba(255,255,255,0.75);
+    font-size: 0.75em;
 }
 .rl-header-badge {
-  background    : rgba(255,255,255,0.14);
-  border        : 1px solid rgba(255,255,255,0.22);
-  color         : rgba(255,255,255,0.90);
-  padding       : 3px 11px;
-  border-radius : 99px;
-  font-size     : var(--rl-text-xs);
-  font-weight   : 600;
-  letter-spacing: 0.04em;
-  transition    : var(--rl-transition);
-}
-.rl-header-badge:hover {
-  background: rgba(255,255,255,0.24);
+    background: rgba(255,255,255,0.15);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 600;
 }
 
-/* ── Log Bar ───────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   SÉPARATEURS VISUELS — 3 PANNEAUX (ajout sans toucher aux boutons)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Panneau gauche : fond légèrement coloré + bordure droite */
+section.main > div > div > div
+    [data-testid="stHorizontalBlock"]
+    > [data-testid="column"]:nth-child(1)
+    > [data-testid="stVerticalBlock"] {
+    background    : #F2F5F9;
+    border        : 1px solid #D0D8E4;
+    border-radius : 10px;
+    padding       : 8px 4px;
+    min-height    : 75vh;
+}
+
+/* Panneau central : fond blanc + bordure */
+section.main > div > div > div
+    [data-testid="stHorizontalBlock"]
+    > [data-testid="column"]:nth-child(2)
+    > [data-testid="stVerticalBlock"] {
+    background    : #FFFFFF;
+    border        : 1px solid #D0D8E4;
+    border-radius : 10px;
+    padding       : 12px 8px;
+    min-height    : 75vh;
+    box-shadow    : 0 1px 6px rgba(31,92,139,0.06);
+}
+
+/* Panneau droit : fond très légèrement teinté + bordure */
+section.main > div > div > div
+    [data-testid="stHorizontalBlock"]
+    > [data-testid="column"]:nth-child(3)
+    > [data-testid="stVerticalBlock"] {
+    background    : #FAFBFD;
+    border        : 1px solid #D0D8E4;
+    border-radius : 10px;
+    padding       : 10px 8px;
+    min-height    : 75vh;
+}
+
+/* ── Panneau gauche : Model Tree ────────────────────────────────────── */
+.rl-tree-panel {
+    background: var(--rl-bg-tree);
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-height: 80vh;
+}
+.rl-tree-section {
+    padding: 4px 10px 2px 10px;
+    font-size: 0.68em;
+    font-weight: 700;
+    color: var(--rl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+}
+.rl-tree-item {
+    padding: 5px 10px 5px 20px;
+    font-size: 0.82em;
+    color: var(--rl-text);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.rl-tree-item:hover {
+    background: rgba(31,92,139,0.08);
+    border-left-color: rgba(31,92,139,0.3);
+}
+.rl-tree-item.active {
+    background: rgba(31,92,139,0.12);
+    border-left-color: var(--rl-primary);
+    color: var(--rl-primary);
+    font-weight: 600;
+}
+
+/* ── Boutons du tree : style liste, ciblage précis ───────────────────
+   IMPORTANT : on cible uniquement les boutons SECONDARY du tree
+   pour ne pas affecter les boutons PRIMARY (bleus) ni les
+   boutons des modules.
+   ─────────────────────────────────────────────────────────────────── */
+div[data-testid="stVerticalBlock"]
+    div[data-testid="stButton"]
+    > button[kind="secondary"] {
+    text-align      : left !important;
+    justify-content : flex-start !important;
+    font-size       : 0.82em !important;
+    font-weight     : 400 !important;
+    background      : transparent !important;
+    border          : none !important;
+    border-left     : 3px solid transparent !important;
+    border-radius   : 0 !important;
+    padding         : 5px 8px 5px 18px !important;
+    margin          : 1px 0 !important;
+    box-shadow      : none !important;
+    color           : #1A1A2E !important;
+}
+div[data-testid="stVerticalBlock"]
+    div[data-testid="stButton"]
+    > button[kind="secondary"]:hover {
+    background      : rgba(31,92,139,0.09) !important;
+    border-left-color: rgba(31,92,139,0.4) !important;
+    color           : #1F5C8B !important;
+}
+
+/* ── Panneau central : Settings ─────────────────────────────────────── */
+.rl-settings-panel {
+    background: white;
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 80vh;
+}
+.rl-settings-title {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: var(--rl-primary);
+    border-bottom: 2px solid var(--rl-primary);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+.rl-section-header {
+    background: #EBF4FB;
+    border-left: 4px solid var(--rl-primary);
+    padding: 5px 10px;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--rl-primary);
+    border-radius: 0 4px 4px 0;
+    margin: 10px 0 6px 0;
+    cursor: pointer;
+}
+.rl-field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid #F0F4FF;
+    font-size: 0.8em;
+}
+.rl-field-label { color: var(--rl-text-muted); }
+.rl-field-value {
+    font-weight: 600;
+    color: var(--rl-text);
+    background: #F0F4FF;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* ── Panneau droit : Graphics ────────────────────────────────────────── */
+.rl-graphics-panel {
+    background: white;
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 80vh;
+}
+.rl-graphics-title {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--rl-text-muted);
+    border-bottom: 1px solid var(--rl-border);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Barre de log / messages ─────────────────────────────────────────── */
 .rl-log-bar {
-  background    : #1E1E2E;
-  border-top    : 2px solid var(--rl-blue-500);
-  border-radius : 6px;
-  padding       : 6px 14px;
-  font-family   : var(--rl-font-mono);
-  font-size     : var(--rl-text-xs);
-  color         : #8A9BB0;
-  margin-top    : 8px;
-  line-height   : 1.6;
+    background: #1E1E2E;
+    color: #A8B5C8;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: monospace;
+    font-size: 0.75em;
+    margin-top: 8px;
+    border-top: 2px solid var(--rl-primary);
 }
 .rl-log-ok   { color: #4CAF50; }
 .rl-log-warn { color: #FF9800; }
 .rl-log-err  { color: #F44336; }
 
-
-/* ============================================================================
-   ④ PANNEAUX SIMULATION — Bloc 5 colonnes (tree | sep | settings | sep | graph)
-   ============================================================================ */
-
-/* ── Wrapper global des 5 colonnes ──────────────────────────────────────── */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5)) {
-  border        : 1.5px solid var(--rl-blue-500);
-  border-radius : var(--rl-border-radius);
-  overflow      : hidden;
-  box-shadow    : var(--rl-shadow-md);
-  gap           : 0 !important;
-}
-
-/* ── Colonne 1 — ARBRE (fond sombre) ───────────────────────────────────── */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(1)
-  > div[data-testid="stVerticalBlock"] {
-  background  : var(--rl-bg-tree);
-  min-height  : 80vh;
-  padding     : 0 6px 16px;
-}
-
-/* Texte clair dans le panneau arbre */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(1) p,
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(1) span {
-  color: #CBD5E0 !important;
-}
-
-/* Boutons du panneau arbre */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(1)
-  button[kind="secondary"] {
-  background    : rgba(31,92,139,0.25) !important;
-  color         : #D4E2F0 !important;
-  border        : 1px solid rgba(31,92,139,0.45) !important;
-  font-size     : var(--rl-text-sm) !important;
-  border-radius : 6px !important;
-  text-align    : left !important;
-  padding       : 8px 10px !important;
-  transition    : var(--rl-transition) !important;
-}
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(1)
-  button[kind="secondary"]:hover {
-  background    : rgba(31,92,139,0.55) !important;
-  border-color  : var(--rl-blue-300) !important;
-  color         : #FFFFFF !important;
-  transform     : translateX(2px) !important;
-}
-
-/* ── Colonne 2 — SÉPARATEUR 1 ──────────────────────────────────────────── */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(2)
-  > div[data-testid="stVerticalBlock"] {
-  background : linear-gradient(180deg,
-    transparent 0%, var(--rl-sep-tree) 12%,
-    var(--rl-sep-tree) 88%, transparent 100%);
-  min-height : 80vh;
-  width      : 4px !important;
-  padding    : 0 !important;
-  box-shadow : 0 0 14px rgba(31,92,139,0.35);
-}
-
-/* ── Colonne 3 — PARAMÈTRES ─────────────────────────────────────────────── */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(3)
-  > div[data-testid="stVerticalBlock"] {
-  background : var(--rl-bg-settings);
-  min-height : 80vh;
-  padding    : 0 10px 16px;
-}
-
-/* ── Colonne 4 — SÉPARATEUR 2 ──────────────────────────────────────────── */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(4)
-  > div[data-testid="stVerticalBlock"] {
-  background : linear-gradient(180deg,
-    transparent 0%, var(--rl-sep-graphics) 12%,
-    var(--rl-sep-graphics) 88%, transparent 100%);
-  min-height : 80vh;
-  width      : 4px !important;
-  padding    : 0 !important;
-  box-shadow : 0 0 14px rgba(34,134,58,0.30);
-}
-
-/* ── Colonne 5 — GRAPHIQUES ─────────────────────────────────────────────── */
-section[data-testid="stMain"]
-  div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5))
-  > div[data-testid="column"]:nth-child(5)
-  > div[data-testid="stVerticalBlock"] {
-  background    : var(--rl-bg-graphics);
-  min-height    : 80vh;
-  padding       : 0 10px 16px;
-}
-
-/* ── Topbar simulation ──────────────────────────────────────────────────── */
-.sim-topbar {
-  display         : flex;
-  justify-content : space-between;
-  align-items     : center;
-  background      : linear-gradient(90deg, var(--rl-blue-900) 0%, var(--rl-blue-700) 100%);
-  padding         : 8px 18px;
-  border-radius   : 10px 10px 0 0;
-  border          : 1.5px solid var(--rl-blue-500);
-  border-bottom   : 2px solid var(--rl-blue-500);
-  margin-bottom   : -2px;
-}
-.sim-topbar-left  { display:flex; align-items:center; gap:8px; }
-.sim-topbar-title { font-weight:800; font-size:var(--rl-text-sm);
-                    letter-spacing:.06em; color:#E2EAF4; text-transform:uppercase; }
-.sim-topbar-sep   { color:rgba(255,255,255,0.30); }
-.sim-topbar-mod   { background:var(--rl-blue-500); color:#fff; font-size:var(--rl-text-xs);
-                    font-weight:700; padding:2px 10px; border-radius:99px; }
-.sim-tab-row      { display:flex; gap:3px; flex-wrap:wrap; }
-.sim-tab {
-  color       : rgba(255,255,255,0.45);
-  font-size   : var(--rl-text-xs);
-  font-weight : 600;
-  padding     : 3px 8px;
-  border-radius: 5px;
-  border      : 1px solid transparent;
-  cursor      : default;
-  transition  : var(--rl-transition);
-}
-.sim-tab.on {
-  background   : var(--rl-blue-500);
-  color        : #fff;
-  border-color : var(--rl-blue-300);
-}
-
-/* ── En-têtes de panneaux (ph) ──────────────────────────────────────────── */
-.ph {
-  display        : flex;
-  align-items    : center;
-  gap            : 8px;
-  padding        : 9px 14px;
-  font-size      : var(--rl-text-xs);
-  font-weight    : 700;
-  letter-spacing : .07em;
-  text-transform : uppercase;
-  color          : #FFFFFF;
-  margin         : -1px -6px 12px;
-  border-bottom  : 2px solid rgba(255,255,255,0.12);
-}
-.ph-tree     { background: var(--rl-blue-900); }
-.ph-settings { background: var(--rl-blue-700); }
-.ph-graphics { background: var(--rl-green-700); }
-.ph-badge {
-  margin-left  : auto;
-  background   : rgba(255,255,255,0.16);
-  border-radius: 99px;
-  padding      : 2px 9px;
-  font-size    : var(--rl-text-xs);
-}
-
-/* ── Rail chariot (bas des panneaux) ────────────────────────────────────── */
-.sim-rail {
-  display         : flex;
-  justify-content : center;
-  align-items     : center;
-  gap             : 14px;
-  padding         : 7px 0 4px;
-  background      : var(--rl-gray-050);
-  border-top      : 1px solid var(--rl-border-color);
-  border-radius   : 0 0 10px 10px;
-  margin-top      : 6px;
-}
-.sim-rail-item {
-  display    : flex;
-  align-items: center;
-  gap        : 5px;
-  font-size  : var(--rl-text-xs);
-  color      : var(--rl-gray-500);
-}
-.sim-rail-dot {
-  width        : 32px;
-  height       : 5px;
-  border-radius: 99px;
-}
-.sim-rail-dot.t { background: var(--rl-blue-900); }
-.sim-rail-dot.s { background: var(--rl-blue-700); }
-.sim-rail-dot.g { background: var(--rl-green-700); }
-
-
-/* ============================================================================
-   ⑤ COMPOSANTS UI
-   ============================================================================ */
-
-/* ── Titres de section dans les panneaux ────────────────────────────────── */
-.rl-settings-title {
-  font-size     : var(--rl-text-base);
-  font-weight   : 700;
-  color         : var(--rl-blue-500);
-  border-bottom : var(--rl-border-accent);
-  padding-bottom: 7px;
-  margin-bottom : 14px;
-  letter-spacing: -0.2px;
-}
-.rl-graphics-title {
-  font-size     : var(--rl-text-sm);
-  font-weight   : 600;
-  color         : var(--rl-gray-500);
-  border-bottom : var(--rl-border-light);
-  padding-bottom: 6px;
-  margin-bottom : 10px;
-  display       : flex;
-  align-items   : center;
-  justify-content: space-between;
-}
-
-/* ── Section headers (séparateurs internes) ─────────────────────────────── */
-.rl-section-header {
-  display       : flex;
-  align-items   : center;
-  background    : var(--rl-blue-050);
-  border-left   : 4px solid var(--rl-blue-500);
-  border-radius : 0 6px 6px 0;
-  padding       : 6px 12px;
-  font-size     : var(--rl-text-xs);
-  font-weight   : 700;
-  color         : var(--rl-blue-500);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin        : 12px 0 8px;
-  cursor        : default;
-}
-
-/* ── Arbre de modèle — titres de section ────────────────────────────────── */
-.rl-tree-section {
-  display        : flex;
-  align-items    : center;
-  gap            : 7px;
-  padding        : 10px 8px 6px;
-  font-size      : var(--rl-text-xs);
-  font-weight    : 800;
-  color          : #93C5FD;
-  text-transform : uppercase;
-  letter-spacing : 0.08em;
-  border-left    : 3px solid rgba(147,197,253,0.35);
-  margin         : 8px 0 4px;
-  user-select    : none;
-}
-.rl-tree-sep {
-  height        : 1px;
-  background    : linear-gradient(90deg, rgba(31,92,139,0.5), transparent);
-  margin        : 12px 4px;
-}
-
-/* ── Carte métrique ─────────────────────────────────────────────────────── */
-.rl-metric-card {
-  background    : var(--rl-bg-panel);
-  border        : var(--rl-border-light);
-  border-radius : 8px;
-  padding       : 12px 14px;
-  text-align    : center;
-  transition    : var(--rl-transition);
-}
-.rl-metric-card:hover {
-  border-color  : var(--rl-blue-300);
-  box-shadow    : var(--rl-shadow-sm);
-}
-.rl-metric-label {
-  font-size  : var(--rl-text-xs);
-  color      : var(--rl-gray-500);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-.rl-metric-value {
-  font-size  : 1.35rem;
-  font-weight: 800;
-  color      : var(--rl-blue-500);
-  line-height: 1.1;
-}
-.rl-metric-unit {
-  font-size : var(--rl-text-xs);
-  color     : var(--rl-gray-500);
-  margin-top: 2px;
-}
-
-/* ── Cartes d'alerte ────────────────────────────────────────────────────── */
-.rl-card-ok {
-  background  : var(--rl-green-050);
-  border-left : 4px solid var(--rl-green-500);
-  border-radius: 0 8px 8px 0;
-  padding     : 10px 14px;
-  margin      : 8px 0;
-  font-size   : var(--rl-text-sm);
-}
-.rl-card-warn {
-  background  : var(--rl-orange-100);
-  border-left : 4px solid var(--rl-orange-500);
-  border-radius: 0 8px 8px 0;
-  padding     : 10px 14px;
-  margin      : 8px 0;
-  font-size   : var(--rl-text-sm);
-}
-.rl-card-danger {
-  background  : var(--rl-red-100);
-  border-left : 4px solid var(--rl-red-500);
-  border-radius: 0 8px 8px 0;
-  padding     : 10px 14px;
-  margin      : 8px 0;
-  font-size   : var(--rl-text-sm);
-}
-.rl-card-info {
-  background  : var(--rl-blue-050);
-  border-left : 4px solid var(--rl-blue-500);
-  border-radius: 0 8px 8px 0;
-  padding     : 10px 14px;
-  margin      : 8px 0;
-  font-size   : var(--rl-text-sm);
-}
-
-/* ── Badges ─────────────────────────────────────────────────────────────── */
-.rl-badge {
-  display      : inline-flex;
-  align-items  : center;
-  padding      : 3px 10px;
-  border-radius: 99px;
-  font-size    : var(--rl-text-xs);
-  font-weight  : 700;
-  letter-spacing:0.04em;
-  margin       : 2px;
-}
-.rl-badge-ok     { background:var(--rl-green-100); color:#1B5E20; border:1px solid #A5D6A7; }
-.rl-badge-warn   { background:var(--rl-orange-100); color:#BF360C; border:1px solid #FFCC80; }
-.rl-badge-danger { background:var(--rl-red-100); color:#B71C1C; border:1px solid #EF9A9A; }
-.rl-badge-blue   { background:var(--rl-blue-050); color:#0D47A1; border:1px solid var(--rl-blue-100); }
-.rl-badge-new    { background:var(--rl-purple-100); color:#4A148C; border:1px solid #CE93D8; }
-
-/* ── Field rows (paires label/valeur) ───────────────────────────────────── */
-.rl-field-row {
-  display       : flex;
-  justify-content:space-between;
-  align-items   : center;
-  padding       : 5px 0;
-  border-bottom : 1px solid var(--rl-gray-100);
-  font-size     : var(--rl-text-sm);
-}
-.rl-field-row:last-child { border-bottom: none; }
-.rl-field-label { color: var(--rl-gray-500); }
-.rl-field-value {
-  font-weight   : 600;
-  color         : var(--rl-gray-900);
-  background    : var(--rl-blue-050);
-  padding       : 2px 8px;
-  border-radius : 5px;
-  font-size     : var(--rl-text-xs);
-}
-
-
-/* ============================================================================
-   ⑥ OVERRIDES STREAMLIT — chirurgie ciblée, minimale
-   ============================================================================ */
-
-/* ── Bouton PRIMARY ─────────────────────────────────────────────────────── */
+/* ── Bouton Run principal ── NE PAS MODIFIER ─────────────────────────── */
 .stButton > button[kind="primary"] {
-  background    : var(--rl-blue-500) !important;
-  border        : 1px solid var(--rl-blue-500) !important;
-  color         : #FFFFFF !important;
-  font-weight   : 700 !important;
-  border-radius : 8px !important;
-  transition    : var(--rl-transition) !important;
+    background-color: var(--rl-primary) !important;
+    border-color: var(--rl-primary) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
 }
 .stButton > button[kind="primary"]:hover {
-  background    : var(--rl-blue-600) !important;
-  border-color  : var(--rl-blue-600) !important;
-  box-shadow    : 0 2px 8px rgba(31,92,139,0.35) !important;
-  transform     : translateY(-1px) !important;
+    background-color: #154F7A !important;
 }
 
-/* ── Bouton SECONDARY (modules, actions non-primaires) ─────────────────── */
-/* SCOPE STRICT : uniquement les boutons hors panneau arbre et hors nav */
-.block-container .stButton > button[kind="secondary"] {
-  background    : #FFFFFF !important;
-  border        : 1px solid var(--rl-border-color) !important;
-  color         : var(--rl-gray-900) !important;
-  font-weight   : 500 !important;
-  border-radius : 8px !important;
-  transition    : var(--rl-transition) !important;
+/* ── Métriques résultat ──────────────────────────────────────────────── */
+.rl-metric-card {
+    background: var(--rl-bg-panel);
+    border: 1px solid var(--rl-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: center;
 }
-.block-container .stButton > button[kind="secondary"]:hover {
-  border-color  : var(--rl-blue-500) !important;
-  color         : var(--rl-blue-500) !important;
-  background    : var(--rl-blue-050) !important;
+.rl-metric-label {
+    font-size: 0.72em;
+    color: var(--rl-text-muted);
+    margin-bottom: 2px;
 }
-
-/* ── Download Button ──────────────────────────────────────────────────── */
-div[data-testid="stDownloadButton"] > button {
-  background    : #FFFFFF !important;
-  border        : 1px solid var(--rl-border-color) !important;
-  color         : var(--rl-gray-900) !important;
-  border-radius : 8px !important;
-  font-weight   : 500 !important;
-  transition    : var(--rl-transition) !important;
+.rl-metric-value {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--rl-primary);
 }
-div[data-testid="stDownloadButton"] > button:hover {
-  border-color  : var(--rl-blue-500) !important;
-  color         : var(--rl-blue-500) !important;
-  background    : var(--rl-blue-050) !important;
+.rl-metric-unit {
+    font-size: 0.7em;
+    color: var(--rl-text-muted);
 }
 
-/* ── Tabs ────────────────────────────────────────────────────────────────── */
+/* ── Cards info/warning/danger ──────────────────────────────────────── */
+.rl-card-ok      { background:#F0FFF4; border-left:4px solid #22863A; border-radius:6px; padding:10px 14px; margin:6px 0; }
+.rl-card-warn    { background:#FFF8E1; border-left:4px solid #F9A825; border-radius:6px; padding:10px 14px; margin:6px 0; }
+.rl-card-danger  { background:#FFE6E6; border-left:4px solid #C00000; border-radius:6px; padding:10px 14px; margin:6px 0; }
+.rl-card-info    { background:#EBF4FB; border-left:4px solid #1F5C8B; border-radius:6px; padding:10px 14px; margin:6px 0; }
+
+/* ── Badges normes ───────────────────────────────────────────────────── */
+.rl-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72em;
+    font-weight: 700;
+    margin: 2px;
+}
+.rl-badge-ok      { background:#E8F5E9; color:#1B5E20; border:1px solid #A5D6A7; }
+.rl-badge-warn    { background:#FFF8E1; color:#E65100; border:1px solid #FFCC80; }
+.rl-badge-danger  { background:#FFEBEE; color:#B71C1C; border:1px solid #EF9A9A; }
+.rl-badge-blue    { background:#E3F2FD; color:#0D47A1; border:1px solid #90CAF9; }
+.rl-badge-new     { background:#F3E5F5; color:#4A148C; border:1px solid #CE93D8; }
+
+/* ── Onglets (tabs) ─────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
-  gap           : 3px;
-  border-bottom : 2px solid var(--rl-border-color);
-  padding-bottom: 0;
+    gap: 4px;
+    border-bottom: 2px solid var(--rl-border);
 }
 .stTabs [data-baseweb="tab"] {
-  height        : 36px;
-  font-weight   : 600;
-  font-size     : var(--rl-text-sm);
-  border-radius : 7px 7px 0 0;
-  padding       : 0 14px;
-  color         : var(--rl-gray-500);
-  transition    : var(--rl-transition);
-  border-bottom : 2px solid transparent;
-}
-.stTabs [aria-selected="true"] {
-  color         : var(--rl-blue-500) !important;
-  border-bottom-color: var(--rl-blue-500) !important;
-  background    : var(--rl-blue-050) !important;
+    height: 38px;
+    font-weight: 600;
+    font-size: 0.8em;
+    border-radius: 6px 6px 0 0;
+    padding: 0 16px;
 }
 
-/* ── Slider ──────────────────────────────────────────────────────────────── */
-.stSlider [data-baseweb="slider"] [role="slider"] {
-  background : var(--rl-blue-500) !important;
-  border-color: var(--rl-blue-500) !important;
-}
-
-/* ── Selectbox / Number Input — focus ring ──────────────────────────────── */
-.stSelectbox [data-baseweb="select"] > div:focus-within,
-.stNumberInput [data-baseweb="input"]:focus-within {
-  border-color : var(--rl-blue-500) !important;
-  box-shadow   : 0 0 0 2px rgba(31,92,139,0.18) !important;
-}
-
-/* ── DataEditor / DataFrame ─────────────────────────────────────────────── */
-.stDataFrame thead tr th {
-  background : var(--rl-blue-050) !important;
-  color      : var(--rl-blue-500) !important;
-  font-weight: 700 !important;
-  font-size  : var(--rl-text-xs) !important;
-}
-.stDataFrame tbody tr:nth-child(even) { background: var(--rl-gray-050) !important; }
-.stDataFrame tbody tr:hover           { background: var(--rl-blue-050) !important; }
-
-/* ── Expander ────────────────────────────────────────────────────────────── */
-.streamlit-expander {
-  border        : var(--rl-border-light) !important;
-  border-radius : 8px !important;
-}
-.streamlit-expander > summary {
-  font-weight : 600 !important;
-  font-size   : var(--rl-text-sm) !important;
-  color       : var(--rl-gray-900) !important;
-}
-
-/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-  background  : var(--rl-bg-settings);
-  border-right: var(--rl-border-light);
+    background: var(--rl-bg-tree);
+    border-right: 1px solid var(--rl-border);
 }
 
-/* ── Progress bar ────────────────────────────────────────────────────────── */
+/* ── Progress bar ────────────────────────────────────────────────────── */
 div[data-testid="stProgress"] > div > div {
-  background : linear-gradient(90deg, var(--rl-blue-500), var(--rl-green-500)) !important;
+    background: var(--rl-primary) !important;
 }
 
-/* ── Métriques Streamlit natifs ──────────────────────────────────────────── */
-[data-testid="stMetric"] {
-  background    : var(--rl-bg-panel);
-  border        : var(--rl-border-light);
-  border-radius : 8px;
-  padding       : 10px 14px;
+/* ── Alignement uniforme du gestionnaire de fichiers ─────────────────── */
+.rl-file-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
 }
-[data-testid="stMetric"] label {
-  font-size  : var(--rl-text-xs) !important;
-  font-weight: 600 !important;
-  color      : var(--rl-gray-500) !important;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-[data-testid="stMetricValue"] {
-  font-size  : 1.5rem !important;
-  font-weight: 800 !important;
-  color      : var(--rl-blue-500) !important;
+.rl-file-manager .stSelectbox,
+.rl-file-manager .stButton,
+.rl-file-manager .stFileUploader,
+.rl-file-manager .stDownloadButton {
+    width: 100% !important;
 }
 
-/* ── File uploader ───────────────────────────────────────────────────────── */
+ /* ══════════════════════════════════════════════════════════════════════════
+   RÉSOLUTION FINALE - BOUTONS IDENTIQUES ET CENTRÉS ABSOLUS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. On force la boîte sur tous les boutons SAUF le primaire (Assembler) */
+div[data-testid="stButton"] button:not([kind="primary"]),
+div[data-testid="stDownloadButton"] button {
+    border: 1px solid #D0D8E4 !important; /* Force la bordure grise */
+    background-color: #FFFFFF !important; /* Force le fond blanc */
+    border-radius: 8px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important; /* Centrage absolu */
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+}
+
+/* On force le texte interne des boutons à être parfaitement au milieu */
+div[data-testid="stButton"] button:not([kind="primary"]) div,
+div[data-testid="stButton"] button:not([kind="primary"]) p,
+div[data-testid="stDownloadButton"] button div,
+div[data-testid="stDownloadButton"] button p {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    margin: 0 !important;
+    width: 100% !important;
+    color: #1A1A2E !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+}
+
+/* 2. Uploader : même boîte, même centrage absolu */
 [data-testid="stFileUploaderDropzone"] {
-  border        : 1px dashed var(--rl-border-color) !important;
-  border-radius : 8px !important;
-  background    : var(--rl-bg-panel) !important;
-  transition    : var(--rl-transition) !important;
+    border: 1px solid #D0D8E4 !important;
+    background-color: #FFFFFF !important;
+    border-radius: 8px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important; /* Centrage absolu */
+    cursor: pointer !important;
 }
+
+/* On vaporise le contenu natif de l'uploader */
+[data-testid="stFileUploaderDropzone"] > div,
+[data-testid="stFileUploaderDropzone"] button,
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
+}
+
+/* On injecte le texte de l'uploader parfaitement centré */
+[data-testid="stFileUploaderDropzone"]::after {
+    content: "📂 Charger un modèle (.json)" !important;
+    color: #1A1A2E !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    text-align: center !important;
+    width: 100% !important;
+}
+
+/* 3. Effets de survol (Hover) uniformes et professionnels */
+div[data-testid="stButton"] button:not([kind="primary"]):hover,
+div[data-testid="stDownloadButton"] button:hover,
 [data-testid="stFileUploaderDropzone"]:hover {
-  border-color : var(--rl-blue-500) !important;
-  background   : var(--rl-blue-050) !important;
+    border-color: #1F5C8B !important;
+    background-color: #F7F9FC !important;
 }
 
-/* ── CORRECTION GLOBALE : éliminer les cadres des colonnes imbriquées ───── */
-/* Règle universelle, sans portée sur le bloc 5-colonnes principal          */
-div[data-testid="stVerticalBlock"]
-  div[data-testid="stHorizontalBlock"]
-  > div[data-testid="column"]
-  > div[data-testid="stVerticalBlock"] {
-  background : transparent !important;
-  border     : none        !important;
-  box-shadow : none        !important;
-  min-height : unset       !important;
+div[data-testid="stButton"] button:not([kind="primary"]):hover p,
+div[data-testid="stDownloadButton"] button:hover p,
+[data-testid="stFileUploaderDropzone"]:hover::after {
+    color: #1F5C8B !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   CORRECTION BUGS M4 : Nettoyage des sous-colonnes imbriquées
+   ══════════════════════════════════════════════════════════════════════════ */
 
-/* ============================================================================
-   ⑦ UTILITAIRES
-   ============================================================================ */
-.rl-divider {
-  height    : 1px;
-  background: var(--rl-border-color);
-  margin    : 14px 0;
+/* 1. Annule les cadres (borders) pour les st.columns créées À L'INTÉRIEUR des panneaux */
+div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 8px !important;
+    min-height: auto !important;
+    overflow: visible !important; /* Empêche de couper les sliders */
 }
-.rl-spacer-sm { height: 8px; }
-.rl-spacer-md { height: 16px; }
-.rl-spacer-lg { height: 24px; }
 
-/* Texte de couleur sémantique */
-.rl-text-primary { color: var(--rl-blue-500) !important; }
-.rl-text-success { color: var(--rl-green-500) !important; }
-.rl-text-warning { color: var(--rl-orange-500) !important; }
-.rl-text-danger  { color: var(--rl-red-500) !important; }
-.rl-text-muted   { color: var(--rl-gray-500) !important; }
-
-/* Animation d'entrée générique */
-@keyframes rl-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0);   }
+/* 2. Empêche les curseurs rouges des sliders d'être rognés en bas */
+div[data-testid="stSliderTickBar"], 
+div[data-testid="stThumbValue"],
+div[data-baseweb="slider"] {
+    overflow: visible !important;
 }
-.rl-animate-in { animation: rl-fade-in 0.30s ease both; }
+
+/* 3. Donne de l'espace au texte d'aide sous le Grade ISO 1940 */
+[data-testid="stCaptionContainer"] {
+    margin-top: -5px !important;
+    margin-bottom: 10px !important;
+    color: var(--rl-text-muted) !important;
+}
+        
+</style>
+"""
+
