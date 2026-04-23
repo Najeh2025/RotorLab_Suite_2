@@ -667,7 +667,7 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
 
     try:
         genai.configure(api_key=api_key)
-        model_name = st.session_state.get("copilot_model_choice", "gemini-2.0-flash")
+        model_name = st.session_state.get("copilot_model_choice", "gemini-2.5-flash")
 
         system_prompt = (
                 "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
