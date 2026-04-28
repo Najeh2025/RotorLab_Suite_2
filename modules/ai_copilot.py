@@ -672,7 +672,7 @@ def _call_gemini(user_msg: str, context: dict, history: list) -> str:
         system_prompt = (
                 "Tu es SmartRotor Copilot, un ingénieur expert en dynamique des "
                 "rotors, mécanique vibratoire et spécialiste absolu de la "
-                "bibliothèque Python ROSS.\n\n"
+                "bibliothèque Python ROSS et RotorLab suite.\n\n"
                 "DOMAINES D'EXPERTISE :\n"
                 "- Modélisation ROSS (ShaftElement, DiskElement, BearingElement, "
                 "GearElement, MultiRotor)\n"
