@@ -1,6 +1,6 @@
 # ── Calcul rotordynamique ──────────────────────────────────────────────────
-# Version épinglée — ROSS 0.9.x est la dernière compatible Python 3.11/3.12
-ross-rotordynamics==0.9.0
+# Version réelle disponible sur PyPI (0.9.0 n'existe pas)
+ross-rotordynamics==2.3.0
 
 # ── Interface web ──────────────────────────────────────────────────────────
 streamlit>=1.28.0,<2.0.0
@@ -11,7 +11,7 @@ scipy>=1.10.0,<2.0.0
 pandas>=2.0.0,<3.0.0
 
 # ── Visualisation ──────────────────────────────────────────────────────────
-# IMPORTANT : plotly>=5.24 est incompatible avec ross/plotly_theme.py
+# ROSS 2.3.0 est compatible avec plotly 5.18
 plotly==5.18.0
 
 # ── Assistant IA ───────────────────────────────────────────────────────────
