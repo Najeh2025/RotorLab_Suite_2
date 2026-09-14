@@ -1,25 +1,24 @@
-# ── Calcul rotordynamique ──
-ross-rotordynamics
+# ── Calcul rotordynamique ──────────────────────────────────────────────────
+# Version épinglée — ROSS 0.9.x est la dernière compatible Python 3.11/3.12
+ross-rotordynamics==0.9.0
 
-# ── Interface web ──
-streamlit>=1.28.0
+# ── Interface web ──────────────────────────────────────────────────────────
+streamlit>=1.28.0,<2.0.0
 
-# ── Calcul scientifique ──
-numpy>=1.24.0
-scipy>=1.10.0
-pandas>=2.0.0
+# ── Calcul scientifique ────────────────────────────────────────────────────
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<2.0.0
+pandas>=2.0.0,<3.0.0
 
-# ── Visualisation ──
-plotly>=5.17.0
+# ── Visualisation ──────────────────────────────────────────────────────────
+# IMPORTANT : plotly>=5.24 est incompatible avec ross/plotly_theme.py
+plotly>=5.17.0,<5.24.0
 
-# ── Assistant IA (ROSS GPT) ──
+# ── Assistant IA ───────────────────────────────────────────────────────────
 anthropic>=0.20.0
-
-# ── Export ──
-reportlab>=4.0.0   # PDF avancé — activer si nécessaire
-#  ajouter Gemini API
 google-generativeai>=0.7.0
 
-# ajouter Excel
+# ── Export ─────────────────────────────────────────────────────────────────
+reportlab>=4.0.0
 xlsxwriter>=3.0.0
 kaleido==0.2.1
