@@ -3,26 +3,80 @@
 # Pr. Najeh Ben Guedria — ISTLS, Université de Sousse
 # =============================================================================
 
+# =============================================================================
+# RotorLab Suite 2.0 — Application principale
+# =============================================================================
+
 import streamlit as st
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
 from config import APP_NAME, APP_VERSION, APP_AUTHOR, APP_INST, MODEL_TREE
-# En haut du fichier
-#from simulation_layout import render_simulation_mode  # ← remplace l'ancienne
 
-# Rien d'autre à changer — route_to_module et render_model_tree restent inchangés
+# =============================================================================
+# PATCH ROSS / PLOTLY — Compatibilité scattermapbox → scattermap
+# À conserver tant que ROSS n'a pas publié une version corrigée.
+# Ce patch neutralise le crash de ross/plotly_theme.py sur Plotly ≥ 5.20
+# en injectant un faux attribut 'scattermapbox' dans le validateur Plotly
+# avant que ROSS ne tente de créer son template.
+# =============================================================================
+def _patch_plotly_for_ross():
+    """
+    Plotly ≥ 5.20 a supprimé 'scattermapbox' du validateur de template.
+    ROSS utilise encore ce nom dans ross/plotly_theme.py.
+    On injecte la classe manquante pour que la validation passe.
+    """
+    try:
+        import plotly.validators.layout.template._data as _tv
+        from plotly.validators.layout.template._data import DataValidator
+
+        # Si scattermapbox n'est plus dans les props valides, on l'ajoute
+        # en le faisant pointer vers scattermap (alias transparent)
+        original_init = DataValidator.__init__
+
+        def _patched_init(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)
+            # Ajouter scattermapbox comme alias de scattermap si absent
+            if hasattr(self, '_validators') and 'scattermapbox' not in self._validators:
+                if 'scattermap' in self._validators:
+                    self._validators['scattermapbox'] = self._validators['scattermap']
+
+        DataValidator.__init__ = _patched_init
+
+    except Exception:
+        # Si le patch échoue (structure interne différente), on tente
+        # une approche alternative : patcher skip_invalid sur le template
+        try:
+            import plotly.graph_objs as go
+            _orig_template_init = go.layout.Template.__init__
+
+            def _safe_template_init(self, *args, **kwargs):
+                kwargs.setdefault('skip_invalid', True)
+                _orig_template_init(self, *args, **kwargs)
+
+            go.layout.Template.__init__ = _safe_template_init
+        except Exception:
+            pass
+
+
+# Appliquer le patch AVANT d'importer ROSS
+_patch_plotly_for_ross()
+
+# =============================================================================
+# IMPORT ROSS avec fallback gracieux
+# =============================================================================
 try:
     import ross as rs
     ROSS_AVAILABLE = True
     ROSS_VERSION   = getattr(rs, '__version__', 'unknown')
-except ImportError:
+except Exception as _ross_err:
     ROSS_AVAILABLE = False
     ROSS_VERSION   = "non installé"
+    # Affichage différé — st n'est pas encore configuré ici
 
 # =============================================================================
-# CONFIGURATION PAGE
+# CONFIGURATION PAGE  (doit rester après les imports)
 # =============================================================================
 st.set_page_config(
     page_title=APP_NAME,
@@ -31,6 +85,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# Avertissement ROSS affiché après set_page_config
+if not ROSS_AVAILABLE:
+    st.error(
+        "⚠️ ROSS n'a pas pu être importé : `{}`\n\n"
+        "Vérifiez `requirements.txt` et relancez l'app.".format(_ross_err)
+    )
+
 # =============================================================================
 # CSS
 # =============================================================================
@@ -38,12 +99,8 @@ def load_css():
     css_path = Path("styles/theme.css")
     if css_path.exists():
         with open(css_path, encoding="utf-8") as f:
-            st.markdown(
-                "<style>{}</style>".format(f.read()),
-                unsafe_allow_html=True
-            )
-    else:
-        st.warning("⚠️ styles/theme.css introuvable — thème de secours actif.")
+            st.markdown("<style>{}</style>".format(f.read()),
+                        unsafe_allow_html=True)
 
 load_css()
 
