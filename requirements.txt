@@ -12,7 +12,7 @@ pandas>=2.0.0,<3.0.0
 
 # ── Visualisation ──────────────────────────────────────────────────────────
 # IMPORTANT : plotly>=5.24 est incompatible avec ross/plotly_theme.py
-plotly>=5.17.0,<5.24.0
+plotly==5.22.0,<5.24.0
 
 # ── Assistant IA ───────────────────────────────────────────────────────────
 anthropic>=0.20.0
